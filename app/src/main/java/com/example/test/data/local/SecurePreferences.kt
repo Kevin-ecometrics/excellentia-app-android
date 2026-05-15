@@ -42,7 +42,7 @@ class SecurePreferences(context: Context) {
     }
 
     fun clearAll() {
-        prefs.edit().remove(KEY_JWT).remove(KEY_REFRESH_JWT).apply()
+        prefs.edit().remove(KEY_JWT).remove(KEY_REFRESH_JWT).remove(KEY_ACTIVE_CUSTOMER_ID).remove(KEY_ACTIVE_CUSTOMER_NAME).apply()
     }
 
     fun saveBackendUrl(url: String) {
@@ -69,6 +69,18 @@ class SecurePreferences(context: Context) {
 
     fun getPrinterName(): String? = prefs.getString(KEY_PRINTER_NAME, null)?.takeIf { it.isNotBlank() }
 
+    fun setActiveCustomer(id: String, name: String) {
+        prefs.edit().putString(KEY_ACTIVE_CUSTOMER_ID, id).putString(KEY_ACTIVE_CUSTOMER_NAME, name).apply()
+    }
+
+    fun getActiveCustomerId(): String? = prefs.getString(KEY_ACTIVE_CUSTOMER_ID, null)?.takeIf { it.isNotBlank() }
+
+    fun getActiveCustomerName(): String? = prefs.getString(KEY_ACTIVE_CUSTOMER_NAME, null)?.takeIf { it.isNotBlank() }
+
+    fun clearActiveCustomer() {
+        prefs.edit().remove(KEY_ACTIVE_CUSTOMER_ID).remove(KEY_ACTIVE_CUSTOMER_NAME).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "secure_prefs"
         private const val KEY_JWT = "jwt_token"
@@ -77,6 +89,8 @@ class SecurePreferences(context: Context) {
         private const val KEY_OFFLINE_MODE = "offline_mode"
         private const val KEY_PRINTER_ADDRESS = "printer_bt_address"
         private const val KEY_PRINTER_NAME = "printer_bt_name"
+        private const val KEY_ACTIVE_CUSTOMER_ID = "active_customer_id"
+        private const val KEY_ACTIVE_CUSTOMER_NAME = "active_customer_name"
         private const val DEFAULT_BACKEND_URL = "http://10.0.2.2:3000"
     }
 }

@@ -20,6 +20,7 @@ import com.example.test.data.OrderDto
 import com.example.test.data.print.PrintService
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
+import com.example.test.data.network.RetrofitClient
 import com.example.test.data.repository.OrderRepository
 import com.google.android.material.button.MaterialButton
 import com.google.gson.Gson
@@ -42,17 +43,25 @@ class CurrentOrderActivity : AppCompatActivity() {
     private lateinit var tvTotalQty: TextView
     private lateinit var tvTotalItems: TextView
     private lateinit var tvOrderCount: TextView
+    private lateinit var tvCustomerLabel: TextView
     private lateinit var btnViewTicket: MaterialButton
     private lateinit var btnFinalize: MaterialButton
     private lateinit var orderRepository: OrderRepository
+    private lateinit var securePrefs: SecurePreferences
+
+    private var customerId: String? = null
+    private var customerName: String? = null
 
     private val customerPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val customerId = result.data?.getStringExtra("customer_id")
-            val customerName = result.data?.getStringExtra("customer_name")
-            finalizeOrder(customerId, customerName)
+            val id = result.data?.getStringExtra("customer_id") ?: return@registerForActivityResult
+            val name = result.data?.getStringExtra("customer_name") ?: return@registerForActivityResult
+            securePrefs.setActiveCustomer(id, name)
+            customerId = id
+            customerName = name
+            updateCustomerLabel()
         }
     }
 
@@ -68,8 +77,11 @@ class CurrentOrderActivity : AppCompatActivity() {
         }
 
         val db = AppDatabase.getInstance(this)
-        val securePrefs = SecurePreferences(this)
+        securePrefs = SecurePreferences(this)
         orderRepository = OrderRepository(db, securePrefs)
+
+        customerId = securePrefs.getActiveCustomerId()
+        customerName = securePrefs.getActiveCustomerName()
 
         layoutOrderItems = findViewById(R.id.layoutOrderItems)
         layoutEmpty = findViewById(R.id.layoutEmpty)
@@ -85,21 +97,43 @@ class CurrentOrderActivity : AppCompatActivity() {
         tvTotalQty = findViewById(R.id.tvTotalQty)
         tvTotalItems = findViewById(R.id.tvTotalItems)
         tvOrderCount = findViewById(R.id.tvOrderCount)
+        tvCustomerLabel = findViewById(R.id.tvCustomerLabel)
         btnViewTicket = findViewById(R.id.btnViewTicket)
         btnFinalize = findViewById(R.id.btnFinalize)
 
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         btnViewTicket.setOnClickListener { openTicket() }
         btnFinalize.setOnClickListener {
+            if (customerId != null && customerName != null) {
+                finalizeOrder(customerId, customerName)
+            } else {
+                customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
+            }
+        }
+
+        tvCustomerLabel.setOnClickListener {
             customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
         }
 
+        updateCustomerLabel()
         loadOrder()
     }
 
     override fun onResume() {
         super.onResume()
+        customerId = securePrefs.getActiveCustomerId()
+        customerName = securePrefs.getActiveCustomerName()
+        updateCustomerLabel()
         loadOrder()
+    }
+
+    private fun updateCustomerLabel() {
+        if (!customerName.isNullOrBlank()) {
+            tvCustomerLabel.text = "Cliente: $customerName  ·  Toca para cambiar"
+            tvCustomerLabel.visibility = View.VISIBLE
+        } else {
+            tvCustomerLabel.visibility = View.GONE
+        }
     }
 
     private fun loadOrder() {
@@ -128,7 +162,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                 val row = inflater.inflate(R.layout.item_pending_order, layoutOrderItems, false)
                 row.findViewById<TextView>(R.id.tvPendingName).text = order.productName
                 row.findViewById<TextView>(R.id.tvPendingMeta).text =
-                    "${order.barcode}  ·  ${String.format(Locale.US, "$%.2f/lb", order.price)}"
+                    "${order.barcode}  ·  ${String.format(Locale.US, "$%.2f total", order.price * order.quantity)}"
                 row.findViewById<TextView>(R.id.tvPendingQtyTotal).text =
                     String.format(Locale.US, "%.2f lb  =  $%.2f", order.quantity, order.price * order.quantity)
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnEditItem)
@@ -148,80 +182,162 @@ class CurrentOrderActivity : AppCompatActivity() {
     }
 
     private fun showEditDialog(order: com.example.test.data.local.entities.PendingOrderEntity) {
-        val margin = resources.getDimensionPixelSize(R.dimen.padding_screen)
+        lifecycleScope.launch {
+            var minPrice: Double? = null
+            try {
+                val res = RetrofitClient.getApi().getProductByBarcode(order.barcode)
+                if (res.isSuccessful) {
+                    val dto = res.body()?.data
+                    if (dto?.minPrice != null && dto.minPrice > 0) {
+                        minPrice = dto.minPrice
+                    }
+                }
+            } catch (_: Exception) {}
 
-        val etQty = android.widget.EditText(this).apply {
-            setBackgroundResource(R.drawable.bg_edittext)
-            hint = "Cantidad total (lb)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(String.format(Locale.US, "%.2f", order.quantity))
-            selectAll()
-        }
-        val etPrice = android.widget.EditText(this).apply {
-            setBackgroundResource(R.drawable.bg_edittext)
-            hint = "Precio ($/lb)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(String.format(Locale.US, "%.2f", order.price))
-        }
+            val ctx = this@CurrentOrderActivity
+            val margin = ctx.resources.getDimensionPixelSize(R.dimen.padding_screen)
 
-        // Resumen dinámico
-        val tvTotal = android.widget.TextView(this).apply {
-            textSize = 13f
-            setTextColor(resources.getColor(R.color.primary, theme))
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = android.view.Gravity.CENTER
-            setPadding(0, 14, 0, 0)
-        }
-        fun refresh() {
-            val q = etQty.text.toString().toDoubleOrNull() ?: 0.0
-            val p = etPrice.text.toString().toDoubleOrNull() ?: 0.0
-            tvTotal.text = String.format(Locale.US, "%.2f lb  =  \$%.2f", q, q * p)
-        }
-        val w = object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
-            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) { refresh() }
-        }
-        etQty.addTextChangedListener(w)
-        etPrice.addTextChangedListener(w)
-        refresh()
+            val padHoriz = ctx.resources.getDimensionPixelSize(R.dimen.padding_screen)
+            val etQty = android.widget.EditText(ctx).apply {
+                setBackgroundResource(R.drawable.bg_edittext)
+                hint = "Cantidad total (lb)"
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                        android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                setPadding(padHoriz, 12, padHoriz, 12)
+                setText(String.format(Locale.US, "%.2f", order.quantity))
+                selectAll()
+            }
+            val etPrice = android.widget.EditText(ctx).apply {
+                setBackgroundResource(R.drawable.bg_edittext)
+                hint = "Precio total"
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                        android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                setPadding(padHoriz, 12, padHoriz, 12)
+                setText(String.format(Locale.US, "%.2f", order.price * order.quantity))
+            }
 
-        fun label(txt: String) = android.widget.TextView(this).apply {
-            text = txt; textSize = 11f
-            setTextColor(resources.getColor(R.color.text_secondary, theme))
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).also { it.topMargin = 14 }
-        }
+            val tvTotal = android.widget.TextView(ctx).apply {
+                textSize = 13f
+                setTextColor(ctx.resources.getColor(R.color.primary, ctx.theme))
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, 14, 0, 0)
+            }
 
-        val container = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(margin, margin / 2, margin, margin / 2)
-            addView(label("CANTIDAD TOTAL (lb)"))
-            addView(etQty)
-            addView(label("PRECIO ($/lb)"))
-            addView(etPrice)
-            addView(tvTotal)
-        }
+            val tvRate = android.widget.TextView(ctx).apply {
+                textSize = 11f
+                setTextColor(ctx.resources.getColor(R.color.text_secondary, ctx.theme))
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, 4, 0, 0)
+            }
 
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(order.productName)
-            .setView(container)
-            .setPositiveButton("Guardar") { _, _ ->
-                val qty   = etQty.text.toString().toDoubleOrNull()
-                val price = etPrice.text.toString().toDoubleOrNull()
-                if (qty != null && qty > 0 && price != null && price > 0) {
-                    orderRepository.updatePendingOrder(order.id, price, qty)
-                    loadOrder()
-                } else {
-                    android.widget.Toast.makeText(this, "Valores inválidos", android.widget.Toast.LENGTH_SHORT).show()
+            val tvMinWarning = android.widget.TextView(ctx).apply {
+                textSize = 12f
+                setTextColor(ctx.resources.getColor(R.color.red, ctx.theme))
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, 10, 0, 0)
+                visibility = android.view.View.GONE
+            }
+
+            val baseRate = order.price
+            var isUpdating = false
+
+            fun refresh() {
+                val q = etQty.text.toString().toDoubleOrNull() ?: 0.0
+                val p = etPrice.text.toString().toDoubleOrNull() ?: 0.0
+                tvTotal.text = String.format(Locale.US, "%.2f lb  =  \$%.2f", q, p)
+                tvRate.text = if (q > 0 && p > 0)
+                    "($${String.format(Locale.US, "%.2f", p / q)} / lb)" else ""
+                if (minPrice != null && p > 0) {
+                    if (Math.round(p * 100) < Math.round(minPrice * 100)) {
+                        tvMinWarning.text = "Mínimo: $${String.format(Locale.US, "%.2f", minPrice)}"
+                        tvMinWarning.visibility = android.view.View.VISIBLE
+                    } else {
+                        tvMinWarning.visibility = android.view.View.GONE
+                    }
                 }
             }
-            .setNegativeButton("Cancelar", null)
-            .show()
+
+            val qtyWatcher = object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    if (isUpdating) return
+                    isUpdating = true
+                    val q = s.toString().toDoubleOrNull()
+                    if (q != null && q > 0) {
+                        etPrice.setText(String.format(Locale.US, "%.2f", q * baseRate))
+                    }
+                    isUpdating = false
+                    refresh()
+                }
+            }
+
+            val priceWatcher = object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    if (isUpdating) return
+                    isUpdating = true
+                    val p = s.toString().toDoubleOrNull()
+                    if (p != null && p > 0) {
+                        etQty.setText(String.format(Locale.US, "%.2f", p / baseRate))
+                    }
+                    isUpdating = false
+                    refresh()
+                }
+            }
+
+            etQty.addTextChangedListener(qtyWatcher)
+            etPrice.addTextChangedListener(priceWatcher)
+            refresh()
+
+            fun label(txt: String) = android.widget.TextView(ctx).apply {
+                text = txt; textSize = 11f
+                setTextColor(ctx.resources.getColor(R.color.text_secondary, ctx.theme))
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                ).also { it.topMargin = 14 }
+            }
+
+            val container = android.widget.LinearLayout(ctx).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(margin, margin / 2, margin, margin / 2)
+                addView(label("CANTIDAD TOTAL (lb)"))
+                addView(etQty)
+                addView(label("PRECIO TOTAL"))
+                addView(etPrice)
+                addView(tvTotal)
+                addView(tvRate)
+                addView(tvMinWarning)
+            }
+
+            androidx.appcompat.app.AlertDialog.Builder(ctx)
+                .setTitle(order.productName)
+                .setView(container)
+                .setPositiveButton("Guardar") { _, _ ->
+                    val qty   = etQty.text.toString().toDoubleOrNull()
+                    val total = etPrice.text.toString().toDoubleOrNull()
+                    if (qty != null && qty > 0 && total != null && total > 0) {
+                        if (minPrice != null && Math.round(total * 100) < Math.round(minPrice * 100)) {
+                            android.widget.Toast.makeText(
+                                ctx,
+                                "El total no puede ser menor a $${String.format(Locale.US, "%.2f", minPrice)}",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                            return@setPositiveButton
+                        }
+                        val perLb = total / qty
+                        orderRepository.updatePendingOrder(order.id, perLb, qty)
+                        loadOrder()
+                    } else {
+                        android.widget.Toast.makeText(ctx, "Valores inválidos", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton("Cancelar", null)
+                .show()
+        }
     }
 
     private fun confirmDelete(id: Int, name: String) {
@@ -250,7 +366,9 @@ class CurrentOrderActivity : AppCompatActivity() {
                     price = order.price,
                     quantity = order.quantity,
                     total = order.price * order.quantity,
-                    status = "PENDING"
+                    status = "PENDING",
+                    customerId = customerId,
+                    customerName = customerName
                 )
             }
             startActivity(Intent(this@CurrentOrderActivity, TicketDetailActivity::class.java).apply {
@@ -296,7 +414,6 @@ class CurrentOrderActivity : AppCompatActivity() {
 
     private fun finalizeOrder(customerId: String?, customerName: String?) {
         lifecycleScope.launch {
-            // Mostrar loading
             layoutLoading.visibility = View.VISIBLE
             setStep(1)
             tvLoadingTitle.text = "Enviando pedido..."
@@ -324,13 +441,13 @@ class CurrentOrderActivity : AppCompatActivity() {
 
             val result = orderRepository.sendBatch(items, customerId, customerName)
             result.onSuccess { response ->
-                val sentCount = response.orders.count { it.status == "SENT" }
                 setStep(2)
                 tvLoadingTitle.text = "Generando factura..."
                 tvLoadingSubtitle.text = "Factura QB: ${response.invoiceId ?: "—"}"
                 orderRepository.clearPending()
 
-                // Print ticket via Bluetooth if printer is configured
+                securePrefs.clearActiveCustomer()
+
                 val printerAddress = SecurePreferences(this@CurrentOrderActivity).getPrinterAddress()
                 if (!printerAddress.isNullOrBlank()) {
                     setStep(3)
@@ -371,7 +488,9 @@ class CurrentOrderActivity : AppCompatActivity() {
                                     price = bi.price,
                                     quantity = bi.quantity,
                                     total = bi.total,
-                                    status = "SENT"
+                                    status = "SENT",
+                                    customerId = customerId,
+                                    customerName = customerName
                                 )
                             }
                         ))

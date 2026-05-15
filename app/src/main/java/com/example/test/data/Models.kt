@@ -48,6 +48,7 @@ data class ProductDto(
     val barcode: String?,
     val name: String,
     val price: Double,
+    @SerializedName("min_price") val minPrice: Double? = null,
     @SerializedName("qb_item_id") val qbItemId: String? = null,
     val category: String? = null,
     val brand: String? = null,
@@ -164,4 +165,27 @@ data class BatchResponse(
     @SerializedName("batchId") val batchId: String,
     @SerializedName("invoiceId") val invoiceId: String? = null,
     val orders: List<OrderResponse>
+)
+
+// ── Price History Models ──
+
+data class ProductHistoryInfo(
+    val name: String,
+    val barcode: String?,
+    val price: Double,
+    @SerializedName("min_price") val minPrice: Double? = null
+)
+
+data class PriceHistoryItem(
+    val price: Double,
+    val quantity: Double,
+    val total: Double?,
+    @SerializedName("batch_id") val batchId: String? = null,
+    @SerializedName("invoice_id") val invoiceId: String? = null,
+    val date: String? = null
+)
+
+data class PriceHistoryResponse(
+    val product: ProductHistoryInfo?,
+    val history: List<PriceHistoryItem>
 )

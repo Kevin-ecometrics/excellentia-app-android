@@ -99,7 +99,8 @@
                         android:background="@drawable/bg_input_login"
                         android:hint="http://192.168.0.131:3000"
                         android:inputType="textUri"
-                        android:paddingHorizontal="14dp"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="12dp"
                         android:textColor="#111827"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -121,7 +122,8 @@
                     android:background="@drawable/bg_input_login"
                     android:hint="usuario@excellentia.com"
                     android:inputType="textEmailAddress"
-                    android:paddingHorizontal="14dp"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="12dp"
                     android:textColor="#111827"
                     android:textColorHint="#9CA3AF"
                     android:textSize="14sp" />
@@ -155,6 +157,8 @@
                         android:background="@null"
                         android:hint="••••••••"
                         android:inputType="textPassword"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="12dp"
                         android:textColor="#111827"
                         android:textColorHint="#9CA3AF"
                         android:textSize="14sp" />

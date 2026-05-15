@@ -39,5 +39,9 @@ interface ApiService {
     @GET("api/customers")
     suspend fun getCustomers(): Response<QbCustomersResponse>
 
-
+    @GET("api/products/{barcode}/history")
+    suspend fun getProductPriceHistory(
+        @Path("barcode") barcode: String,
+        @Query("customer_id") customerId: String
+    ): Response<PriceHistoryResponse>
 }

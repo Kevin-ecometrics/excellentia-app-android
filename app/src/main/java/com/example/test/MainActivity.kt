@@ -1,6 +1,7 @@
 package com.example.test
 
 import android.Manifest
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -29,6 +30,8 @@ import com.example.test.data.repository.OrderRepository
 import com.example.test.data.sync.SyncWorker
 import com.example.test.data.sync.OrderStatusWorker
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -55,10 +58,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvLastProduct: TextView
     private lateinit var tvLastTime: TextView
     private lateinit var tvHoldState: TextView
+    private lateinit var tvCustomerName: TextView
     private lateinit var btnScan: View
     private lateinit var btnHoldScan: View
     private lateinit var btnManualEntry: View
+    private lateinit var btnSelectCustomer: MaterialButton
+    private lateinit var btnChangeCustomer: MaterialButton
     private lateinit var layoutLastScan: View
+    private lateinit var layoutCustomerCard: MaterialCardView
+    private lateinit var layoutSelectCustomer: MaterialCardView
     private lateinit var bottomNav: BottomNavigationView
 
     private var isScanning = false
@@ -68,6 +76,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var securePrefs: SecurePreferences
     private lateinit var productRepository: ProductRepository
     private lateinit var orderRepository: OrderRepository
+
+    private val customerPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val customerId = result.data?.getStringExtra("customer_id") ?: return@registerForActivityResult
+            val customerName = result.data?.getStringExtra("customer_name") ?: return@registerForActivityResult
+            securePrefs.setActiveCustomer(customerId, customerName)
+            updateCustomerUi()
+        }
+    }
 
     private val sessionExpiredReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -140,6 +159,7 @@ class MainActivity : AppCompatActivity() {
         registerReceiver()
         setupDataWedge()
         updateLastScan()
+        updateCustomerUi()
     }
 
     override fun onResume() {
@@ -153,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         }
         updateBadge()
         resetScanState()
-        // Reset bottom nav to scanner tab
+        updateCustomerUi()
         bottomNav.selectedItemId = R.id.nav_scanner
     }
 
@@ -184,6 +204,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateCustomerUi() {
+        val customerId = securePrefs.getActiveCustomerId()
+        val customerName = securePrefs.getActiveCustomerName()
+
+        if (customerId != null && customerName != null) {
+            layoutCustomerCard.visibility = View.VISIBLE
+            layoutSelectCustomer.visibility = View.GONE
+            tvCustomerName.text = customerName
+            enableScanning(true)
+        } else {
+            layoutCustomerCard.visibility = View.GONE
+            layoutSelectCustomer.visibility = View.VISIBLE
+            enableScanning(false)
+        }
+    }
+
+    private fun enableScanning(enabled: Boolean) {
+        btnHoldScan.isEnabled = enabled
+        btnHoldScan.alpha = if (enabled) 1f else 0.4f
+        btnManualEntry.isEnabled = enabled
+        btnManualEntry.alpha = if (enabled) 1f else 0.4f
+        tvScanPrompt.text = if (enabled) "Listo para escanear" else "Selecciona un cliente primero"
+    }
+
     private fun initViews() {
         viewStatusDot   = findViewById(R.id.viewStatusDot)
         tvStatus        = findViewById(R.id.tvStatus)
@@ -192,29 +236,39 @@ class MainActivity : AppCompatActivity() {
         tvLastProduct   = findViewById(R.id.tvLastProduct)
         tvLastTime      = findViewById(R.id.tvLastTime)
         tvHoldState     = findViewById(R.id.tvHoldState)
+        tvCustomerName  = findViewById(R.id.tvCustomerName)
         btnScan         = findViewById(R.id.btnScan)
         btnHoldScan     = findViewById(R.id.btnHoldScan)
         btnManualEntry  = findViewById(R.id.btnManualEntry)
         layoutLastScan  = findViewById(R.id.layoutLastScan)
         bottomNav       = findViewById(R.id.bottomNav)
+        layoutCustomerCard = findViewById(R.id.layoutCustomerCard)
+        layoutSelectCustomer = findViewById(R.id.layoutSelectCustomer)
+        btnSelectCustomer = findViewById(R.id.btnSelectCustomer)
+        btnChangeCustomer = findViewById(R.id.btnChangeCustomer)
 
-        // Scan circle tap = toggle soft scan
         btnHoldScan.setOnClickListener { toggleScan() }
         btnScan.setOnClickListener { showGuide() }
         btnManualEntry.setOnClickListener { showManualEntryDialog() }
+
+        btnSelectCustomer.setOnClickListener {
+            customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
+        }
+        btnChangeCustomer.setOnClickListener {
+            customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
+        }
 
         layoutLastScan.setOnClickListener {
             val lastBarcode = tvLastBarcode.text.toString()
             if (lastBarcode.isNotEmpty()) openDetail(lastBarcode)
         }
 
-        // Bottom navigation
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_scanner -> true // already here
+                R.id.nav_scanner -> true
                 R.id.nav_order -> {
                     startActivity(Intent(this, CurrentOrderActivity::class.java))
-                    false // don't change selected (we're back here on resume)
+                    false
                 }
                 R.id.nav_history -> {
                     startActivity(Intent(this, HistoryActivity::class.java))
@@ -392,6 +446,8 @@ class MainActivity : AppCompatActivity() {
                     putExtra("PRODUCT_NAME", product.name)
                     putExtra("PRODUCT_PRICE", product.price)
                     putExtra("QUANTITY", initialQty)
+                    putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
+                    putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
                 }
             )
         }
@@ -416,6 +472,7 @@ class MainActivity : AppCompatActivity() {
         val margin = resources.getDimensionPixelSize(R.dimen.padding_screen)
         val etBarcode = EditText(this).apply {
             setBackgroundResource(R.drawable.bg_edittext)
+            setPadding(margin, 12, margin, 12)
             hint = getString(R.string.hint_barcode)
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }

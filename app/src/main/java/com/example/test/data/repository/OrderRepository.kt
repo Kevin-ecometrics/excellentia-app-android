@@ -121,4 +121,17 @@ class OrderRepository(
             return@withContext Result.failure(e)
         }
     }
+
+    suspend fun getProductPriceHistory(barcode: String, customerId: String): Result<PriceHistoryResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = RetrofitClient.getApi().getProductPriceHistory(barcode, customerId)
+            if (response.isSuccessful && response.body() != null) {
+                return@withContext Result.success(response.body()!!)
+            } else {
+                return@withContext Result.failure(Exception("Error: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            return@withContext Result.failure(e)
+        }
+    }
 }

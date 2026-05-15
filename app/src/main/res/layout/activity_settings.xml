@@ -122,7 +122,8 @@
                             android:background="@drawable/bg_edittext"
                             android:hint="http://192.168.1.100:3000"
                             android:inputType="textUri"
-                            android:paddingHorizontal="14dp"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="12dp"
                             android:textSize="14sp" />
 
                         <TextView
@@ -143,7 +144,8 @@
                             android:background="@drawable/bg_edittext"
                             android:hint="@string/hint_jwt"
                             android:inputType="textVisiblePassword"
-                            android:paddingHorizontal="14dp"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="12dp"
                             android:textSize="14sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
