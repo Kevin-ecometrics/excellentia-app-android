@@ -9,11 +9,11 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.EditText
-import android.widget.ImageButton
+import com.google.android.material.appbar.MaterialToolbar
 import android.widget.RadioGroup
-import android.widget.Switch
+import androidx.appcompat.widget.SwitchCompat
 import android.widget.TextView
-import android.widget.Toast
+import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -38,29 +38,27 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etJwtToken: EditText
     private lateinit var tvPrinterName: TextView
     private lateinit var radioScannerMode: RadioGroup
-    private lateinit var switchOffline: Switch
+    private lateinit var switchOffline: SwitchCompat
     private lateinit var btnSave: MaterialButton
     private lateinit var btnLogout: MaterialButton
     private lateinit var btnSelectPrinter: MaterialButton
     private lateinit var btnTestPrinter: MaterialButton
-    private lateinit var btnBack: ImageButton
     private lateinit var securePrefs: SecurePreferences
 
     private val btPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) showBluetoothDevicePicker()
-        else Toast.makeText(this, "Permiso Bluetooth requerido", Toast.LENGTH_SHORT).show()
+        else Snackbar.make(findViewById(android.R.id.content), "Permiso Bluetooth requerido", Snackbar.LENGTH_SHORT).show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_settings)
-        val pad = resources.getDimensionPixelSize(R.dimen.padding_screen)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(b.left + pad, b.top + pad, b.right + pad, b.bottom + pad)
+            v.setPadding(b.left, 0, b.right, b.bottom)
             insets
         }
 
@@ -75,9 +73,7 @@ class SettingsActivity : AppCompatActivity() {
         btnLogout = findViewById(R.id.btnLogout)
         btnSelectPrinter = findViewById(R.id.btnSelectPrinter)
         btnTestPrinter = findViewById(R.id.btnTestPrinter)
-        btnBack = findViewById(R.id.btnBack)
-
-        btnBack.setOnClickListener { finish() }
+        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         btnSave.setOnClickListener { saveSettings() }
         btnLogout.setOnClickListener { logout() }
         btnSelectPrinter.setOnClickListener { requestBluetoothAndPick() }
@@ -136,8 +132,7 @@ class SettingsActivity : AppCompatActivity() {
         val mode = if (radioScannerMode.checkedRadioButtonId == R.id.rbEMDK) "emdk" else "datawedge"
         prefs.edit().putString(KEY_SCANNER_MODE, mode).apply()
 
-        Toast.makeText(this, "Ajustes guardados", Toast.LENGTH_SHORT).show()
-        finish()
+        Snackbar.make(findViewById(android.R.id.content), "Ajustes guardados", Snackbar.LENGTH_SHORT).show()
     }
 
     private fun requestBluetoothAndPick() {
@@ -154,19 +149,19 @@ class SettingsActivity : AppCompatActivity() {
     private fun showBluetoothDevicePicker() {
         val adapter = getSystemService(BluetoothManager::class.java)?.adapter
         if (adapter == null || !adapter.isEnabled) {
-            Toast.makeText(this, "Activa el Bluetooth del dispositivo", Toast.LENGTH_SHORT).show()
+            Snackbar.make(findViewById(android.R.id.content), "Activa el Bluetooth del dispositivo", Snackbar.LENGTH_SHORT).show()
             return
         }
 
         val paired = adapter.bondedDevices.toList()
         if (paired.isEmpty()) {
-            Toast.makeText(this, "No hay dispositivos emparejados. Empareja la ZQ630 en Ajustes → Bluetooth.", Toast.LENGTH_LONG).show()
+            Snackbar.make(findViewById(android.R.id.content), "No hay dispositivos emparejados. Empareja la ZQ630 en Ajustes → Bluetooth.", Snackbar.LENGTH_LONG).show()
             return
         }
 
         val names = paired.map { "${it.name ?: "Desconocido"}  (${it.address})" }.toTypedArray()
 
-        AlertDialog.Builder(this)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Seleccionar impresora")
             .setItems(names) { _, index ->
                 val device = paired[index]
@@ -174,7 +169,7 @@ class SettingsActivity : AppCompatActivity() {
                 securePrefs.savePrinterName(device.name ?: device.address)
                 tvPrinterName.text = device.name ?: device.address
                 tvPrinterName.setTextColor(getColor(R.color.text_primary))
-                Toast.makeText(this, "Impresora seleccionada: ${device.name}", Toast.LENGTH_SHORT).show()
+                Snackbar.make(findViewById(android.R.id.content), "Impresora: ${device.name}", Snackbar.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancelar", null)
             .show()
@@ -183,7 +178,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun testPrinter() {
         val address = securePrefs.getPrinterAddress()
         if (address.isNullOrBlank()) {
-            Toast.makeText(this, "Selecciona una impresora primero", Toast.LENGTH_SHORT).show()
+            Snackbar.make(findViewById(android.R.id.content), "Selecciona una impresora primero", Snackbar.LENGTH_SHORT).show()
             return
         }
         btnTestPrinter.isEnabled = false
@@ -192,9 +187,9 @@ class SettingsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val result = PrintService.printTest(this@SettingsActivity, address)
             result.onSuccess {
-                Toast.makeText(this@SettingsActivity, "✓ Página de prueba enviada", Toast.LENGTH_SHORT).show()
+                Snackbar.make(findViewById(android.R.id.content), "✓ Página de prueba enviada", Snackbar.LENGTH_SHORT).show()
             }.onFailure { e ->
-                Toast.makeText(this@SettingsActivity, "Error: ${e.localizedMessage ?: "No se pudo conectar"}", Toast.LENGTH_LONG).show()
+                Snackbar.make(findViewById(android.R.id.content), "Error: ${e.localizedMessage ?: "No se pudo conectar"}", Snackbar.LENGTH_LONG).show()
             }
             btnTestPrinter.isEnabled = true
             btnTestPrinter.text = "Imprimir página de prueba"

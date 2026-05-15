@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var viewStatusDot: View
     private lateinit var tvStatus: TextView
+    private lateinit var bannerOffline: View
     private lateinit var tvScanPrompt: TextView
     private lateinit var tvLastBarcode: TextView
     private lateinit var tvLastProduct: TextView
@@ -137,10 +138,14 @@ class MainActivity : AppCompatActivity() {
 
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        val pad = resources.getDimensionPixelSize(R.dimen.padding_screen)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(b.left + pad, b.top, b.right + pad, b.bottom)
+            v.setPadding(b.left, b.top, b.right, 0)
+            insets
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bottomNav)) { v, insets ->
+            val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(0, 0, 0, b.bottom)
             insets
         }
 
@@ -175,6 +180,7 @@ class MainActivity : AppCompatActivity() {
         resetScanState()
         updateCustomerUi()
         bottomNav.selectedItemId = R.id.nav_scanner
+        bannerOffline.visibility = if (securePrefs.isOfflineMode()) View.VISIBLE else View.GONE
     }
 
     override fun onDestroy() {
@@ -231,6 +237,7 @@ class MainActivity : AppCompatActivity() {
     private fun initViews() {
         viewStatusDot   = findViewById(R.id.viewStatusDot)
         tvStatus        = findViewById(R.id.tvStatus)
+        bannerOffline   = findViewById(R.id.bannerOffline)
         tvScanPrompt    = findViewById(R.id.tvScanPrompt)
         tvLastBarcode   = findViewById(R.id.tvLastBarcode)
         tvLastProduct   = findViewById(R.id.tvLastProduct)
@@ -409,7 +416,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showGuide() {
-        AlertDialog.Builder(this)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Configurar escáner DataWedge")
             .setMessage(
                 "Para usar el escáner físico del Zebra:\n\n" +
@@ -454,7 +461,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showProductNotFound(barcode: String) {
-        AlertDialog.Builder(this)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Producto no encontrado")
             .setMessage("El código \"$barcode\" no existe en el catálogo.\n\nVerifica que el producto esté registrado en el sistema.")
             .setPositiveButton("Reintentar") { _, _ -> showManualEntryDialog() }
@@ -469,23 +476,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showManualEntryDialog() {
-        val margin = resources.getDimensionPixelSize(R.dimen.padding_screen)
-        val etBarcode = EditText(this).apply {
-            setBackgroundResource(R.drawable.bg_edittext)
-            setPadding(margin, 12, margin, 12)
-            hint = getString(R.string.hint_barcode)
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-        }
-        val container = android.widget.FrameLayout(this).apply {
-            setPadding(margin, margin / 2, margin, margin / 2)
-            addView(etBarcode, android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-            ))
-        }
-        AlertDialog.Builder(this)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_manual_entry, null)
+        val etBarcode = dialogView.findViewById<android.widget.EditText>(R.id.etBarcode)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Ingresar código de barras")
-            .setView(container)
+            .setView(dialogView)
             .setPositiveButton("Buscar") { _, _ ->
                 val barcode = etBarcode.text.toString().trim()
                 if (barcode.isNotEmpty()) openDetail(barcode)

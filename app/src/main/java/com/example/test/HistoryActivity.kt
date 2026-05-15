@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.ImageButton
+import com.google.android.material.appbar.MaterialToolbar
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
@@ -19,6 +19,7 @@ import com.example.test.data.local.SecurePreferences
 import com.example.test.data.repository.OrderRepository
 import com.example.test.data.ScanEntry
 import com.example.test.data.SyncStatus
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.chip.ChipGroup
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
@@ -29,6 +30,7 @@ class HistoryActivity : AppCompatActivity() {
     private lateinit var chipGroup: ChipGroup
     private lateinit var layoutEntries: LinearLayout
     private lateinit var layoutEmpty: View
+    private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var orderRepository: OrderRepository
     private var currentFilter = "ALL"
 
@@ -36,10 +38,9 @@ class HistoryActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_history)
-        val pad = resources.getDimensionPixelSize(R.dimen.padding_screen)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(b.left + pad, b.top + pad, b.right + pad, b.bottom + pad)
+            v.setPadding(b.left, 0, b.right, b.bottom)
             insets
         }
 
@@ -50,8 +51,11 @@ class HistoryActivity : AppCompatActivity() {
         chipGroup = findViewById(R.id.chipGroup)
         layoutEntries = findViewById(R.id.layoutEntries)
         layoutEmpty = findViewById(R.id.layoutEmpty)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        swipeRefresh.setColorSchemeColors(getColor(R.color.primary))
+        swipeRefresh.setOnRefreshListener { loadHistory() }
 
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
 
         chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
             currentFilter = when {
@@ -74,6 +78,7 @@ class HistoryActivity : AppCompatActivity() {
 
     private fun loadHistory() {
         lifecycleScope.launch {
+            try {
             val localPending = orderRepository.getPendingOrders()
             val remoteResult = orderRepository.getRemoteOrders()
 
@@ -122,6 +127,9 @@ class HistoryActivity : AppCompatActivity() {
                 val headerView = inflater.inflate(R.layout.item_batch_header, layoutEntries, false)
                 bindBatchHeader(headerView, batchId, orders, orders.firstOrNull()?.qbInvoiceId)
                 layoutEntries.addView(headerView)
+            }
+            } finally {
+                swipeRefresh.isRefreshing = false
             }
         }
     }

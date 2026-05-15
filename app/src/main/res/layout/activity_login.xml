@@ -3,10 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="@color/background"
     android:orientation="vertical">
 
-    <!-- Scrollable content (ocupa todo menos el status bar) -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -23,29 +22,28 @@
             android:paddingHorizontal="28dp"
             android:paddingVertical="40dp">
 
-            <!-- Logo icon -->
+            <!-- Logo -->
             <FrameLayout
-                android:layout_width="80dp"
-                android:layout_height="80dp"
+                android:layout_width="84dp"
+                android:layout_height="84dp"
                 android:background="@drawable/bg_circle_translucent">
 
                 <ImageView
-                    android:layout_width="46dp"
-                    android:layout_height="46dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_gravity="center"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_scan_display"
                     app:tint="@color/primary" />
             </FrameLayout>
 
-            <!-- App name -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="18dp"
                 android:letterSpacing="0.12"
                 android:text="EXCELLENTIA"
-                android:textColor="#111827"
+                android:textColor="@color/text_primary"
                 android:textSize="26sp"
                 android:textStyle="bold" />
 
@@ -54,7 +52,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="Iniciar sesión"
-                android:textColor="#6B7280"
+                android:textColor="@color/text_secondary"
                 android:textSize="14sp" />
 
             <!-- Form -->
@@ -64,185 +62,164 @@
                 android:layout_marginTop="36dp"
                 android:orientation="vertical">
 
-                <!-- Server config (expandable) -->
+                <!-- Server config toggle -->
                 <TextView
                     android:id="@+id/tvServerToggle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="12dp"
                     android:drawablePadding="6dp"
                     android:text="⚙  Configurar servidor"
-                    android:textColor="#9CA3AF"
+                    android:textColor="@color/text_secondary"
                     android:textSize="12sp" />
 
+                <!-- Server URL (expandable) -->
                 <LinearLayout
                     android:id="@+id/layoutServer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="8dp"
                     android:orientation="vertical"
                     android:visibility="gone">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="6dp"
-                        android:text="URL del servidor"
-                        android:textColor="#374151"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <EditText
-                        android:id="@+id/etBackendUrl"
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
-                        android:layout_height="50dp"
-                        android:background="@drawable/bg_input_login"
-                        android:hint="http://192.168.0.131:3000"
-                        android:inputType="textUri"
-                        android:paddingHorizontal="16dp"
-                        android:paddingVertical="12dp"
-                        android:textColor="#111827"
-                        android:textSize="13sp" />
+                        android:layout_height="wrap_content"
+                        android:hint="URL del servidor">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etBackendUrl"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textUri"
+                            android:textSize="13sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
                 <!-- Email -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="6dp"
-                    android:text="Email"
-                    android:textColor="#374151"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <EditText
-                    android:id="@+id/etEmail"
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilEmail"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:background="@drawable/bg_input_login"
-                    android:hint="usuario@excellentia.com"
-                    android:inputType="textEmailAddress"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="12dp"
-                    android:textColor="#111827"
-                    android:textColorHint="#9CA3AF"
-                    android:textSize="14sp" />
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp"
+                    android:hint="Email">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etEmail"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textEmailAddress"
+                        android:textSize="14sp" />
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Password -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="6dp"
-                    android:text="Password"
-                    android:textColor="#374151"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <LinearLayout
-                    android:id="@+id/layoutPassword"
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:background="@drawable/bg_input_login"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="4dp">
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:hint="Contraseña"
+                    app:endIconMode="password_toggle">
 
-                    <EditText
+                    <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etPassword"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:background="@null"
-                        android:hint="••••••••"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
                         android:inputType="textPassword"
-                        android:paddingHorizontal="16dp"
-                        android:paddingVertical="12dp"
-                        android:textColor="#111827"
-                        android:textColorHint="#9CA3AF"
                         android:textSize="14sp" />
-
-                    <ImageButton
-                        android:id="@+id/btnTogglePassword"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="Mostrar contraseña"
-                        android:src="@drawable/ic_eye" />
-                </LinearLayout>
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Error card -->
-                <LinearLayout
+                <com.google.android.material.card.MaterialCardView
                     android:id="@+id/layoutError"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
-                    android:background="@drawable/bg_chip_pending"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="14dp"
-                    android:visibility="gone">
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_marginEnd="10dp"
-                        android:importantForAccessibility="no"
-                        android:src="@drawable/ic_check_circle"
-                        app:tint="@color/red" />
+                    android:visibility="gone"
+                    app:cardBackgroundColor="@color/error_light"
+                    app:cardCornerRadius="10dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/red"
+                    app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="14dp">
 
-                        <TextView
-                            android:id="@+id/tvErrorTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Credenciales inválidas"
-                            android:textColor="@color/red"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="10dp"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_check_circle"
+                            app:tint="@color/red" />
 
-                        <TextView
-                            android:id="@+id/tvErrorSub"
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Verifica tu email y contraseña"
-                            android:textColor="@color/red"
-                            android:textSize="11sp" />
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvErrorTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Credenciales inválidas"
+                                android:textColor="@color/red"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvErrorSub"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Verifica tu email y contraseña"
+                                android:textColor="@color/red"
+                                android:textSize="11sp" />
+                        </LinearLayout>
                     </LinearLayout>
-                </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                <!-- Warning card (offline / server error) -->
-                <LinearLayout
+                <!-- Warning card -->
+                <com.google.android.material.card.MaterialCardView
                     android:id="@+id/layoutWarning"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
-                    android:background="@drawable/bg_chip_pending"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="14dp"
-                    android:visibility="gone">
+                    android:visibility="gone"
+                    app:cardBackgroundColor="@color/warning_light"
+                    app:cardCornerRadius="10dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/warning"
+                    app:strokeWidth="1dp">
 
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_marginEnd="10dp"
-                        android:importantForAccessibility="no"
-                        android:src="@drawable/ic_cloud"
-                        app:tint="@color/warning" />
-
-                    <TextView
-                        android:id="@+id/tvWarning"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textColor="@color/warning"
-                        android:textSize="12sp" />
-                </LinearLayout>
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="14dp">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="10dp"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_cloud"
+                            app:tint="@color/warning" />
+
+                        <TextView
+                            android:id="@+id/tvWarning"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/warning"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
                 <!-- LOGIN button -->
                 <com.google.android.material.button.MaterialButton
@@ -252,13 +229,13 @@
                     android:layout_marginTop="20dp"
                     android:letterSpacing="0.06"
                     android:text="LOGIN"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/white"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    app:backgroundTint="#111827"
-                    app:cornerRadius="10dp" />
+                    app:backgroundTint="@color/primary"
+                    app:cornerRadius="12dp" />
 
-                <!-- Reintentar button (hidden by default) -->
+                <!-- Reintentar button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRetry"
                     style="@style/Widget.Material3.Button.OutlinedButton"
@@ -281,28 +258,29 @@
                     android:orientation="vertical"
                     android:visibility="gone">
 
-                    <ProgressBar
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:indeterminateTint="@color/primary" />
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        style="@style/Widget.Material3.CircularProgressIndicator.Small"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:indeterminate="true" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:text="Verificando credenciales..."
-                        android:textColor="#6B7280"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
 
-    <!-- Status bar — fijo en la parte inferior -->
+    <!-- Status bar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#F9FAFB"
+        android:background="@color/surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="28dp"
@@ -313,7 +291,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Estado del servidor"
-            android:textColor="#6B7280"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp" />
 
         <View
@@ -329,20 +307,19 @@
             android:layout_height="wrap_content"
             android:letterSpacing="0.04"
             android:text="COMPROBANDO"
-            android:textColor="#6B7280"
+            android:textColor="@color/text_secondary"
             android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Versión -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#F9FAFB"
+        android:background="@color/surface"
         android:gravity="center"
         android:paddingBottom="12dp"
         android:text="v1.2.0"
-        android:textColor="#D1D5DB"
+        android:textColor="@color/light_gray"
         android:textSize="11sp" />
 
 </LinearLayout>

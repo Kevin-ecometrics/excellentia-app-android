@@ -5,7 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
+import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -30,10 +30,9 @@ class TicketDetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_ticket_detail)
-        val pad = resources.getDimensionPixelSize(R.dimen.padding_screen)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(b.left + pad, b.top + pad, b.right + pad, b.bottom + pad)
+            v.setPadding(b.left, 0, b.right, b.bottom)
             insets
         }
 
@@ -106,7 +105,8 @@ class TicketDetailActivity : AppCompatActivity() {
             else -> tvStatus.visibility = View.GONE
         }
 
-        findViewById<android.widget.ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+            .setNavigationOnClickListener { finish() }
 
         // Botón reimprimir — visible solo si hay impresora configurada
         val btnReprint = findViewById<MaterialButton>(R.id.btnReprint)
@@ -135,9 +135,9 @@ class TicketDetailActivity : AppCompatActivity() {
                         invoiceId = invoiceId
                     )
                     result.onSuccess {
-                        Toast.makeText(this@TicketDetailActivity, "Ticket enviado a la impresora", Toast.LENGTH_SHORT).show()
+                        Snackbar.make(findViewById(android.R.id.content), "Ticket enviado a la impresora", Snackbar.LENGTH_SHORT).show()
                     }.onFailure { e ->
-                        Toast.makeText(this@TicketDetailActivity, "Error al imprimir: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        Snackbar.make(findViewById(android.R.id.content), "Error al imprimir: ${e.localizedMessage}", Snackbar.LENGTH_LONG).show()
                     }
                     btnReprint.isEnabled = true
                     btnReprint.text = "Reimprimir ticket"

@@ -2,10 +2,10 @@ package com.example.test
 
 import android.os.Bundle
 import android.view.View
-import android.widget.ImageButton
+import com.google.android.material.appbar.MaterialToolbar
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
+import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -41,7 +41,6 @@ class ProductDetailActivity : AppCompatActivity() {
     private lateinit var layoutHistory: LinearLayout
     private lateinit var cardWeights: View
     private lateinit var cardHistory: MaterialCardView
-    private lateinit var btnBack: ImageButton
     private lateinit var btnUnitMinus: MaterialButton
     private lateinit var btnUnitPlus: MaterialButton
     private lateinit var btnAddOrder: MaterialButton
@@ -63,10 +62,9 @@ class ProductDetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_product_detail)
-        val pad = resources.getDimensionPixelSize(R.dimen.padding_screen)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(b.left + pad, b.top + pad, b.right + pad, b.bottom + pad)
+            v.setPadding(b.left, 0, b.right, b.bottom)
             insets
         }
 
@@ -99,13 +97,12 @@ class ProductDetailActivity : AppCompatActivity() {
         layoutHistory = findViewById(R.id.layoutHistory)
         cardWeights = findViewById(R.id.cardWeights)
         cardHistory = findViewById(R.id.cardHistory)
-        btnBack = findViewById(R.id.btnBack)
         btnUnitMinus = findViewById(R.id.btnUnitMinus)
         btnUnitPlus = findViewById(R.id.btnUnitPlus)
         btnAddOrder = findViewById(R.id.btnAddOrder)
         btnViewHistory = findViewById(R.id.btnViewHistory)
 
-        btnBack.setOnClickListener { finish() }
+        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
 
         btnUnitMinus.setOnClickListener {
             if (units > 1) {
@@ -229,25 +226,13 @@ class ProductDetailActivity : AppCompatActivity() {
     }
 
     private fun showWeightDialog(index: Int) {
-        val margin = resources.getDimensionPixelSize(R.dimen.padding_screen)
-        val input = android.widget.EditText(this).apply {
-            setBackgroundResource(R.drawable.bg_edittext)
-            setPadding(margin, 12, margin, 12)
-            setText(String.format(Locale.US, "%.2f", weights[index]))
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            selectAll()
-        }
-        val container = android.widget.FrameLayout(this).apply {
-            setPadding(margin, margin / 2, margin, margin / 2)
-            addView(input, android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-            ))
-        }
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_edit_weight, null)
+        val input = dialogView.findViewById<android.widget.EditText>(R.id.etWeight)
+        input.setText(String.format(Locale.US, "%.2f", weights[index]))
+        input.selectAll()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Peso unidad ${index + 1}")
-            .setView(container)
+            .setView(dialogView)
             .setPositiveButton("OK") { _, _ ->
                 val qty = input.text.toString().toDoubleOrNull()
                 if (qty != null && qty > 0) {
@@ -284,35 +269,22 @@ class ProductDetailActivity : AppCompatActivity() {
     }
 
     private fun showPriceEditDialog() {
-        val margin = resources.getDimensionPixelSize(R.dimen.padding_screen)
-        val etPrice = android.widget.EditText(this).apply {
-            setBackgroundResource(R.drawable.bg_edittext)
-            setPadding(margin, 12, margin, 12)
-            hint = "Precio total"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(String.format(Locale.US, "%.2f", baseTotal))
-            selectAll()
-        }
-        val container = android.widget.FrameLayout(this).apply {
-            setPadding(margin, margin / 2, margin, margin / 2)
-            addView(etPrice, android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-            ))
-        }
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_edit_price, null)
+        val etPrice = dialogView.findViewById<android.widget.EditText>(R.id.etPrice)
+        etPrice.setText(String.format(Locale.US, "%.2f", baseTotal))
+        etPrice.selectAll()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Editar precio total")
             .setMessage(if (minTotal != null) "Mínimo: $${String.format(Locale.US, "%.2f", minTotal)}" else "")
-            .setView(container)
+            .setView(dialogView)
             .setPositiveButton("Aplicar") { _, _ ->
                 val newTotal = etPrice.text.toString().toDoubleOrNull()
                 if (newTotal != null && newTotal > 0) {
                     if (minTotal != null && Math.round(newTotal * 100) < Math.round(minTotal!! * 100)) {
-                        Toast.makeText(
-                            this,
-                            "El precio no puede ser menor a $${String.format(Locale.US, "%.2f", minTotal)}",
-                            Toast.LENGTH_LONG
+                        Snackbar.make(
+                            findViewById(android.R.id.content),
+                            "Mínimo: $${String.format(Locale.US, "%.2f", minTotal)}",
+                            Snackbar.LENGTH_LONG
                         ).show()
                         return@setPositiveButton
                     }
@@ -321,7 +293,7 @@ class ProductDetailActivity : AppCompatActivity() {
                     tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
                     recalcTotal()
                 } else {
-                    Toast.makeText(this, "Precio inválido", Toast.LENGTH_SHORT).show()
+                    Snackbar.make(findViewById(android.R.id.content), "Precio inválido", Snackbar.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancelar", null)
@@ -405,8 +377,7 @@ class ProductDetailActivity : AppCompatActivity() {
                 quantity = weight
             )
         }
-        val msg = if (weights.size > 1) "✓ ${weights.size} unidades agregadas" else "✓ Agregado al pedido"
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        btnAddOrder.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
         finish()
     }
 

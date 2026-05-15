@@ -5,10 +5,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.ImageButton
+import com.google.android.material.appbar.MaterialToolbar
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
+import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -70,10 +70,9 @@ class CurrentOrderActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_current_order)
-        val pad = resources.getDimensionPixelSize(R.dimen.padding_screen)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(b.left + pad, b.top + pad, b.right + pad, b.bottom + pad)
+            v.setPadding(b.left, 0, b.right, b.bottom)
             insets
         }
 
@@ -102,7 +101,7 @@ class CurrentOrderActivity : AppCompatActivity() {
         btnViewTicket = findViewById(R.id.btnViewTicket)
         btnFinalize = findViewById(R.id.btnFinalize)
 
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         btnViewTicket.setOnClickListener { openTicket() }
         btnFinalize.setOnClickListener {
             if (customerId != null && customerName != null) {
@@ -196,49 +195,16 @@ class CurrentOrderActivity : AppCompatActivity() {
             } catch (_: Exception) {}
 
             val ctx = this@CurrentOrderActivity
-            val margin = ctx.resources.getDimensionPixelSize(R.dimen.padding_screen)
+            val dialogView = layoutInflater.inflate(R.layout.dialog_edit_order, null)
+            val etQty        = dialogView.findViewById<android.widget.EditText>(R.id.etQty)
+            val etPrice      = dialogView.findViewById<android.widget.EditText>(R.id.etPrice)
+            val tvTotal      = dialogView.findViewById<android.widget.TextView>(R.id.tvTotal)
+            val tvRate       = dialogView.findViewById<android.widget.TextView>(R.id.tvRate)
+            val tvMinWarning = dialogView.findViewById<android.widget.TextView>(R.id.tvMinWarning)
 
-            val padHoriz = ctx.resources.getDimensionPixelSize(R.dimen.padding_screen)
-            val etQty = android.widget.EditText(ctx).apply {
-                setBackgroundResource(R.drawable.bg_edittext)
-                hint = "Cantidad total (lb)"
-                inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                        android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-                setPadding(padHoriz, 12, padHoriz, 12)
-                setText(String.format(Locale.US, "%.2f", order.quantity))
-                selectAll()
-            }
-            val etPrice = android.widget.EditText(ctx).apply {
-                setBackgroundResource(R.drawable.bg_edittext)
-                hint = "Precio total"
-                inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                        android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-                setPadding(padHoriz, 12, padHoriz, 12)
-                setText(String.format(Locale.US, "%.2f", order.price * order.quantity))
-            }
-
-            val tvTotal = android.widget.TextView(ctx).apply {
-                textSize = 13f
-                setTextColor(ctx.resources.getColor(R.color.primary, ctx.theme))
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-                gravity = android.view.Gravity.CENTER
-                setPadding(0, 14, 0, 0)
-            }
-
-            val tvRate = android.widget.TextView(ctx).apply {
-                textSize = 11f
-                setTextColor(ctx.resources.getColor(R.color.text_secondary, ctx.theme))
-                gravity = android.view.Gravity.CENTER
-                setPadding(0, 4, 0, 0)
-            }
-
-            val tvMinWarning = android.widget.TextView(ctx).apply {
-                textSize = 12f
-                setTextColor(ctx.resources.getColor(R.color.red, ctx.theme))
-                gravity = android.view.Gravity.CENTER
-                setPadding(0, 10, 0, 0)
-                visibility = android.view.View.GONE
-            }
+            etQty.setText(String.format(Locale.US, "%.2f", order.quantity))
+            etQty.selectAll()
+            etPrice.setText(String.format(Locale.US, "%.2f", order.price * order.quantity))
 
             val baseRate = order.price
             var isUpdating = false
@@ -293,39 +259,18 @@ class CurrentOrderActivity : AppCompatActivity() {
             etPrice.addTextChangedListener(priceWatcher)
             refresh()
 
-            fun label(txt: String) = android.widget.TextView(ctx).apply {
-                text = txt; textSize = 11f
-                setTextColor(ctx.resources.getColor(R.color.text_secondary, ctx.theme))
-                layoutParams = android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                ).also { it.topMargin = 14 }
-            }
-
-            val container = android.widget.LinearLayout(ctx).apply {
-                orientation = android.widget.LinearLayout.VERTICAL
-                setPadding(margin, margin / 2, margin, margin / 2)
-                addView(label("CANTIDAD TOTAL (lb)"))
-                addView(etQty)
-                addView(label("PRECIO TOTAL"))
-                addView(etPrice)
-                addView(tvTotal)
-                addView(tvRate)
-                addView(tvMinWarning)
-            }
-
-            androidx.appcompat.app.AlertDialog.Builder(ctx)
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                 .setTitle(order.productName)
-                .setView(container)
+                .setView(dialogView)
                 .setPositiveButton("Guardar") { _, _ ->
                     val qty   = etQty.text.toString().toDoubleOrNull()
                     val total = etPrice.text.toString().toDoubleOrNull()
                     if (qty != null && qty > 0 && total != null && total > 0) {
                         if (minPrice != null && Math.round(total * 100) < Math.round(minPrice * 100)) {
-                            android.widget.Toast.makeText(
-                                ctx,
-                                "El total no puede ser menor a $${String.format(Locale.US, "%.2f", minPrice)}",
-                                android.widget.Toast.LENGTH_LONG
+                            Snackbar.make(
+                                ctx.findViewById(android.R.id.content),
+                                "Mínimo: $${String.format(Locale.US, "%.2f", minPrice)}",
+                                Snackbar.LENGTH_LONG
                             ).show()
                             return@setPositiveButton
                         }
@@ -333,7 +278,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                         orderRepository.updatePendingOrder(order.id, perLb, qty)
                         loadOrder()
                     } else {
-                        android.widget.Toast.makeText(ctx, "Valores inválidos", android.widget.Toast.LENGTH_SHORT).show()
+                        Snackbar.make(ctx.findViewById(android.R.id.content), "Valores inválidos", Snackbar.LENGTH_SHORT).show()
                     }
                 }
                 .setNegativeButton("Cancelar", null)
@@ -342,7 +287,7 @@ class CurrentOrderActivity : AppCompatActivity() {
     }
 
     private fun confirmDelete(id: Int, name: String) {
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Eliminar producto")
             .setMessage("¿Eliminar \"$name\" del pedido?")
             .setPositiveButton("Eliminar") { _, _ ->
@@ -463,10 +408,10 @@ class CurrentOrderActivity : AppCompatActivity() {
                         invoiceId = response.invoiceId
                     )
                     printResult.onFailure { e ->
-                        Toast.makeText(
-                            this@CurrentOrderActivity,
-                            "Pedido enviado · Error al imprimir: ${e.localizedMessage ?: "sin conexión a impresora"}",
-                            Toast.LENGTH_LONG
+                        Snackbar.make(
+                            findViewById(android.R.id.content),
+                            "Pedido enviado · Error al imprimir: ${e.localizedMessage ?: "sin conexión"}",
+                            Snackbar.LENGTH_LONG
                         ).show()
                     }
                 }
@@ -503,10 +448,10 @@ class CurrentOrderActivity : AppCompatActivity() {
                 layoutLoading.visibility = View.GONE
                 btnFinalize.isEnabled = true
                 btnViewTicket.isEnabled = true
-                Toast.makeText(
-                    this@CurrentOrderActivity,
+                Snackbar.make(
+                    findViewById(android.R.id.content),
                     "Error al enviar: ${e.localizedMessage ?: "desconocido"}",
-                    Toast.LENGTH_LONG
+                    Snackbar.LENGTH_LONG
                 ).show()
             }
         }

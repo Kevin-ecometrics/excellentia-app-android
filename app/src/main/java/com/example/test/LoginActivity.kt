@@ -2,10 +2,8 @@ package com.example.test
 
 import android.content.Intent
 import android.os.Bundle
-import android.text.InputType
 import android.view.View
 import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -13,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputLayout
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,9 +28,9 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var etBackendUrl: EditText
     private lateinit var etEmail: EditText
     private lateinit var etPassword: EditText
+    private lateinit var tilEmail: TextInputLayout
     private lateinit var btnLogin: MaterialButton
     private lateinit var btnRetry: MaterialButton
-    private lateinit var btnTogglePassword: ImageButton
     private lateinit var layoutLoading: View
     private lateinit var layoutError: View
     private lateinit var tvErrorTitle: TextView
@@ -49,7 +48,6 @@ class LoginActivity : AppCompatActivity() {
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
-    private var passwordVisible = false
     private var serverOk = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +67,6 @@ class LoginActivity : AppCompatActivity() {
 
         btnLogin.setOnClickListener { doLogin() }
         btnRetry.setOnClickListener { pingServer(); clearError() }
-        btnTogglePassword.setOnClickListener { togglePassword() }
 
         tvServerToggle.setOnClickListener {
             val visible = layoutServer.visibility == View.VISIBLE
@@ -84,9 +81,9 @@ class LoginActivity : AppCompatActivity() {
         etBackendUrl    = findViewById(R.id.etBackendUrl)
         etEmail         = findViewById(R.id.etEmail)
         etPassword      = findViewById(R.id.etPassword)
+        tilEmail        = findViewById(R.id.tilEmail)
         btnLogin        = findViewById(R.id.btnLogin)
         btnRetry        = findViewById(R.id.btnRetry)
-        btnTogglePassword = findViewById(R.id.btnTogglePassword)
         layoutLoading   = findViewById(R.id.layoutLoading)
         layoutError     = findViewById(R.id.layoutError)
         tvErrorTitle    = findViewById(R.id.tvErrorTitle)
@@ -97,21 +94,6 @@ class LoginActivity : AppCompatActivity() {
         tvServerStatus  = findViewById(R.id.tvServerStatus)
         tvServerToggle  = findViewById(R.id.tvServerToggle)
         layoutServer    = findViewById(R.id.layoutServer)
-    }
-
-    // ── Password toggle ───────────────────────────────────────────────────────
-
-    private fun togglePassword() {
-        passwordVisible = !passwordVisible
-        val cursor = etPassword.selectionEnd
-        etPassword.inputType = if (passwordVisible)
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-        else
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        etPassword.setSelection(cursor)
-        btnTogglePassword.setImageResource(
-            if (passwordVisible) R.drawable.ic_eye_off else R.drawable.ic_eye
-        )
     }
 
     // ── Server ping ───────────────────────────────────────────────────────────
@@ -241,10 +223,12 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun markEmailError() {
-        etEmail.setBackgroundResource(R.drawable.bg_input_error)
-        etEmail.setOnFocusChangeListener { _, _ ->
-            etEmail.setBackgroundResource(R.drawable.bg_input_login)
-            etEmail.onFocusChangeListener = null
+        tilEmail.isErrorEnabled = true
+        tilEmail.error = " "
+        tilEmail.editText?.setOnFocusChangeListener { _, _ ->
+            tilEmail.isErrorEnabled = false
+            tilEmail.error = null
+            tilEmail.editText?.onFocusChangeListener = null
         }
     }
 
@@ -260,7 +244,8 @@ class LoginActivity : AppCompatActivity() {
 
     private fun clearError() {
         layoutError.visibility = View.GONE
-        etEmail.setBackgroundResource(R.drawable.bg_input_login)
+        tilEmail.isErrorEnabled = false
+        tilEmail.error = null
     }
 
     private fun goToMain() {

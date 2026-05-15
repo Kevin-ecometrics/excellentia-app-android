@@ -45,6 +45,7 @@ dependencies {
 
     // UI
     implementation(libs.material)
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
     // Networking
     implementation(libs.retrofit)

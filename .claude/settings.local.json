@@ -18,7 +18,13 @@
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 6)",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 18)",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 60)",
-      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew installDebug 2>&1 | Select-Object -Last 20)"
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew installDebug 2>&1 | Select-Object -Last 20)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\\\\app\\\\src\\\\main\\\\res\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Read(//mnt/c/Users/kevin/AndroidStudioProjects/**)",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\\\\app\\\\src\\\\main\" -Recurse)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }

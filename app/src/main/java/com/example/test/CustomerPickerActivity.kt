@@ -7,7 +7,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
-import android.widget.ImageButton
+import com.google.android.material.appbar.MaterialToolbar
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -39,10 +39,9 @@ class CustomerPickerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_customer_picker)
-        val pad = resources.getDimensionPixelSize(R.dimen.padding_screen)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(b.left + pad, b.top + pad, b.right + pad, b.bottom + pad)
+            v.setPadding(b.left, 0, b.right, b.bottom)
             insets
         }
 
@@ -54,7 +53,7 @@ class CustomerPickerActivity : AppCompatActivity() {
         btnRetry = findViewById(R.id.btnRetry)
         scrollCustomers = findViewById(R.id.scrollCustomers)
 
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
+        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener {
             setResult(Activity.RESULT_CANCELED)
             finish()
         }
@@ -172,7 +171,7 @@ class CustomerPickerActivity : AppCompatActivity() {
     }
 
     private fun confirmSelection(customer: QbCustomer) {
-        AlertDialog.Builder(this)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Confirmar cliente")
             .setMessage("¿Asignar este pedido a:\n\n${customer.displayName}?")
             .setPositiveButton("Sí, asignar") { _, _ ->

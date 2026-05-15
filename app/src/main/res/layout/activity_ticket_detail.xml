@@ -7,38 +7,22 @@
     android:background="@color/background">
 
     <!-- Header -->
-    <LinearLayout
+    <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/layoutHeader"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/surface"
-        android:elevation="2dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="8dp"
+        android:fitsSystemWindows="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Volver"
-            android:src="@drawable/ic_back" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:text="Ticket de venta"
-            android:textColor="@color/text_primary"
-            android:textSize="17sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_back"
+            app:title="Ticket de venta" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Botón reimprimir -->
     <com.google.android.material.button.MaterialButton
@@ -48,7 +32,7 @@
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="12dp"
         android:text="Reimprimir ticket"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/white"
         android:textSize="14sp"
         android:textStyle="bold"
         android:visibility="gone"
@@ -57,7 +41,7 @@
         app:icon="@drawable/ic_check_circle"
         app:iconGravity="textStart"
         app:iconSize="18dp"
-        app:iconTint="#FFFFFF"
+        app:iconTint="@color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
@@ -345,6 +329,7 @@
                         android:id="@+id/tvTicketStatus"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:background="@drawable/bg_status_chip"
                         android:paddingHorizontal="20dp"
                         android:paddingVertical="6dp"
                         android:textSize="12sp"

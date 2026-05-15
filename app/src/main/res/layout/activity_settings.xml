@@ -9,38 +9,22 @@
     tools:context=".SettingsActivity">
 
     <!-- Header -->
-    <LinearLayout
+    <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/layoutHeader"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/surface"
-        android:elevation="2dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="8dp"
+        android:fitsSystemWindows="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Volver"
-            android:src="@drawable/ic_back" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:text="@string/title_settings"
-            android:textColor="@color/text_primary"
-            android:textSize="17sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_back"
+            app:title="@string/title_settings" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Content area: ScrollView + Save button -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -105,48 +89,34 @@
                                 android:textStyle="bold" />
                         </LinearLayout>
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:letterSpacing="0.04"
-                            android:text="@string/label_backend_url"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <EditText
-                            android:id="@+id/etBackendUrl"
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="match_parent"
-                            android:layout_height="48dp"
-                            android:layout_marginTop="8dp"
-                            android:background="@drawable/bg_edittext"
-                            android:hint="http://192.168.1.100:3000"
-                            android:inputType="textUri"
-                            android:paddingHorizontal="16dp"
-                            android:paddingVertical="12dp"
-                            android:textSize="14sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:letterSpacing="0.04"
-                            android:text="@string/label_jwt"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:hint="@string/label_backend_url">
 
-                        <EditText
-                            android:id="@+id/etJwtToken"
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBackendUrl"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textUri"
+                                android:textSize="14sp" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="match_parent"
-                            android:layout_height="48dp"
-                            android:layout_marginTop="8dp"
-                            android:background="@drawable/bg_edittext"
-                            android:hint="@string/hint_jwt"
-                            android:inputType="textVisiblePassword"
-                            android:paddingHorizontal="16dp"
-                            android:paddingVertical="12dp"
-                            android:textSize="14sp" />
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:hint="@string/label_jwt">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etJwtToken"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textVisiblePassword"
+                                android:textSize="14sp" />
+                        </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -194,22 +164,20 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content">
 
-                            <RadioButton
+                            <com.google.android.material.radiobutton.MaterialRadioButton
                                 android:id="@+id/rbDataWedge"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:checked="true"
                                 android:text="@string/label_datawedge"
-                                android:textColor="@color/text_primary"
                                 android:textSize="14sp" />
 
-                            <RadioButton
+                            <com.google.android.material.radiobutton.MaterialRadioButton
                                 android:id="@+id/rbEMDK"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
                                 android:text="@string/label_emdk"
-                                android:textColor="@color/text_primary"
                                 android:textSize="14sp" />
                         </RadioGroup>
                     </LinearLayout>
@@ -282,7 +250,7 @@
                                     android:textSize="12sp" />
                             </LinearLayout>
 
-                            <Switch
+                            <com.google.android.material.materialswitch.MaterialSwitch
                                 android:id="@+id/switchOffline"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -606,23 +574,30 @@
                     android:layout_height="56dp"
                     android:layout_marginTop="14dp"
                     android:text="@string/btn_logout"
+                    android:textColor="@color/white"
                     android:textSize="15sp"
                     android:textStyle="bold"
-                    app:cornerRadius="28dp"
-                    app:backgroundTint="@color/red" />
+                    app:backgroundTint="@color/red"
+                    app:cornerRadius="14dp"
+                    app:icon="@drawable/ic_back"
+                    app:iconGravity="textStart"
+                    app:iconSize="18dp"
+                    app:iconTint="@color/white" />
             </LinearLayout>
         </ScrollView>
 
-        <!-- Save button on light background -->
+        <!-- Save button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSave"
             android:layout_width="0dp"
             android:layout_height="56dp"
+            android:layout_marginHorizontal="16dp"
             android:layout_marginVertical="12dp"
             android:text="@string/btn_save"
             android:textSize="15sp"
             android:textStyle="bold"
-            app:cornerRadius="28dp"
+            app:backgroundTint="@color/primary"
+            app:cornerRadius="14dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />

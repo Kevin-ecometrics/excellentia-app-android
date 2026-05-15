@@ -21,4 +21,6 @@
     <color name="divider">#ECEFF1</color>
     <color name="text_primary">#212121</color>
     <color name="text_secondary">#616161</color>
+    <color name="error_light">#FFEBEE</color>
+    <color name="outline">#79747E</color>
 </resources>

@@ -86,6 +86,10 @@ class OrderRepository(
         orderDao.update(id, price, quantity)
     }
 
+    suspend fun getById(id: Int): PendingOrderEntity? = withContext(Dispatchers.IO) {
+        orderDao.getById(id)
+    }
+
     suspend fun deletePendingOrder(id: Int) = withContext(Dispatchers.IO) {
         orderDao.deleteById(id)
     }
