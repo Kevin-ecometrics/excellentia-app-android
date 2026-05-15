@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">Zebra Scanner</string>
+    <string name="btn_scan">Guía de configuración</string>
+    <string name="btn_history">Historial</string>
+    <string name="btn_settings">Ajustes</string>
+    <string name="btn_add_order">Agregar al pedido</string>
+    <string name="btn_view_history">Ver historial</string>
+    <string name="btn_save">Guardar ajustes</string>
+    <string name="scan_placeholder">Presiona el gatillo del Zebra para escanear</string>
+    <string name="label_last_scan">Último escaneo</string>
+    <string name="label_quantity">Cantidad</string>
+    <string name="label_backend_url">URL del servidor</string>
+    <string name="label_jwt">Token JWT</string>
+    <string name="label_scanner_mode">Modo de escáner</string>
+    <string name="label_datawedge">DataWedge (Recomendado)</string>
+    <string name="label_emdk">EMDK (Avanzado)</string>
+    <string name="label_offline">Modo sin conexión</string>
+    <string name="label_offline_desc">Guardar pedidos localmente hasta tener conexión</string>
+    <string name="hint_jwt">Ingresa tu JWT token</string>
+    <string name="title_history">Historial de escaneos</string>
+    <string name="title_settings">Ajustes</string>
+    <string name="title_product">Detalle del producto</string>
+    <string name="filter_all">Todos</string>
+    <string name="filter_sent">Enviados</string>
+    <string name="filter_pending">Pendientes</string>
+    <string name="empty_history">Sin escaneos en el historial</string>
+    <string name="status_online">ONLINE</string>
+    <string name="status_offline">OFFLINE</string>
+    <string name="manual_entry">Ingresar código manualmente</string>
+    <string name="hint_barcode">Código de barras</string>
+    <string name="btn_scan_inactive">Activar escáner</string>
+    <string name="btn_scan_active">Desactivar escáner</string>
+    <string name="section_connection">Conexión al servidor</string>
+    <string name="section_scanner">Configuración del escáner</string>
+    <string name="section_network">Red</string>
+    <string name="btn_logout">Cerrar sesión</string>
+</resources>

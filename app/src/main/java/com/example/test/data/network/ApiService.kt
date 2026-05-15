@@ -1,0 +1,43 @@
+package com.example.test.data.network
+
+import com.example.test.data.*
+import com.example.test.data.RefreshRequest
+import com.example.test.data.RefreshResponse
+import retrofit2.Response
+import retrofit2.http.*
+
+interface ApiService {
+
+    @GET("api/products/{barcode}")
+    suspend fun getProductByBarcode(@Path("barcode") barcode: String): Response<ApiResponse<ProductDto>>
+
+    @POST("api/orders")
+    suspend fun createOrder(@Body request: CreateOrderRequest): Response<OrderResponse>
+
+    @POST("api/orders/batch")
+    suspend fun createBatch(@Body request: BatchRequest): Response<BatchResponse>
+
+    @GET("api/orders")
+    suspend fun listOrders(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("status") status: String? = null
+    ): Response<ApiResponse<List<OrderDto>>>
+
+    @POST("api/scans")
+    suspend fun createScan(@Body request: ScanRequest): Response<ScanResponse>
+
+    @POST("api/devices/register")
+    suspend fun registerDevice(@Body request: DeviceRegisterRequest): Response<DeviceResponse>
+
+    @PUT("api/devices/{id}/heartbeat")
+    suspend fun heartbeat(@Path("id") deviceId: Int): Response<Unit>
+
+    @POST("api/auth/refresh")
+    suspend fun refreshToken(@Body request: RefreshRequest): Response<RefreshResponse>
+
+    @GET("api/customers")
+    suspend fun getCustomers(): Response<QbCustomersResponse>
+
+
+}
