@@ -302,67 +302,70 @@ class ProductDetailActivity : AppCompatActivity() {
 
     private fun loadPriceHistory() {
         lifecycleScope.launch {
-            try {
-                val result = orderRepository.getProductPriceHistory(barcode, customerId!!)
-                result.onSuccess { response ->
-                    val rawMin = response.product?.minPrice
-                    if (rawMin != null) {
-                        minTotal = rawMin
-                        tvMinPrice.text = "Precio mínimo: $${String.format(Locale.US, "%.2f", minTotal)}"
-                        tvMinPrice.visibility = View.VISIBLE
-                    }
-
-                    if (response.history.isNotEmpty()) {
-                        layoutHistory.removeAllViews()
-                        for ((i, item) in response.history.withIndex()) {
-                            val row = LinearLayout(this@ProductDetailActivity).apply {
-                                layoutParams = LinearLayout.LayoutParams(
-                                    LinearLayout.LayoutParams.MATCH_PARENT,
-                                    LinearLayout.LayoutParams.WRAP_CONTENT
-                                ).apply { topMargin = if (i > 0) 8 else 0 }
-                                orientation = LinearLayout.HORIZONTAL
-                                gravity = android.view.Gravity.CENTER_VERTICAL
-                            }
-
-                            val dot = TextView(this@ProductDetailActivity).apply {
-                                layoutParams = LinearLayout.LayoutParams(10.dp, 10.dp).apply { marginEnd = 10.dp }
-                                setBackgroundResource(R.drawable.circle_green)
-                            }
-                            row.addView(dot)
-
-                            val info = LinearLayout(this@ProductDetailActivity).apply {
-                                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                                orientation = LinearLayout.VERTICAL
-                            }
-
-                            val tvPriceLine = TextView(this@ProductDetailActivity).apply {
-                                text = String.format(Locale.US, "%.2f lb  =  \$%.2f", item.quantity, item.price * item.quantity)
-                                textSize = 13f
-                                setTextColor(resources.getColor(R.color.text_primary, theme))
-                            }
-                            info.addView(tvPriceLine)
-
-                            val dateStr = item.date?.let {
-                                try {
-                                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
-                                    val d = sdf.parse(it.substringBefore("."))
-                                    java.text.SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()).format(d!!)
-                                } catch (_: Exception) { it.substringBefore("T") }
-                            } ?: ""
-                            val tvDate = TextView(this@ProductDetailActivity).apply {
-                                text = if (item.invoiceId != null) "$dateStr  •  Factura #${item.invoiceId}" else dateStr
-                                textSize = 11f
-                                setTextColor(resources.getColor(R.color.text_secondary, theme))
-                            }
-                            info.addView(tvDate)
-                            row.addView(info)
-                            layoutHistory.addView(row)
-                        }
-                        cardHistory.visibility = View.VISIBLE
-                    }
+            val result = orderRepository.getProductPriceHistory(barcode, customerId!!)
+            result.onSuccess { response ->
+                val rawMin = response.product?.minPrice
+                if (rawMin != null) {
+                    minTotal = rawMin
+                    tvMinPrice.text = "Precio mínimo: $${String.format(Locale.US, "%.2f", minTotal)}"
+                    tvMinPrice.visibility = View.VISIBLE
                 }
-            } catch (_: Exception) {
 
+                if (response.history.isNotEmpty()) {
+                    layoutHistory.removeAllViews()
+                    for ((i, item) in response.history.withIndex()) {
+                        val row = LinearLayout(this@ProductDetailActivity).apply {
+                            layoutParams = LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.MATCH_PARENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT
+                            ).apply { topMargin = if (i > 0) 8 else 0 }
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = android.view.Gravity.CENTER_VERTICAL
+                        }
+
+                        val dot = TextView(this@ProductDetailActivity).apply {
+                            layoutParams = LinearLayout.LayoutParams(10.dp, 10.dp).apply { marginEnd = 10.dp }
+                            setBackgroundResource(R.drawable.circle_green)
+                        }
+                        row.addView(dot)
+
+                        val info = LinearLayout(this@ProductDetailActivity).apply {
+                            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                            orientation = LinearLayout.VERTICAL
+                        }
+
+                        val tvPriceLine = TextView(this@ProductDetailActivity).apply {
+                            text = String.format(Locale.US, "%.2f lb  =  \$%.2f", item.quantity, item.price * item.quantity)
+                            textSize = 13f
+                            setTextColor(resources.getColor(R.color.text_primary, theme))
+                        }
+                        info.addView(tvPriceLine)
+
+                        val dateStr = item.date?.let {
+                            try {
+                                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+                                val d = sdf.parse(it.substringBefore("."))
+                                java.text.SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()).format(d!!)
+                            } catch (_: Exception) { it.substringBefore("T") }
+                        } ?: ""
+                        val tvDate = TextView(this@ProductDetailActivity).apply {
+                            text = if (item.invoiceId != null) "$dateStr  •  Factura #${item.invoiceId}" else dateStr
+                            textSize = 11f
+                            setTextColor(resources.getColor(R.color.text_secondary, theme))
+                        }
+                        info.addView(tvDate)
+                        row.addView(info)
+                        layoutHistory.addView(row)
+                    }
+                    cardHistory.visibility = View.VISIBLE
+                }
+            }
+            result.onFailure {
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    "No se pudo cargar historial de precios",
+                    Snackbar.LENGTH_SHORT
+                ).show()
             }
         }
     }

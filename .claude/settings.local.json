@@ -24,7 +24,8 @@
       "Read(//mnt/c/Users/kevin/AndroidStudioProjects/**)",
       "Bash(./gradlew assembleDebug)",
       "Bash(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\\\\app\\\\src\\\\main\" -Recurse)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "PowerShell(cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 30)"
     ]
   }
 }

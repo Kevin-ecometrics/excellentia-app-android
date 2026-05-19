@@ -13,12 +13,16 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.test.data.BatchItem
 import com.example.test.data.OrderDto
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
+import com.example.test.data.local.entities.PendingOrderEntity
 import com.example.test.data.repository.OrderRepository
 import com.example.test.data.ScanEntry
 import com.example.test.data.SyncStatus
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.snackbar.Snackbar
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.chip.ChipGroup
 import com.google.gson.Gson
@@ -113,6 +117,7 @@ class HistoryActivity : AppCompatActivity() {
                         timestamp = order.createdAt,
                         status = SyncStatus.PENDING
                     ))
+                    bindRetry(itemView, order)
                     layoutEntries.addView(itemView)
                 }
             }
@@ -154,6 +159,38 @@ class HistoryActivity : AppCompatActivity() {
                 tvStatus.text = "PENDIENTE"
                 tvStatus.setBackgroundResource(R.drawable.bg_chip_pending)
                 tvStatus.setTextColor(ContextCompat.getColor(this, R.color.warning))
+            }
+        }
+    }
+
+    private fun bindRetry(view: View, order: PendingOrderEntity) {
+        val btn = view.findViewById<MaterialButton>(R.id.btnRetryEntry)
+        btn.visibility = View.VISIBLE
+        btn.setOnClickListener {
+            btn.isEnabled = false
+            btn.text = "Enviando..."
+            lifecycleScope.launch {
+                val item = BatchItem(
+                    barcode = order.barcode,
+                    productName = order.productName,
+                    price = order.price,
+                    quantity = order.quantity,
+                    total = order.price * order.quantity
+                )
+                val result = orderRepository.sendBatch(listOf(item))
+                result.onSuccess {
+                    orderRepository.deletePendingOrder(order.id)
+                    loadHistory()
+                }
+                result.onFailure { e ->
+                    btn.isEnabled = true
+                    btn.text = "Reintentar envío"
+                    Snackbar.make(
+                        findViewById(android.R.id.content),
+                        e.localizedMessage ?: "Error de conexión",
+                        Snackbar.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
