@@ -31,6 +31,7 @@ import com.example.test.data.repository.OrderRepository
 import com.example.test.data.sync.SyncWorker
 import com.example.test.data.sync.OrderStatusWorker
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
@@ -262,10 +263,28 @@ class MainActivity : AppCompatActivity() {
         btnManualEntry.setOnClickListener { showManualEntryDialog() }
 
         // Búsqueda por nombre (long press en manual entry)
-        btnManualEntry.setOnLongClickListener { showProductSearchDialog(); true }
+        btnManualEntry.setOnLongClickListener {
+            Snackbar.make(findViewById(android.R.id.content), "Buscando por nombre…", Snackbar.LENGTH_SHORT).show()
+            showProductSearchDialog()
+            true
+        }
 
-        // Resumen del día (long press en historial en bottomNav manejado abajo)
-        layoutLastScan.setOnLongClickListener { showDailySummary(); true }
+        // Resumen del día (long press en último escaneo)
+        layoutLastScan.setOnLongClickListener {
+            showDailySummary()
+            true
+        }
+
+        // Mostrar tips de long press una sola vez
+        val prefs = getSharedPreferences("tips", android.content.Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("shown_longpress_tips", false)) {
+            prefs.edit().putBoolean("shown_longpress_tips", true).apply()
+            com.google.android.material.snackbar.Snackbar.make(
+                findViewById(android.R.id.content),
+                "Tip: Mantén presionado \"Ingresar código\" para buscar por nombre, o el último escaneo para el resumen del día",
+                com.google.android.material.snackbar.Snackbar.LENGTH_INDEFINITE
+            ).setAction("Entendido") {}.show()
+        }
 
         btnSelectCustomer.setOnClickListener {
             customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
