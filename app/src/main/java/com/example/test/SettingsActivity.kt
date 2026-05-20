@@ -31,6 +31,10 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etBackendUrl: EditText
     private lateinit var tvPrinterName: TextView
     private lateinit var switchOffline: SwitchCompat
+    private lateinit var tvAccountAvatar: TextView
+    private lateinit var tvAccountName: TextView
+    private lateinit var tvAccountEmail: TextView
+    private lateinit var tvAccountRole: TextView
     private lateinit var btnSave: MaterialButton
     private lateinit var btnLogout: MaterialButton
     private lateinit var btnSelectPrinter: MaterialButton
@@ -56,9 +60,13 @@ class SettingsActivity : AppCompatActivity() {
 
         securePrefs = SecurePreferences(this)
 
-        etBackendUrl = findViewById(R.id.etBackendUrl)
-        tvPrinterName = findViewById(R.id.tvPrinterName)
-        switchOffline = findViewById(R.id.switchOffline)
+        etBackendUrl   = findViewById(R.id.etBackendUrl)
+        tvPrinterName  = findViewById(R.id.tvPrinterName)
+        switchOffline  = findViewById(R.id.switchOffline)
+        tvAccountAvatar = findViewById(R.id.tvAccountAvatar)
+        tvAccountName   = findViewById(R.id.tvAccountName)
+        tvAccountEmail  = findViewById(R.id.tvAccountEmail)
+        tvAccountRole   = findViewById(R.id.tvAccountRole)
         btnSave = findViewById(R.id.btnSave)
         btnLogout = findViewById(R.id.btnLogout)
         btnSelectPrinter = findViewById(R.id.btnSelectPrinter)
@@ -77,6 +85,16 @@ class SettingsActivity : AppCompatActivity() {
 
     @SuppressLint("HardwareIds")
     private fun loadSettings() {
+        // Cuenta del operador
+        val userName  = securePrefs.getUserName()
+        val userEmail = securePrefs.getUserEmail() ?: securePrefs.getToken()?.let { "—" } ?: "—"
+        val userRole  = securePrefs.getUserRole() ?: "operator"
+        val displayName = userName ?: userEmail
+        tvAccountAvatar.text = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        tvAccountName.text   = if (!userName.isNullOrBlank()) userName else "Sin nombre"
+        tvAccountEmail.text  = userEmail
+        tvAccountRole.text   = if (userRole == "admin") "ADMIN" else "OPERADOR"
+
         etBackendUrl.setText(securePrefs.getBackendUrl())
 
         val savedName = securePrefs.getPrinterName()

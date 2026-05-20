@@ -182,6 +182,13 @@ class LoginActivity : AppCompatActivity() {
                     securePrefs.saveToken(result.token)
                     securePrefs.saveRefreshToken(result.refreshToken)
                     securePrefs.saveOfflineMode(false)
+                    result.user?.let { u ->
+                        securePrefs.saveUserInfo(
+                            email = u.email ?: email,
+                            name  = u.name,
+                            role  = u.role
+                        )
+                    }
                     RetrofitClient.initialize(baseUrl, securePrefs)
                     // Cachear configuración de empresa
                     try {
@@ -283,6 +290,7 @@ class LoginActivity : AppCompatActivity() {
         finish()
     }
 
-    private data class LoginResponse(val token: String, val refreshToken: String? = null)
+    private data class LoginUserInfo(val id: Int? = null, val email: String? = null, val name: String? = null, val role: String? = null)
+    private data class LoginResponse(val token: String, val refreshToken: String? = null, val user: LoginUserInfo? = null)
     private data class ErrorResponse(val error: String)
 }

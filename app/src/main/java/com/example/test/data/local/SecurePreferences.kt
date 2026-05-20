@@ -91,6 +91,17 @@ class SecurePreferences(context: Context) {
             .apply()
     }
 
+    fun saveUserInfo(email: String, name: String?, role: String?) {
+        prefs.edit()
+            .putString(KEY_USER_EMAIL, email)
+            .putString(KEY_USER_NAME, name)
+            .putString(KEY_USER_ROLE, role)
+            .apply()
+    }
+    fun getUserEmail(): String? = prefs.getString(KEY_USER_EMAIL, null)
+    fun getUserName(): String? = prefs.getString(KEY_USER_NAME, null)?.takeIf { it.isNotBlank() }
+    fun getUserRole(): String? = prefs.getString(KEY_USER_ROLE, null)
+
     fun saveLastScan(barcode: String, productName: String, timestamp: Long = System.currentTimeMillis()) {
         prefs.edit()
             .putString(KEY_LAST_SCAN_BARCODE, barcode)
@@ -118,6 +129,9 @@ class SecurePreferences(context: Context) {
         private const val KEY_PRINTER_NAME = "printer_bt_name"
         private const val KEY_ACTIVE_CUSTOMER_ID = "active_customer_id"
         private const val KEY_ACTIVE_CUSTOMER_NAME = "active_customer_name"
+        private const val KEY_USER_EMAIL = "user_email"
+        private const val KEY_USER_NAME  = "user_name"
+        private const val KEY_USER_ROLE  = "user_role"
         private const val KEY_LAST_SCAN_BARCODE = "last_scan_barcode"
         private const val KEY_LAST_SCAN_NAME = "last_scan_name"
         private const val KEY_LAST_SCAN_TIME = "last_scan_time"
