@@ -27,7 +27,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 barcode TEXT NOT NULL,
                 product_name TEXT NOT NULL,
                 price REAL NOT NULL,
-                quantity INTEGER NOT NULL,
+                quantity REAL NOT NULL,
                 device_id INTEGER,
                 created_at INTEGER NOT NULL,
                 retry_count INTEGER DEFAULT 0
@@ -43,11 +43,28 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 // Column already exists — ignore
             }
         }
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE pending_orders RENAME TO pending_orders_old")
+            db.execSQL("""
+                CREATE TABLE pending_orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    barcode TEXT NOT NULL,
+                    product_name TEXT NOT NULL,
+                    price REAL NOT NULL,
+                    quantity REAL NOT NULL,
+                    device_id INTEGER,
+                    created_at INTEGER NOT NULL,
+                    retry_count INTEGER DEFAULT 0
+                )
+            """)
+            db.execSQL("INSERT INTO pending_orders SELECT * FROM pending_orders_old")
+            db.execSQL("DROP TABLE pending_orders_old")
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
