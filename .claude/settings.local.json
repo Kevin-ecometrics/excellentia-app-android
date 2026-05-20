@@ -34,7 +34,9 @@
       "Bash(export JAVA_HOME=\"/mnt/c/Program Files/Android/Android Studio/jbr\")",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 25)",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 20)",
-      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 10)"
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 10)",
+      "Bash(bunx tsc *)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 15)"
     ]
   }
 }

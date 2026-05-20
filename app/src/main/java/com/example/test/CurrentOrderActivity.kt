@@ -105,7 +105,7 @@ class CurrentOrderActivity : AppCompatActivity() {
         btnViewTicket.setOnClickListener { openTicket() }
         btnFinalize.setOnClickListener {
             if (customerId != null && customerName != null) {
-                finalizeOrder(customerId, customerName)
+                checkPrinterThenFinalize()
             } else {
                 customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
             }
@@ -358,7 +358,41 @@ class CurrentOrderActivity : AppCompatActivity() {
         }
     }
 
-    private fun finalizeOrder(customerId: String?, customerName: String?) {
+    private fun checkPrinterThenFinalize() {
+        val printerAddress = securePrefs.getPrinterAddress()
+        val printerName    = securePrefs.getPrinterName() ?: "Impresora"
+
+        if (printerAddress.isNullOrBlank()) {
+            // Sin impresora configurada
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Sin impresora configurada")
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setMessage("No hay ninguna impresora asignada en Ajustes. No se generará ticket físico.\n\n¿Deseas continuar sin imprimir o ir a Ajustes para configurarla?")
+                .setPositiveButton("Continuar sin imprimir") { _, _ ->
+                    finalizeOrder(customerId, customerName, skipPrint = true)
+                }
+                .setNeutralButton("Ir a Ajustes") { _, _ ->
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                }
+                .setNegativeButton("Cancelar", null)
+                .show()
+        } else {
+            // Impresora configurada — confirmar que esté encendida
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Confirmar impresión")
+                .setMessage("Se imprimirá el ticket en:\n\n$printerName\n\nAsegúrate de que la impresora esté encendida y cerca antes de continuar.")
+                .setPositiveButton("Finalizar e imprimir") { _, _ ->
+                    finalizeOrder(customerId, customerName, skipPrint = false)
+                }
+                .setNeutralButton("Finalizar sin imprimir") { _, _ ->
+                    finalizeOrder(customerId, customerName, skipPrint = true)
+                }
+                .setNegativeButton("Cancelar", null)
+                .show()
+        }
+    }
+
+    private fun finalizeOrder(customerId: String?, customerName: String?, skipPrint: Boolean = false) {
         lifecycleScope.launch {
             layoutLoading.visibility = View.VISIBLE
             setStep(1)
@@ -394,8 +428,8 @@ class CurrentOrderActivity : AppCompatActivity() {
 
                 securePrefs.clearActiveCustomer()
 
-                val printerAddress = SecurePreferences(this@CurrentOrderActivity).getPrinterAddress()
-                if (!printerAddress.isNullOrBlank()) {
+                val printerAddress = securePrefs.getPrinterAddress()
+                if (!skipPrint && !printerAddress.isNullOrBlank()) {
                     setStep(3)
                     tvLoadingTitle.text = "Imprimiendo ticket..."
                     tvLoadingSubtitle.text = "Conectando con impresora"
