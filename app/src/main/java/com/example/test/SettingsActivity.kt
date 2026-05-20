@@ -3,14 +3,12 @@ package com.example.test
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.EditText
 import com.google.android.material.appbar.MaterialToolbar
-import android.widget.RadioGroup
 import androidx.appcompat.widget.SwitchCompat
 import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
@@ -29,15 +27,9 @@ import java.util.Locale
 
 class SettingsActivity : AppCompatActivity() {
 
-    companion object {
-        private const val PREFS_NAME = "settings"
-        private const val KEY_SCANNER_MODE = "scanner_mode"
-    }
 
     private lateinit var etBackendUrl: EditText
-    private lateinit var etJwtToken: EditText
     private lateinit var tvPrinterName: TextView
-    private lateinit var radioScannerMode: RadioGroup
     private lateinit var switchOffline: SwitchCompat
     private lateinit var btnSave: MaterialButton
     private lateinit var btnLogout: MaterialButton
@@ -65,9 +57,7 @@ class SettingsActivity : AppCompatActivity() {
         securePrefs = SecurePreferences(this)
 
         etBackendUrl = findViewById(R.id.etBackendUrl)
-        etJwtToken = findViewById(R.id.etJwtToken)
         tvPrinterName = findViewById(R.id.tvPrinterName)
-        radioScannerMode = findViewById(R.id.radioScannerMode)
         switchOffline = findViewById(R.id.switchOffline)
         btnSave = findViewById(R.id.btnSave)
         btnLogout = findViewById(R.id.btnLogout)
@@ -88,7 +78,6 @@ class SettingsActivity : AppCompatActivity() {
     @SuppressLint("HardwareIds")
     private fun loadSettings() {
         etBackendUrl.setText(securePrefs.getBackendUrl())
-        etJwtToken.setText(securePrefs.getToken() ?: "")
 
         val savedName = securePrefs.getPrinterName()
         tvPrinterName.text = savedName ?: "Sin impresora seleccionada"
@@ -97,12 +86,6 @@ class SettingsActivity : AppCompatActivity() {
             else getColor(R.color.text_secondary)
         )
 
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        if (prefs.getString(KEY_SCANNER_MODE, "datawedge") == "emdk") {
-            radioScannerMode.check(R.id.rbEMDK)
-        } else {
-            radioScannerMode.check(R.id.rbDataWedge)
-        }
         switchOffline.isChecked = securePrefs.isOfflineMode()
 
         // Device info
@@ -128,13 +111,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         securePrefs.saveBackendUrl(etBackendUrl.text.toString().trim())
-        securePrefs.saveToken(etJwtToken.text.toString().trim())
         securePrefs.saveOfflineMode(switchOffline.isChecked)
-
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val mode = if (radioScannerMode.checkedRadioButtonId == R.id.rbEMDK) "emdk" else "datawedge"
-        prefs.edit().putString(KEY_SCANNER_MODE, mode).apply()
-
         Snackbar.make(findViewById(android.R.id.content), "Ajustes guardados", Snackbar.LENGTH_SHORT).show()
     }
 
