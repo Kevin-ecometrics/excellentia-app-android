@@ -67,13 +67,15 @@ class OrderRepository(
                 productName = productName,
                 price = price,
                 quantity = quantity,
-                deviceId = deviceId
+                deviceId = deviceId,
+                customerId = securePrefs.getActiveCustomerId(),
+                customerName = securePrefs.getActiveCustomerName()
             )
         )
     }
 
     suspend fun getPendingOrders(): List<PendingOrderEntity> = withContext(Dispatchers.IO) {
-        orderDao.getAllPending()
+        orderDao.getAllForHistory()
     }
 
     fun getPendingCount(): Int = orderDao.count()

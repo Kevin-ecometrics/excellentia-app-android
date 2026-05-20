@@ -8,5 +8,7 @@ data class PendingOrderEntity(
     val quantity: Double,
     val deviceId: Int? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val retryCount: Int = 0
+    val retryCount: Int = 0,
+    val customerId: String? = null,
+    val customerName: String? = null
 )

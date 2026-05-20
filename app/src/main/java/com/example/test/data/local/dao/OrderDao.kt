@@ -16,20 +16,35 @@ class OrderDao(private val db: AppDatabase) {
             put("device_id", order.deviceId)
             put("created_at", order.createdAt)
             put("retry_count", order.retryCount)
+            put("customer_id", order.customerId)
+            put("customer_name", order.customerName)
         }
         return db.writableDatabase.insert("pending_orders", null, values)
     }
 
+    // Solo órdenes activas para sync — excluye fallidas (retry_count = -1)
     fun getAllPending(): List<PendingOrderEntity> {
+        val cursor = db.readableDatabase.query(
+            "pending_orders", null,
+            "retry_count >= 0", null,
+            null, null, "created_at DESC"
+        )
+        return cursor.use {
+            val list = mutableListOf<PendingOrderEntity>()
+            while (it.moveToNext()) { list.add(cursorToEntity(it)) }
+            list
+        }
+    }
+
+    // Todas las órdenes locales para mostrar en historial (incluye fallidas)
+    fun getAllForHistory(): List<PendingOrderEntity> {
         val cursor = db.readableDatabase.query(
             "pending_orders", null, null, null,
             null, null, "created_at DESC"
         )
         return cursor.use {
             val list = mutableListOf<PendingOrderEntity>()
-            while (it.moveToNext()) {
-                list.add(cursorToEntity(it))
-            }
+            while (it.moveToNext()) { list.add(cursorToEntity(it)) }
             list
         }
     }
@@ -83,7 +98,7 @@ class OrderDao(private val db: AppDatabase) {
 
     fun count(): Int {
         val cursor = db.readableDatabase.rawQuery(
-            "SELECT COUNT(*) FROM pending_orders", null
+            "SELECT COUNT(*) FROM pending_orders WHERE retry_count >= 0", null
         )
         return cursor.use {
             if (it.moveToFirst()) it.getInt(0) else 0
@@ -99,6 +114,10 @@ class OrderDao(private val db: AppDatabase) {
         deviceId = if (c.isNull(c.getColumnIndexOrThrow("device_id"))) null
             else c.getInt(c.getColumnIndexOrThrow("device_id")),
         createdAt = c.getLong(c.getColumnIndexOrThrow("created_at")),
-        retryCount = c.getInt(c.getColumnIndexOrThrow("retry_count"))
+        retryCount = c.getInt(c.getColumnIndexOrThrow("retry_count")),
+        customerId = c.getColumnIndex("customer_id").takeIf { it >= 0 }
+            ?.let { if (c.isNull(it)) null else c.getString(it) },
+        customerName = c.getColumnIndex("customer_name").takeIf { it >= 0 }
+            ?.let { if (c.isNull(it)) null else c.getString(it) }
     )
 }

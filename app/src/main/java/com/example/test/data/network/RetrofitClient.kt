@@ -2,6 +2,7 @@ package com.example.test.data.network
 
 import android.content.Context
 import android.content.Intent
+import com.example.test.BuildConfig
 import com.example.test.data.RefreshRequest
 import com.example.test.data.RefreshResponse
 import com.example.test.data.local.SecurePreferences
@@ -30,7 +31,7 @@ object RetrofitClient {
         currentSecurePrefs = securePrefs
 
         val logging = HttpLoggingInterceptor().apply {
-            level = if (com.example.test.BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
                     else HttpLoggingInterceptor.Level.NONE
         }
 

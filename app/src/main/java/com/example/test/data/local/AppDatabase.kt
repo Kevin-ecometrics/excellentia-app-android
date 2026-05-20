@@ -30,7 +30,9 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 quantity REAL NOT NULL,
                 device_id INTEGER,
                 created_at INTEGER NOT NULL,
-                retry_count INTEGER DEFAULT 0
+                retry_count INTEGER DEFAULT 0,
+                customer_id TEXT,
+                customer_name TEXT
             )
         """)
     }
@@ -42,6 +44,10 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             } catch (_: Exception) {
                 // Column already exists — ignore
             }
+        }
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_id TEXT")
+            db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_name TEXT")
         }
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE pending_orders RENAME TO pending_orders_old")
@@ -64,7 +70,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 3
+        private const val DATABASE_VERSION = 4
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

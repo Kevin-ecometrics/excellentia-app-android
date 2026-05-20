@@ -27,16 +27,22 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.chip.ChipGroup
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 class HistoryActivity : AppCompatActivity() {
 
+    private lateinit var chipGroupDate: ChipGroup
     private lateinit var chipGroup: ChipGroup
     private lateinit var layoutEntries: LinearLayout
     private lateinit var layoutEmpty: View
+    private lateinit var tvEmptySubtitle: TextView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var orderRepository: OrderRepository
     private var currentFilter = "ALL"
+    private var currentDateFilter = "TODAY"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +58,7 @@ class HistoryActivity : AppCompatActivity() {
         val securePrefs = SecurePreferences(this)
         orderRepository = OrderRepository(db, securePrefs)
 
+        chipGroupDate = findViewById(R.id.chipGroupDate)
         chipGroup = findViewById(R.id.chipGroup)
         layoutEntries = findViewById(R.id.layoutEntries)
         layoutEmpty = findViewById(R.id.layoutEmpty)
@@ -60,6 +67,14 @@ class HistoryActivity : AppCompatActivity() {
         swipeRefresh.setOnRefreshListener { loadHistory() }
 
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
+
+        chipGroupDate.setOnCheckedStateChangeListener { _, checkedIds ->
+            currentDateFilter = when {
+                checkedIds.contains(R.id.chipAllDates) -> "ALL"
+                else -> "TODAY"
+            }
+            loadHistory()
+        }
 
         chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
             currentFilter = when {
@@ -78,65 +93,92 @@ class HistoryActivity : AppCompatActivity() {
         loadHistory()
     }
 
-    private var lastOrders: List<OrderDto> = emptyList()
-
     private fun loadHistory() {
         lifecycleScope.launch {
             try {
-            val localPending = orderRepository.getPendingOrders()
-            val remoteResult = orderRepository.getRemoteOrders()
+                val localAll = orderRepository.getPendingOrders()
+                val remoteResult = orderRepository.getRemoteOrders()
 
-            // Group remote orders by batch_id
-            val allRemote = mutableListOf<OrderDto>()
-            remoteResult.onSuccess { allRemote.addAll(it.data ?: emptyList()) }
+                val allRemote = mutableListOf<OrderDto>()
+                remoteResult.onSuccess { allRemote.addAll(it.data ?: emptyList()) }
 
-            val batches = allRemote.groupBy { it.batchId ?: "batch_${it.id}" }
+                // Aplicar filtro de fecha
+                val localFiltered = if (currentDateFilter == "TODAY")
+                    localAll.filter { isToday(it.createdAt) }
+                else
+                    localAll
 
-            layoutEntries.removeAllViews()
+                val allBatches = allRemote.groupBy { it.batchId ?: "batch_${it.id}" }
+                val batchesFiltered = if (currentDateFilter == "TODAY")
+                    allBatches.filter { (_, orders) ->
+                        orders.any { it.createdAt?.let { d -> isTodayFromIso(d) } == true }
+                    }
+                else
+                    allBatches
 
-            if (localPending.isEmpty() && batches.isEmpty()) {
-                layoutEntries.visibility = View.GONE
-                layoutEmpty.visibility = View.VISIBLE
-                return@launch
-            }
+                layoutEntries.removeAllViews()
 
-            layoutEntries.visibility = View.VISIBLE
-            layoutEmpty.visibility = View.GONE
-
-            val inflater = LayoutInflater.from(this@HistoryActivity)
-
-            // Local pending orders (without batch)
-            if (currentFilter != "SENT") {
-                for (order in localPending) {
-                    val itemView = inflater.inflate(R.layout.item_scan_entry, layoutEntries, false)
-                    bindEntry(itemView, ScanEntry(
-                        barcode = order.barcode,
-                        productName = order.productName,
-                        price = order.price,
-                        quantity = order.quantity,
-                        timestamp = order.createdAt,
-                        status = SyncStatus.PENDING
-                    ))
-                    bindRetry(itemView, order)
-                    layoutEntries.addView(itemView)
+                if (localFiltered.isEmpty() && batchesFiltered.isEmpty()) {
+                    layoutEntries.visibility = View.GONE
+                    layoutEmpty.visibility = View.VISIBLE
+                    return@launch
                 }
-            }
 
-            // Remote orders grouped by batch
-            for ((batchId, orders) in batches) {
-                val allSent = orders.all { it.status == "SENT" }
-                if (currentFilter == "PENDING" && allSent) continue
-                if (currentFilter == "SENT" && !allSent) continue
+                layoutEntries.visibility = View.VISIBLE
+                layoutEmpty.visibility = View.GONE
 
-                // Card del batch — click abre TicketDetailActivity con ítems individuales
-                val headerView = inflater.inflate(R.layout.item_batch_header, layoutEntries, false)
-                bindBatchHeader(headerView, batchId, orders, orders.firstOrNull()?.qbInvoiceId)
-                layoutEntries.addView(headerView)
-            }
+                val inflater = LayoutInflater.from(this@HistoryActivity)
+
+                // Órdenes locales
+                if (currentFilter != "SENT") {
+                    for (order in localFiltered) {
+                        val isFailed = order.retryCount == -1
+                        if (currentFilter == "PENDING" && isFailed) continue
+                        if (currentFilter == "FAILED" && !isFailed) continue
+
+                        val itemView = inflater.inflate(R.layout.item_scan_entry, layoutEntries, false)
+                        bindEntry(itemView, ScanEntry(
+                            barcode = order.barcode,
+                            productName = order.productName,
+                            price = order.price,
+                            quantity = order.quantity,
+                            timestamp = order.createdAt,
+                            status = if (isFailed) SyncStatus.FAILED else SyncStatus.PENDING
+                        ))
+                        bindRetry(itemView, order)
+                        layoutEntries.addView(itemView)
+                    }
+                }
+
+                // Batches remotos
+                for ((batchId, orders) in batchesFiltered) {
+                    val allSent = orders.all { it.status == "SENT" }
+                    if (currentFilter == "PENDING" && allSent) continue
+                    if (currentFilter == "SENT" && !allSent) continue
+
+                    val headerView = inflater.inflate(R.layout.item_batch_header, layoutEntries, false)
+                    bindBatchHeader(headerView, batchId, orders, orders.firstOrNull()?.qbInvoiceId)
+                    layoutEntries.addView(headerView)
+                }
             } finally {
                 swipeRefresh.isRefreshing = false
             }
         }
+    }
+
+    private fun isToday(timestampMillis: Long): Boolean {
+        val today = Calendar.getInstance()
+        val target = Calendar.getInstance().also { it.timeInMillis = timestampMillis }
+        return today.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
+               today.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
+    }
+
+    private fun isTodayFromIso(isoDate: String): Boolean {
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
+            isToday(sdf.parse(isoDate)!!.time)
+        } catch (_: Exception) { false }
     }
 
     private fun bindEntry(view: View, entry: ScanEntry) {
@@ -160,12 +202,18 @@ class HistoryActivity : AppCompatActivity() {
                 tvStatus.setBackgroundResource(R.drawable.bg_chip_pending)
                 tvStatus.setTextColor(ContextCompat.getColor(this, R.color.warning))
             }
+            SyncStatus.FAILED -> {
+                tvStatus.text = "FALLIDO"
+                tvStatus.setBackgroundResource(R.drawable.bg_chip_failed)
+                tvStatus.setTextColor(ContextCompat.getColor(this, R.color.red))
+            }
         }
     }
 
     private fun bindRetry(view: View, order: PendingOrderEntity) {
         val btn = view.findViewById<MaterialButton>(R.id.btnRetryEntry)
         btn.visibility = View.VISIBLE
+        btn.text = if (order.retryCount == -1) "Reintentar envío" else "Enviar ahora"
         btn.setOnClickListener {
             btn.isEnabled = false
             btn.text = "Enviando..."
@@ -177,14 +225,18 @@ class HistoryActivity : AppCompatActivity() {
                     quantity = order.quantity,
                     total = order.price * order.quantity
                 )
-                val result = orderRepository.sendBatch(listOf(item))
+                val result = orderRepository.sendBatch(
+                    items = listOf(item),
+                    customerId = order.customerId,
+                    customerName = order.customerName
+                )
                 result.onSuccess {
                     orderRepository.deletePendingOrder(order.id)
                     loadHistory()
                 }
                 result.onFailure { e ->
                     btn.isEnabled = true
-                    btn.text = "Reintentar envío"
+                    btn.text = if (order.retryCount == -1) "Reintentar envío" else "Enviar ahora"
                     Snackbar.make(
                         findViewById(android.R.id.content),
                         e.localizedMessage ?: "Error de conexión",
@@ -201,13 +253,10 @@ class HistoryActivity : AppCompatActivity() {
 
         val dateStr = orders.firstOrNull()?.createdAt?.let {
             try {
-                val sdf = java.text.SimpleDateFormat("dd MMM yyyy  HH:mm", java.util.Locale.US)
-                sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-                sdf.format(
-                    java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-                        .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
-                        .parse(it)!!
-                )
+                val parser = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+                    .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                val display = java.text.SimpleDateFormat("dd MMM yyyy  HH:mm", java.util.Locale.US)
+                display.format(parser.parse(it)!!)
             } catch (_: Exception) { "" }
         } ?: ""
         view.findViewById<TextView>(R.id.tvBatchDate).text = dateStr

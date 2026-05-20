@@ -12,7 +12,7 @@ data class Product(
     val weightPerUnit: Double? = null
 )
 
-enum class SyncStatus { PENDING, SENT }
+enum class SyncStatus { PENDING, SENT, FAILED }
 
 data class ScanEntry(
     val barcode: String,
