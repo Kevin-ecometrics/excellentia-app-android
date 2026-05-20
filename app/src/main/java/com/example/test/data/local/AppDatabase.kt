@@ -22,6 +22,13 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             )
         """)
         db.execSQL("""
+            CREATE TABLE IF NOT EXISTS cached_customers (
+                id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                cached_at INTEGER NOT NULL
+            )
+        """)
+        db.execSQL("""
             CREATE TABLE IF NOT EXISTS pending_orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 barcode TEXT NOT NULL,
@@ -44,6 +51,15 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             } catch (_: Exception) {
                 // Column already exists — ignore
             }
+        }
+        if (oldVersion < 5) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS cached_customers (
+                    id TEXT PRIMARY KEY,
+                    display_name TEXT NOT NULL,
+                    cached_at INTEGER NOT NULL
+                )
+            """)
         }
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_id TEXT")
@@ -70,7 +86,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 4
+        private const val DATABASE_VERSION = 5
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

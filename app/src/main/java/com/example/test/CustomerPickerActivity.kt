@@ -18,6 +18,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.QbCustomer
+import com.example.test.data.local.AppDatabase
+import com.example.test.data.local.dao.CustomerDao
+import com.example.test.data.local.entities.CachedCustomerEntity
 import com.example.test.data.network.RetrofitClient
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
@@ -32,6 +35,8 @@ class CustomerPickerActivity : AppCompatActivity() {
     private lateinit var tvError: TextView
     private lateinit var btnRetry: MaterialButton
     private lateinit var scrollCustomers: View
+    private lateinit var tvOfflineBanner: TextView
+    private lateinit var customerDao: CustomerDao
 
     private var allCustomers: List<QbCustomer> = emptyList()
 
@@ -45,6 +50,8 @@ class CustomerPickerActivity : AppCompatActivity() {
             insets
         }
 
+        customerDao = CustomerDao(AppDatabase.getInstance(this))
+
         etSearch = findViewById(R.id.etSearch)
         progressBar = findViewById(R.id.progressBar)
         layoutCustomers = findViewById(R.id.layoutCustomers)
@@ -52,6 +59,7 @@ class CustomerPickerActivity : AppCompatActivity() {
         tvError = findViewById(R.id.tvError)
         btnRetry = findViewById(R.id.btnRetry)
         scrollCustomers = findViewById(R.id.scrollCustomers)
+        tvOfflineBanner = findViewById(R.id.tvOfflineBanner)
 
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener {
             setResult(Activity.RESULT_CANCELED)
@@ -74,26 +82,48 @@ class CustomerPickerActivity : AppCompatActivity() {
         progressBar.visibility = View.VISIBLE
         scrollCustomers.visibility = View.GONE
         layoutError.visibility = View.GONE
+        tvOfflineBanner.visibility = View.GONE
         layoutCustomers.removeAllViews()
 
         lifecycleScope.launch {
             try {
                 val response = RetrofitClient.getApi().getCustomers()
                 if (response.isSuccessful) {
-                    allCustomers = response.body()
+                    val customers = response.body()
                         ?.queryResponse?.customers
                         ?.filter { it.active }
                         ?.sortedBy { it.displayName }
                         ?: emptyList()
+
+                    // Guardar en cache local
+                    customerDao.insertAll(customers.map {
+                        CachedCustomerEntity(id = it.id, displayName = it.displayName)
+                    })
+
+                    allCustomers = customers
                     progressBar.visibility = View.GONE
                     scrollCustomers.visibility = View.VISIBLE
                     filterAndShow(etSearch.text.toString())
                 } else {
-                    showError("Error al cargar clientes (${response.code()})")
+                    loadFromCache("Error del servidor (${response.code()})")
                 }
             } catch (e: Exception) {
-                showError("Sin conexión — verifica el servidor")
+                loadFromCache("Sin conexión — mostrando clientes guardados")
             }
+        }
+    }
+
+    private fun loadFromCache(reason: String) {
+        val cached = customerDao.getAll()
+        if (cached.isNotEmpty()) {
+            allCustomers = cached.map { QbCustomer(id = it.id, displayName = it.displayName) }
+            progressBar.visibility = View.GONE
+            scrollCustomers.visibility = View.VISIBLE
+            tvOfflineBanner.visibility = View.VISIBLE
+            tvOfflineBanner.text = reason
+            filterAndShow(etSearch.text.toString())
+        } else {
+            showError("Sin conexión y sin clientes guardados.\nConéctate al servidor al menos una vez.")
         }
     }
 
