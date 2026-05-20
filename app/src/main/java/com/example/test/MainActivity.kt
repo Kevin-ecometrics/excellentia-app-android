@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
+import com.example.test.data.local.dao.ProductDao
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.repository.ProductRepository
 import com.example.test.data.repository.OrderRepository
@@ -153,6 +154,8 @@ class MainActivity : AppCompatActivity() {
         productRepository = ProductRepository(db)
         RetrofitClient.initialize(securePrefs.getBackendUrl(), securePrefs, this)
         orderRepository = OrderRepository(db, securePrefs)
+        // Limpiar cache de productos con más de 7 días
+        ProductDao(db).deleteOldCache(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L)
 
         SyncWorker.enqueue(this)
         OrderStatusWorker.enqueue(this)
@@ -257,6 +260,12 @@ class MainActivity : AppCompatActivity() {
         btnHoldScan.setOnClickListener { toggleScan() }
         btnScan.setOnClickListener { showGuide() }
         btnManualEntry.setOnClickListener { showManualEntryDialog() }
+
+        // Búsqueda por nombre (long press en manual entry)
+        btnManualEntry.setOnLongClickListener { showProductSearchDialog(); true }
+
+        // Resumen del día (long press en historial en bottomNav manejado abajo)
+        layoutLastScan.setOnLongClickListener { showDailySummary(); true }
 
         btnSelectCustomer.setOnClickListener {
             customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
@@ -447,6 +456,8 @@ class MainActivity : AppCompatActivity() {
                 return@launch
             }
             val initialQty = product.weightPerUnit?.takeIf { it > 0 } ?: quantity
+            securePrefs.saveLastScan(barcode, product.name)
+            updateLastScan()
             startActivity(
                 Intent(this@MainActivity, ProductDetailActivity::class.java).apply {
                     putExtra("BARCODE", barcode)
@@ -489,8 +500,126 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    fun showProductSearchDialog() {
+        val ctx = this
+        val layout = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 0)
+        }
+        val etSearch = android.widget.EditText(ctx).apply {
+            hint = "Nombre del producto…"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
+        val tvResults = android.widget.TextView(ctx).apply {
+            textSize = 13f
+            setPadding(0, 12, 0, 0)
+            setTextColor(getColor(R.color.text_secondary))
+            text = "Escribe para buscar"
+        }
+        layout.addView(etSearch)
+        layout.addView(tvResults)
+
+        var foundProducts: List<com.example.test.data.ProductDto> = emptyList()
+
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle("Buscar producto por nombre")
+            .setView(layout)
+            .setNegativeButton("Cancelar", null)
+            .create()
+
+        etSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val query = s?.toString()?.trim() ?: return
+                if (query.length < 2) { tvResults.text = "Escribe al menos 2 caracteres"; return }
+                tvResults.text = "Buscando…"
+                lifecycleScope.launch {
+                    try {
+                        val resp = RetrofitClient.getApi().searchProducts(query)
+                        if (resp.isSuccessful) {
+                            foundProducts = resp.body()?.data ?: emptyList()
+                            if (foundProducts.isEmpty()) {
+                                tvResults.text = "Sin resultados para \"$query\""
+                            } else {
+                                tvResults.text = foundProducts.joinToString("\n\n") { p ->
+                                    "▸ ${p.name}\n   ${"$"}${String.format(java.util.Locale.US, "%.2f", p.price)}/lb   ${p.barcode ?: "sin barcode"}"
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {
+                        tvResults.text = "Error al buscar"
+                    }
+                }
+            }
+        })
+
+        tvResults.setOnClickListener {
+            if (foundProducts.size == 1) {
+                foundProducts[0].barcode?.let { barcode ->
+                    dialog.dismiss()
+                    openDetail(barcode)
+                }
+            } else if (foundProducts.isNotEmpty()) {
+                val names = foundProducts.map { "${it.name}  ($${String.format(java.util.Locale.US,"%.2f",it.price)}/lb)" }.toTypedArray()
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                    .setTitle("Seleccionar producto")
+                    .setItems(names) { _, i ->
+                        dialog.dismiss()
+                        foundProducts[i].barcode?.let { barcode -> openDetail(barcode) }
+                    }
+                    .show()
+            }
+        }
+        dialog.show()
+    }
+
+    fun showDailySummary() {
+        val today = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.US).format(java.util.Date())
+        val pendingCount = orderRepository.getPendingCount()
+
+        lifecycleScope.launch {
+            var sentToday = 0
+            var revenueToday = 0.0
+            try {
+                val resp = RetrofitClient.getApi().getStats()
+                if (resp.isSuccessful) {
+                    resp.body()?.kpis?.let { k ->
+                        sentToday   = k.ordersToday
+                        revenueToday = k.revenueToday
+                    }
+                }
+            } catch (_: Exception) {}
+
+            val msg = buildString {
+                append("📅 $today\n\n")
+                append("Pedidos enviados hoy: $sentToday\n")
+                append("Ingresos hoy: \$${String.format(java.util.Locale.US, "%.2f", revenueToday)}\n\n")
+                append("En cola (pendientes): $pendingCount")
+            }
+
+            runOnUiThread {
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle("Resumen del día")
+                    .setMessage(msg)
+                    .setPositiveButton("Cerrar", null)
+                    .show()
+            }
+        }
+    }
+
     private fun updateLastScan() {
-        layoutLastScan.visibility = View.GONE
+        val barcode = securePrefs.getLastScanBarcode()
+        val name    = securePrefs.getLastScanName()
+        val time    = securePrefs.getLastScanTime()
+        if (barcode.isNullOrBlank() || name.isNullOrBlank()) {
+            layoutLastScan.visibility = View.GONE
+            return
+        }
+        tvLastBarcode.text = barcode
+        tvLastProduct.text = name
+        tvLastTime.text    = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(time))
+        layoutLastScan.visibility = View.VISIBLE
     }
 
     private fun requestNotificationPermission() {

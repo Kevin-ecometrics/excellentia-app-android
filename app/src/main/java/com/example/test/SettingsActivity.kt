@@ -76,6 +76,9 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         btnSave.setOnClickListener { saveSettings() }
         btnLogout.setOnClickListener { logout() }
+        findViewById<MaterialButton>(R.id.btnChangePassword).setOnClickListener {
+            startActivity(Intent(this, ChangePasswordActivity::class.java))
+        }
         btnSelectPrinter.setOnClickListener { requestBluetoothAndPick() }
         btnTestPrinter.setOnClickListener { testPrinter() }
 

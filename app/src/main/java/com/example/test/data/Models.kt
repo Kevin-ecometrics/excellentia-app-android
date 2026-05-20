@@ -167,6 +167,42 @@ data class BatchResponse(
     val orders: List<OrderResponse>
 )
 
+// ── Auth Models ──
+
+data class ChangePasswordRequest(
+    @SerializedName("currentPassword") val currentPassword: String,
+    @SerializedName("newPassword") val newPassword: String
+)
+
+// ── Stats Models ──
+
+data class StatsKpis(
+    val ordersToday: Int = 0,
+    val revenueToday: Double = 0.0,
+    val revenueTotal: Double = 0.0,
+    val pending: Int = 0,
+    val sent: Int = 0,
+    val failed: Int = 0
+)
+
+data class StatsResponse(
+    val kpis: StatsKpis
+)
+
+// ── Company Settings Models ──
+
+data class CompanySettingsResponse(
+    val data: CompanySettingsData?
+)
+
+data class CompanySettingsData(
+    @SerializedName("company_name") val companyName: String = "EXCELLENTIA",
+    val subtitle: String = "Ticket de Venta",
+    val address: String? = null,
+    val phone: String? = null,
+    val city: String? = null
+)
+
 // ── Price History Models ──
 
 data class ProductHistoryInfo(

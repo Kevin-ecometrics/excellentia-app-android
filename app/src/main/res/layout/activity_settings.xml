@@ -567,6 +567,16 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- Change password button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnChangePassword"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="8dp"
+                    android:text="Cambiar contraseña"
+                    app:cornerRadius="16dp" />
+
                 <!-- Logout button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnLogout"

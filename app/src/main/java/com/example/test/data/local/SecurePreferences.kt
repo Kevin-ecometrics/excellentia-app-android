@@ -81,6 +81,33 @@ class SecurePreferences(context: Context) {
         prefs.edit().remove(KEY_ACTIVE_CUSTOMER_ID).remove(KEY_ACTIVE_CUSTOMER_NAME).apply()
     }
 
+    fun saveCompanySettings(name: String, subtitle: String, address: String?, phone: String?, city: String?) {
+        prefs.edit()
+            .putString(KEY_COMPANY_NAME, name)
+            .putString(KEY_COMPANY_SUBTITLE, subtitle)
+            .putString(KEY_COMPANY_ADDRESS, address)
+            .putString(KEY_COMPANY_PHONE, phone)
+            .putString(KEY_COMPANY_CITY, city)
+            .apply()
+    }
+
+    fun saveLastScan(barcode: String, productName: String, timestamp: Long = System.currentTimeMillis()) {
+        prefs.edit()
+            .putString(KEY_LAST_SCAN_BARCODE, barcode)
+            .putString(KEY_LAST_SCAN_NAME, productName)
+            .putLong(KEY_LAST_SCAN_TIME, timestamp)
+            .apply()
+    }
+    fun getLastScanBarcode(): String? = prefs.getString(KEY_LAST_SCAN_BARCODE, null)
+    fun getLastScanName(): String? = prefs.getString(KEY_LAST_SCAN_NAME, null)
+    fun getLastScanTime(): Long = prefs.getLong(KEY_LAST_SCAN_TIME, 0L)
+
+    fun getCompanyName(): String = prefs.getString(KEY_COMPANY_NAME, "EXCELLENTIA") ?: "EXCELLENTIA"
+    fun getCompanySubtitle(): String = prefs.getString(KEY_COMPANY_SUBTITLE, "Ticket de Venta") ?: "Ticket de Venta"
+    fun getCompanyAddress(): String? = prefs.getString(KEY_COMPANY_ADDRESS, null)?.takeIf { it.isNotBlank() }
+    fun getCompanyPhone(): String? = prefs.getString(KEY_COMPANY_PHONE, null)?.takeIf { it.isNotBlank() }
+    fun getCompanyCity(): String? = prefs.getString(KEY_COMPANY_CITY, null)?.takeIf { it.isNotBlank() }
+
     companion object {
         private const val PREFS_NAME = "secure_prefs"
         private const val KEY_JWT = "jwt_token"
@@ -91,6 +118,14 @@ class SecurePreferences(context: Context) {
         private const val KEY_PRINTER_NAME = "printer_bt_name"
         private const val KEY_ACTIVE_CUSTOMER_ID = "active_customer_id"
         private const val KEY_ACTIVE_CUSTOMER_NAME = "active_customer_name"
+        private const val KEY_LAST_SCAN_BARCODE = "last_scan_barcode"
+        private const val KEY_LAST_SCAN_NAME = "last_scan_name"
+        private const val KEY_LAST_SCAN_TIME = "last_scan_time"
+        private const val KEY_COMPANY_NAME = "company_name"
+        private const val KEY_COMPANY_SUBTITLE = "company_subtitle"
+        private const val KEY_COMPANY_ADDRESS = "company_address"
+        private const val KEY_COMPANY_PHONE = "company_phone"
+        private const val KEY_COMPANY_CITY = "company_city"
         private const val DEFAULT_BACKEND_URL = "http://10.0.2.2:3000"
     }
 }

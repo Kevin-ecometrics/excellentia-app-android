@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import com.example.test.data.BatchItem
+import com.example.test.data.local.SecurePreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -35,7 +36,18 @@ object PrintService {
     ): Result<Unit> = withContext(Dispatchers.IO) {
         if (!hasBtConnectPermission(context))
             return@withContext Result.failure(Exception("Permiso Bluetooth no otorgado"))
-        send(context, deviceAddress, buildCpcl(items, customerName, batchId, invoiceId))
+        val prefs = SecurePreferences(context)
+        send(context, deviceAddress, buildCpcl(
+            items        = items,
+            customerName = customerName,
+            batchId      = batchId,
+            invoiceId    = invoiceId,
+            companyName  = prefs.getCompanyName(),
+            subtitle     = prefs.getCompanySubtitle(),
+            address      = prefs.getCompanyAddress(),
+            phone        = prefs.getCompanyPhone(),
+            city         = prefs.getCompanyCity()
+        ))
     }
 
     @SuppressLint("MissingPermission")
@@ -102,7 +114,12 @@ object PrintService {
         items: List<BatchItem>,
         customerName: String?,
         batchId: String,
-        invoiceId: String?
+        invoiceId: String?,
+        companyName: String = "EXCELLENTIA",
+        subtitle: String = "Ticket de Venta",
+        address: String? = null,
+        phone: String? = null,
+        city: String? = null
     ): String {
         val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(Date())
         val grandTotal = items.sumOf { it.total }
@@ -113,8 +130,17 @@ object PrintService {
 
         // ── Cabecera ──────────────────────────────────
         body.center()
-        body.t(F7, 0, y, "EXCELLENTIA");                           y += F7H + 8
-        body.t(F4, 0, y, "Ticket de Venta");                       y += F4H + 6
+        body.t(F7, 0, y, companyName.take(20));                    y += F7H + 8
+        body.t(F4, 0, y, subtitle);                                y += F4H + 6
+        if (!city.isNullOrBlank()) {
+            body.t(F4, 0, y, city);                                y += F4H + 4
+        }
+        if (!address.isNullOrBlank()) {
+            body.t(F4, 0, y, address.take(28));                    y += F4H + 4
+        }
+        if (!phone.isNullOrBlank()) {
+            body.t(F4, 0, y, phone);                               y += F4H + 4
+        }
         body.t(F4, 0, y, date);                                    y += F4H + 4
 
         if (batchId.isNotBlank()) {
@@ -157,7 +183,7 @@ object PrintService {
         // ── Pie ───────────────────────────────────────
         body.t(F4, 0, y,
             String.format(Locale.US, "%.2f lb en total", totalQty)); y += F4H + 10
-        body.t(F4, 0, y, "Excellentia");                           y += F4H
+        body.t(F4, 0, y, companyName.take(20));                    y += F4H
 
         val height = y + BOTTOM
         return "! 0 200 200 $height 1\r\nPAGE-WIDTH $PW\r\n" +

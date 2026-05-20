@@ -20,6 +20,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import android.os.Build
+import android.provider.Settings as AndroidSettings
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -181,6 +183,34 @@ class LoginActivity : AppCompatActivity() {
                     securePrefs.saveRefreshToken(result.refreshToken)
                     securePrefs.saveOfflineMode(false)
                     RetrofitClient.initialize(baseUrl, securePrefs)
+                    // Cachear configuración de empresa
+                    try {
+                        val settingsResp = RetrofitClient.getApi().getCompanySettings()
+                        if (settingsResp.isSuccessful) {
+                            settingsResp.body()?.data?.let { d ->
+                                securePrefs.saveCompanySettings(
+                                    name     = d.companyName,
+                                    subtitle = d.subtitle,
+                                    address  = d.address,
+                                    phone    = d.phone,
+                                    city     = d.city
+                                )
+                            }
+                        }
+                    } catch (_: Exception) { }
+                    // Registrar dispositivo
+                    try {
+                        val androidId = AndroidSettings.Secure.getString(
+                            contentResolver, AndroidSettings.Secure.ANDROID_ID
+                        ) ?: "unknown"
+                        RetrofitClient.getApi().registerDevice(
+                            com.example.test.data.DeviceRegisterRequest(
+                                name         = "${Build.MANUFACTURER} ${Build.MODEL}",
+                                model        = Build.MODEL,
+                                serialNumber = androidId
+                            )
+                        )
+                    } catch (_: Exception) { }
                     goToMain()
                 } else {
                     val msg = try {

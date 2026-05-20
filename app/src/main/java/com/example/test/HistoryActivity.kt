@@ -38,11 +38,14 @@ class HistoryActivity : AppCompatActivity() {
     private lateinit var chipGroup: ChipGroup
     private lateinit var layoutEntries: LinearLayout
     private lateinit var layoutEmpty: View
-    private lateinit var tvEmptySubtitle: TextView
     private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var btnLoadMore: com.google.android.material.button.MaterialButton
     private lateinit var orderRepository: OrderRepository
     private var currentFilter = "ALL"
     private var currentDateFilter = "TODAY"
+    private var currentPage = 1
+    private var hasMorePages = false
+    private val pageSize = 20
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,6 +65,7 @@ class HistoryActivity : AppCompatActivity() {
         chipGroup = findViewById(R.id.chipGroup)
         layoutEntries = findViewById(R.id.layoutEntries)
         layoutEmpty = findViewById(R.id.layoutEmpty)
+        btnLoadMore = findViewById(R.id.btnLoadMore)
         swipeRefresh = findViewById(R.id.swipeRefresh)
         swipeRefresh.setColorSchemeColors(getColor(R.color.primary))
         swipeRefresh.setOnRefreshListener { loadHistory() }
@@ -78,11 +82,18 @@ class HistoryActivity : AppCompatActivity() {
 
         chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
             currentFilter = when {
-                checkedIds.contains(R.id.chipSent) -> "SENT"
+                checkedIds.contains(R.id.chipSent)    -> "SENT"
                 checkedIds.contains(R.id.chipPending) -> "PENDING"
+                checkedIds.contains(R.id.chipFailed)  -> "FAILED"
                 else -> "ALL"
             }
+            currentPage = 1
             loadHistory()
+        }
+
+        btnLoadMore.setOnClickListener {
+            currentPage++
+            loadHistory(append = true)
         }
 
         loadHistory()
@@ -93,14 +104,19 @@ class HistoryActivity : AppCompatActivity() {
         loadHistory()
     }
 
-    private fun loadHistory() {
+    private fun loadHistory(append: Boolean = false) {
+        if (!append) { currentPage = 1; btnLoadMore.visibility = android.view.View.GONE }
         lifecycleScope.launch {
             try {
                 val localAll = orderRepository.getPendingOrders()
-                val remoteResult = orderRepository.getRemoteOrders()
+                val remoteResult = orderRepository.getRemoteOrders(page = currentPage, limit = pageSize)
 
                 val allRemote = mutableListOf<OrderDto>()
-                remoteResult.onSuccess { allRemote.addAll(it.data ?: emptyList()) }
+                remoteResult.onSuccess { resp ->
+                    allRemote.addAll(resp.data ?: emptyList())
+                    val total = resp.meta?.total ?: 0
+                    hasMorePages = (currentPage * pageSize) < total
+                }
 
                 // Aplicar filtro de fecha
                 val localFiltered = if (currentDateFilter == "TODAY")
@@ -116,25 +132,26 @@ class HistoryActivity : AppCompatActivity() {
                 else
                     allBatches
 
-                layoutEntries.removeAllViews()
-
-                if (localFiltered.isEmpty() && batchesFiltered.isEmpty()) {
+                if (localFiltered.isEmpty() && batchesFiltered.isEmpty() && !append) {
                     layoutEntries.visibility = View.GONE
                     layoutEmpty.visibility = View.VISIBLE
+                    btnLoadMore.visibility = View.GONE
                     return@launch
                 }
 
                 layoutEntries.visibility = View.VISIBLE
                 layoutEmpty.visibility = View.GONE
 
+                if (!append) layoutEntries.removeAllViews()
                 val inflater = LayoutInflater.from(this@HistoryActivity)
 
                 // Órdenes locales
                 if (currentFilter != "SENT") {
                     for (order in localFiltered) {
                         val isFailed = order.retryCount == -1
+                        if (currentFilter == "SENT")             continue
                         if (currentFilter == "PENDING" && isFailed) continue
-                        if (currentFilter == "FAILED" && !isFailed) continue
+                        if (currentFilter == "FAILED"  && !isFailed) continue
 
                         val itemView = inflater.inflate(R.layout.item_scan_entry, layoutEntries, false)
                         bindEntry(itemView, ScanEntry(
@@ -160,6 +177,7 @@ class HistoryActivity : AppCompatActivity() {
                     bindBatchHeader(headerView, batchId, orders, orders.firstOrNull()?.qbInvoiceId)
                     layoutEntries.addView(headerView)
                 }
+                btnLoadMore.visibility = if (hasMorePages) View.VISIBLE else View.GONE
             } finally {
                 swipeRefresh.isRefreshing = false
             }

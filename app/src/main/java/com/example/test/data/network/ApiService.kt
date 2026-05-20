@@ -39,6 +39,21 @@ interface ApiService {
     @GET("api/customers")
     suspend fun getCustomers(): Response<QbCustomersResponse>
 
+    @GET("api/settings")
+    suspend fun getCompanySettings(): Response<CompanySettingsResponse>
+
+    @PUT("api/auth/change-password")
+    suspend fun changePassword(@Body request: ChangePasswordRequest): Response<Unit>
+
+    @GET("api/products")
+    suspend fun searchProducts(
+        @Query("search") search: String,
+        @Query("limit") limit: Int = 20
+    ): Response<ApiResponse<List<ProductDto>>>
+
+    @GET("api/stats")
+    suspend fun getStats(): Response<StatsResponse>
+
     @GET("api/products/{barcode}/history")
     suspend fun getProductPriceHistory(
         @Path("barcode") barcode: String,
