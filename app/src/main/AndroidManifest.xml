@@ -23,6 +23,7 @@
             android:name=".LoginActivity"
             android:exported="true"
             android:screenOrientation="portrait"
+            android:theme="@style/Theme.Test.Splash"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

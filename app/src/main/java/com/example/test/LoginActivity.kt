@@ -51,6 +51,7 @@ class LoginActivity : AppCompatActivity() {
     private var serverOk = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(R.style.Theme_Test)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 

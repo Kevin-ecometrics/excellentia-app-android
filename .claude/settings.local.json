@@ -25,7 +25,10 @@
       "Bash(./gradlew assembleDebug)",
       "Bash(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\\\\app\\\\src\\\\main\" -Recurse)",
       "Bash(Select-Object FullName)",
-      "PowerShell(cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 30)"
+      "PowerShell(cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 30)",
+      "PowerShell(cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 20)",
+      "PowerShell(cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 15)",
+      "PowerShell(cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 10)"
     ]
   }
 }
