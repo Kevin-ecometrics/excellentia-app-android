@@ -64,7 +64,6 @@ class LoginActivity : AppCompatActivity() {
 
         bindViews()
         etBackendUrl.setText(securePrefs.getBackendUrl())
-        etEmail.setText("admin@excellentia.com")
 
         btnLogin.setOnClickListener { doLogin() }
         btnRetry.setOnClickListener { pingServer(); clearError() }

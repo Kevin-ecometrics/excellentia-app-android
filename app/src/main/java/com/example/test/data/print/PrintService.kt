@@ -54,7 +54,14 @@ object PrintService {
             val socket = adapter.getRemoteDevice(address)
                 .createRfcommSocketToServiceRecord(SPP_UUID)
             try {
-                socket.connect()
+                val connectThread = Thread { socket.connect() }
+                connectThread.start()
+                connectThread.join(8000L)
+                if (connectThread.isAlive) {
+                    connectThread.interrupt()
+                    runCatching { socket.close() }
+                    return Result.failure(Exception("Tiempo de espera agotado — verifica que la impresora esté encendida"))
+                }
                 socket.outputStream.write(data.toByteArray(Charsets.UTF_8))
                 socket.outputStream.flush()
                 Thread.sleep(DRAIN_MS)

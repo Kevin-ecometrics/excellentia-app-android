@@ -70,6 +70,13 @@ class OrderDao(private val db: AppDatabase) {
         )
     }
 
+    fun markFailed(id: Int) {
+        val values = ContentValues().apply {
+            put("retry_count", -1)
+        }
+        db.writableDatabase.update("pending_orders", values, "id = ?", arrayOf(id.toString()))
+    }
+
     fun deleteAll() {
         db.writableDatabase.delete("pending_orders", null, null)
     }

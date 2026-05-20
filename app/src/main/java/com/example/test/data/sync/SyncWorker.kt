@@ -37,13 +37,13 @@ class SyncWorker(
                         orderDao.deleteById(order.id)
                         successCount++
                     } else if (order.retryCount >= 3) {
-                        orderDao.deleteById(order.id)
+                        orderDao.markFailed(order.id)
                     } else {
                         orderDao.incrementRetry(order.id)
                     }
                 } catch (_: Exception) {
                     if (order.retryCount >= 3) {
-                        orderDao.deleteById(order.id)
+                        orderDao.markFailed(order.id)
                     } else {
                         orderDao.incrementRetry(order.id)
                     }
