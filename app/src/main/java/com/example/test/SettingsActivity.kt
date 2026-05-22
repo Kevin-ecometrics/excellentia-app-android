@@ -77,6 +77,9 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btnChangePassword).setOnClickListener {
             startActivity(Intent(this, ChangePasswordActivity::class.java))
         }
+        findViewById<android.widget.ImageButton>(R.id.btnPrinterHelp).setOnClickListener {
+            showPrinterHelp()
+        }
         btnSelectPrinter.setOnClickListener { requestBluetoothAndPick() }
         btnTestPrinter.setOnClickListener { testPrinter() }
 
@@ -200,5 +203,36 @@ class SettingsActivity : AppCompatActivity() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         })
         finish()
+    }
+
+    private fun showPrinterHelp() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("¿Cómo agregar la impresora?")
+            .setMessage(
+                "Sigue estos pasos para conectar la Zebra ZQ630 Plus:\n\n" +
+                "1️⃣  Enciende la impresora ZQ630 Plus.\n\n" +
+                "2️⃣  Encuentra la dirección Bluetooth\n" +
+                "     de la impresora. Hay dos formas:\n\n" +
+                "     • En la parte trasera (donde va la\n" +
+                "       batería) hay una etiqueta con un\n" +
+                "       código de barras — la dirección\n" +
+                "       está impresa ahí.\n\n" +
+                "     • O accede al menú Bluetooth de la\n" +
+                "       impresora para verla en pantalla.\n\n" +
+                "     Ejemplo: 8C:D5:4A:1C:0C:85\n\n" +
+                "3️⃣  En esta pantalla toca\n" +
+                "     \"Seleccionar impresora\".\n\n" +
+                "4️⃣  Aparecerá la lista de impresoras\n" +
+                "     disponibles con su dirección Bluetooth.\n" +
+                "     Selecciona la que coincide con la\n" +
+                "     dirección del paso 2.\n\n" +
+                "5️⃣  Toca \"Imprimir página de prueba\"\n" +
+                "     para confirmar que funciona.\n\n" +
+                "💡  Si no aparece tu impresora en la lista,\n" +
+                "     verifica que esté encendida y cerca\n" +
+                "     del dispositivo."
+            )
+            .setPositiveButton("Entendido", null)
+            .show()
     }
 }

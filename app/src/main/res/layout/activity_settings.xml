@@ -358,13 +358,23 @@
                                 app:tint="@color/primary" />
 
                             <TextView
-                                android:layout_width="wrap_content"
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
+                                android:layout_weight="1"
                                 android:text="Impresora Zebra ZQ630"
                                 android:textColor="@color/primary"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
+
+                            <ImageButton
+                                android:id="@+id/btnPrinterHelp"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="Ayuda impresora"
+                                android:src="@android:drawable/ic_menu_help"
+                                app:tint="@color/text_secondary" />
                         </LinearLayout>
 
                         <TextView

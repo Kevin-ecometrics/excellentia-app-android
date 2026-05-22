@@ -197,26 +197,21 @@ class CurrentOrderActivity : AppCompatActivity() {
             val ctx = this@CurrentOrderActivity
             val dialogView = layoutInflater.inflate(R.layout.dialog_edit_order, null)
             val etQty        = dialogView.findViewById<android.widget.EditText>(R.id.etQty)
-            val etPrice      = dialogView.findViewById<android.widget.EditText>(R.id.etPrice)
+            val etPricePerLb = dialogView.findViewById<android.widget.EditText>(R.id.etPricePerLb)
             val tvTotal      = dialogView.findViewById<android.widget.TextView>(R.id.tvTotal)
-            val tvRate       = dialogView.findViewById<android.widget.TextView>(R.id.tvRate)
             val tvMinWarning = dialogView.findViewById<android.widget.TextView>(R.id.tvMinWarning)
 
             etQty.setText(String.format(Locale.US, "%.2f", order.quantity))
             etQty.selectAll()
-            etPrice.setText(String.format(Locale.US, "%.2f", order.price * order.quantity))
-
-            val baseRate = order.price
-            var isUpdating = false
+            etPricePerLb.setText(String.format(Locale.US, "%.2f", order.price))
 
             fun refresh() {
                 val q = etQty.text.toString().toDoubleOrNull() ?: 0.0
-                val p = etPrice.text.toString().toDoubleOrNull() ?: 0.0
-                tvTotal.text = String.format(Locale.US, "%.2f lb  =  \$%.2f", q, p)
-                tvRate.text = if (q > 0 && p > 0)
-                    "($${String.format(Locale.US, "%.2f", p / q)} / lb)" else ""
-                if (minPrice != null && p > 0) {
-                    if (Math.round(p * 100) < Math.round(minPrice * 100)) {
+                val r = etPricePerLb.text.toString().toDoubleOrNull() ?: 0.0
+                val total = q * r
+                tvTotal.text = String.format(Locale.US, "%.2f lb  =  \$%.2f", q, total)
+                if (minPrice != null && total > 0) {
+                    if (Math.round(total * 100) < Math.round(minPrice * 100)) {
                         tvMinWarning.text = "Mínimo: $${String.format(Locale.US, "%.2f", minPrice)}"
                         tvMinWarning.visibility = android.view.View.VISIBLE
                     } else {
@@ -225,47 +220,24 @@ class CurrentOrderActivity : AppCompatActivity() {
                 }
             }
 
-            val qtyWatcher = object : android.text.TextWatcher {
+            val watcher = object : android.text.TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
                 override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-                override fun afterTextChanged(s: android.text.Editable?) {
-                    if (isUpdating) return
-                    isUpdating = true
-                    val q = s.toString().toDoubleOrNull()
-                    if (q != null && q > 0) {
-                        etPrice.setText(String.format(Locale.US, "%.2f", q * baseRate))
-                    }
-                    isUpdating = false
-                    refresh()
-                }
+                override fun afterTextChanged(s: android.text.Editable?) { refresh() }
             }
 
-            val priceWatcher = object : android.text.TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
-                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-                override fun afterTextChanged(s: android.text.Editable?) {
-                    if (isUpdating) return
-                    isUpdating = true
-                    val p = s.toString().toDoubleOrNull()
-                    if (p != null && p > 0) {
-                        etQty.setText(String.format(Locale.US, "%.2f", p / baseRate))
-                    }
-                    isUpdating = false
-                    refresh()
-                }
-            }
-
-            etQty.addTextChangedListener(qtyWatcher)
-            etPrice.addTextChangedListener(priceWatcher)
+            etQty.addTextChangedListener(watcher)
+            etPricePerLb.addTextChangedListener(watcher)
             refresh()
 
             com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                 .setTitle(order.productName)
                 .setView(dialogView)
                 .setPositiveButton("Guardar") { _, _ ->
-                    val qty   = etQty.text.toString().toDoubleOrNull()
-                    val total = etPrice.text.toString().toDoubleOrNull()
-                    if (qty != null && qty > 0 && total != null && total > 0) {
+                    val qty  = etQty.text.toString().toDoubleOrNull()
+                    val rate = etPricePerLb.text.toString().toDoubleOrNull()
+                    if (qty != null && qty > 0 && rate != null && rate > 0) {
+                        val total = qty * rate
                         if (minPrice != null && Math.round(total * 100) < Math.round(minPrice * 100)) {
                             Snackbar.make(
                                 ctx.findViewById(android.R.id.content),
@@ -274,8 +246,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                             ).show()
                             return@setPositiveButton
                         }
-                        val perLb = total / qty
-                        orderRepository.updatePendingOrder(order.id, perLb, qty)
+                        orderRepository.updatePendingOrder(order.id, rate, qty)
                         loadOrder()
                     } else {
                         Snackbar.make(ctx.findViewById(android.R.id.content), "Valores inválidos", Snackbar.LENGTH_SHORT).show()

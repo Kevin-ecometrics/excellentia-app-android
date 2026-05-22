@@ -27,11 +27,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:hint="Precio total"
-        app:prefixText="$">
+        android:hint="Precio / lb"
+        app:prefixText="$"
+        app:suffixText="/lb">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etPrice"
+            android:id="@+id/etPricePerLb"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="numberDecimal"
@@ -47,15 +48,6 @@
         android:textColor="@color/primary"
         android:textSize="13sp"
         android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/tvRate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:gravity="center"
-        android:textColor="@color/text_secondary"
-        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/tvMinWarning"
