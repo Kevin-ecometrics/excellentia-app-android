@@ -29,7 +29,8 @@ class OrderSuccessActivity : AppCompatActivity() {
         val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
         val customerName    = intent.getStringExtra("customer_name")
         val customerAddress = intent.getStringExtra("customer_address")
-        val signature       = intent.getStringExtra("signature")
+        val signature          = intent.getStringExtra("signature")
+        val damageItemsJson    = intent.getStringExtra("damage_items_json")
         val total      = intent.getDoubleExtra("total", 0.0)
         val itemCount  = intent.getIntExtra("item_count", 0)
         val ordersJson = intent.getStringExtra("orders_json") ?: "[]"
@@ -63,6 +64,7 @@ class OrderSuccessActivity : AppCompatActivity() {
                 putExtra("customer_name", customerName)
                 putExtra("customer_address", customerAddress)
                 putExtra("signature", signature)
+                putExtra("damage_items_json", damageItemsJson)
             }
             startActivity(intent)
         }

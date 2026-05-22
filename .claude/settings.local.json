@@ -56,7 +56,16 @@
       "Bash(.\\\\gradlew assembleDebug --quiet)",
       "Bash(bun run *)",
       "Bash(curl -s http://localhost:3000/api/setup)",
-      "Bash(python -m json.tool)"
+      "Bash(python -m json.tool)",
+      "Bash(curl -s http://localhost:3000/api/orders/damage/test)",
+      "Bash(pkill -f \"bun run src/index.ts\")",
+      "Bash(pkill -f \"src/index.ts\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3000\")",
+      "Bash(findstr LISTENING)",
+      "Bash(tasklist *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Stop-Process *)"
     ]
   }
 }

@@ -59,4 +59,9 @@ interface ApiService {
         @Path("barcode") barcode: String,
         @Query("customer_id") customerId: String
     ): Response<PriceHistoryResponse>
+
+    @GET("api/orders/damage/{batchId}")
+    suspend fun getBatchDamage(
+        @Path("batchId") batchId: String
+    ): Response<ApiResponse<List<DamageItem>>>
 }

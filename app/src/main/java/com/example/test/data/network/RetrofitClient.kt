@@ -55,6 +55,8 @@ object RetrofitClient {
         api = retrofit.create(ApiService::class.java)
     }
 
+    fun isInitialized(): Boolean = api != null
+
     fun getApi(): ApiService {
         return api ?: throw IllegalStateException("RetrofitClient no inicializado. Llama initialize() primero.")
     }

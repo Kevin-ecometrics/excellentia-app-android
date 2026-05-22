@@ -325,6 +325,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                 putExtra("invoice_id", "")
                 putExtra("orders_json", Gson().toJson(orders))
                 putExtra("customer_address", customerAddress)
+                putExtra("damage_items_json", Gson().toJson(pendingDamageItems))
             })
         }
     }
@@ -548,6 +549,7 @@ class CurrentOrderActivity : AppCompatActivity() {
             val sigForPrinting     = pendingSignature
             val damageForPrinting  = pendingDamageItems
             val paymentForPrinting = pendingPaymentMethod
+            android.util.Log.d("DamageDebug", "sendBatch damageItems=${pendingDamageItems.size}: ${pendingDamageItems.map { "${it.productName}:${it.qty}" }}")
             val result = orderRepository.sendBatch(items, customerId, customerName, pendingSignature, pendingDamageItems, pendingPaymentMethod)
             pendingSignature    = null
             pendingDamageItems  = emptyList()
@@ -595,6 +597,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                         putExtra("customer_name", customerName)
                         putExtra("customer_address", customerAddress)
                         putExtra("signature", sigForPrinting)
+                        putExtra("damage_items_json", Gson().toJson(damageForPrinting))
                         putExtra("total", grandTotal)
                         putExtra("item_count", items.size)
                         putExtra("orders_json", Gson().toJson(

@@ -18,8 +18,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.BatchItem
+import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
 import com.example.test.data.local.SecurePreferences
+import com.example.test.data.network.RetrofitClient
 import com.example.test.data.print.PrintService
 import com.google.android.material.button.MaterialButton
 import com.google.gson.Gson
@@ -33,6 +35,7 @@ class TicketDetailActivity : AppCompatActivity() {
 
     private lateinit var ticketContent: LinearLayout
     private val dp get() = resources.displayMetrics.density
+    private var damageItemsForReprint: List<DamageItem> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,21 +49,26 @@ class TicketDetailActivity : AppCompatActivity() {
 
         ticketContent = findViewById(R.id.ticketContent)
 
-        val ordersJson   = intent.getStringExtra("orders_json") ?: "[]"
+        val ordersJson = intent.getStringExtra("orders_json") ?: "[]"
         val orders: List<OrderDto> = Gson().fromJson(ordersJson, Array<OrderDto>::class.java).toList()
-        val batchId      = intent.getStringExtra("batch_id") ?: ""
-        val invoiceId    = intent.getStringExtra("invoice_id") ?: ""
-        val customerName = intent.getStringExtra("customer_name") ?: orders.firstOrNull()?.customerName
+        val batchId         = intent.getStringExtra("batch_id") ?: ""
+        val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
+        val customerName    = intent.getStringExtra("customer_name") ?: orders.firstOrNull()?.customerName
         val customerAddress = intent.getStringExtra("customer_address")
-        // Firma: desde intent extra (flujo inmediato) o desde primer OrderDto (historial via API)
-        val signature    = intent.getStringExtra("signature")
-            ?: orders.firstOrNull()?.signature
-        val rawDate      = orders.firstOrNull()?.createdAt
-        val grandTotal   = orders.sumOf { it.total }
-        val totalQty     = orders.sumOf { it.quantity }
+        val signature       = intent.getStringExtra("signature") ?: orders.firstOrNull()?.signature
+        val rawDate         = orders.firstOrNull()?.createdAt
+        val grandTotal      = orders.sumOf { it.total }
+        val totalQty        = orders.sumOf { it.quantity }
 
         val prefs = SecurePreferences(this)
         val companyName = prefs.getCompanyName()
+
+        // Cargar damage items desde el intent (flujo inmediato) o desde la API (historial)
+        val intentDamage = intent.getStringExtra("damage_items_json")
+        val initialDamage: List<DamageItem> = if (!intentDamage.isNullOrBlank()) {
+            try { Gson().fromJson(intentDamage, Array<DamageItem>::class.java).toList() }
+            catch (_: Exception) { emptyList() }
+        } else emptyList()
 
         buildReceipt(
             companyName       = companyName,
@@ -78,6 +86,7 @@ class TicketDetailActivity : AppCompatActivity() {
             totalQty          = totalQty,
             companyNameFooter = companyName,
             signature         = signature,
+            damageItems       = initialDamage,
             status            = when {
                 orders.all { it.status == "SENT" }     -> "ENVIADO"
                 orders.any { it.status == "PENDING" }  -> "PENDIENTE"
@@ -85,6 +94,55 @@ class TicketDetailActivity : AppCompatActivity() {
                 else                                   -> null
             }
         )
+
+        // Si viene del historial y hay batchId, cargar damage desde API y actualizar recibo
+        damageItemsForReprint = initialDamage
+        if (batchId.isNotBlank() && initialDamage.isEmpty()) {
+            lifecycleScope.launch {
+                try {
+                    // Asegurar que RetrofitClient esté inicializado
+                    if (!RetrofitClient.isInitialized()) {
+                        val baseUrl = prefs.getBackendUrl()
+                        RetrofitClient.initialize(baseUrl, prefs, this@TicketDetailActivity)
+                    }
+                    val resp = RetrofitClient.getApi().getBatchDamage(batchId)
+                    android.util.Log.d("DamageDebug", "getBatchDamage resp=${resp.code()} body=${resp.body()?.data?.size} items")
+                    if (resp.isSuccessful) {
+                        val apiDamage = resp.body()?.data ?: emptyList()
+                        if (apiDamage.isNotEmpty()) {
+                            damageItemsForReprint = apiDamage
+                            ticketContent.removeAllViews()
+                            buildReceipt(
+                                companyName       = companyName,
+                                subtitle          = prefs.getCompanySubtitle(),
+                                city              = prefs.getCompanyCity(),
+                                address           = prefs.getCompanyAddress(),
+                                phone             = prefs.getCompanyPhone(),
+                                date              = formatDate(rawDate),
+                                batchId           = batchId,
+                                invoiceId         = invoiceId,
+                                customerName      = customerName,
+                                customerAddress   = customerAddress,
+                                orders            = orders,
+                                grandTotal        = grandTotal,
+                                totalQty          = totalQty,
+                                companyNameFooter = companyName,
+                                signature         = signature,
+                                damageItems       = apiDamage,
+                                status            = when {
+                                    orders.all { it.status == "SENT" }    -> "ENVIADO"
+                                    orders.any { it.status == "PENDING" } -> "PENDIENTE"
+                                    orders.any { it.status == "FAILED" }  -> "FALLIDO"
+                                    else                                   -> null
+                                }
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("DamageDebug", "Error cargando damage items: ${e.message}", e)
+                }
+            }
+        }
 
         findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
             .setNavigationOnClickListener { finish() }
@@ -109,7 +167,9 @@ class TicketDetailActivity : AppCompatActivity() {
                         customerName    = customerName,
                         batchId         = batchId,
                         invoiceId       = invoiceId,
-                        customerAddress = customerAddress
+                        customerAddress = customerAddress,
+                        damageItems     = damageItemsForReprint,
+                        signature       = signature
                     )
                     result.onSuccess {
                         Snackbar.make(findViewById(android.R.id.content),
@@ -136,6 +196,7 @@ class TicketDetailActivity : AppCompatActivity() {
         grandTotal: Double, totalQty: Double,
         companyNameFooter: String,
         signature: String?,
+        damageItems: List<DamageItem> = emptyList(),
         status: String?
     ) {
         // ── Cabecera empresa ────────────────────────────
@@ -188,6 +249,16 @@ class TicketDetailActivity : AppCompatActivity() {
         )
         addLine(String.format(Locale.US, "%.2f lb en total", totalQty), sizeSp = 12f)
         addLine(companyNameFooter, sizeSp = 12f)
+
+        // ── Negative Sale Summary ────────────────────────
+        val hasDamage = damageItems.any { it.qty > 0 }
+        if (hasDamage) {
+            addSep(heavy = false)
+            addLine("Negative Sale Summary:", bold = true, sizeSp = 12f)
+            for (dmg in damageItems.filter { it.qty > 0 }) {
+                addLine("${dmg.productName}: ${dmg.qty} unit(s)", sizeSp = 12f, indent = true)
+            }
+        }
 
         // ── Términos ────────────────────────────────────
         addSep(heavy = false)
