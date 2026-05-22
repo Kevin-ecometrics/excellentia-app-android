@@ -138,113 +138,118 @@ object PrintService {
         val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(Date())
         val grandTotal = items.sumOf { it.total }
         val totalQty   = items.sumOf { it.quantity }
+        val SEP  = "================================"   // 32 chars — separador principal
+        val DASH = "--------------------------------"   // 32 chars — separador secundario
 
         val body = StringBuilder()
         var y = 20
 
-        // ── Cabecera ──────────────────────────────────
-        body.center()
-        body.t(F7, 0, y, companyName.take(20));                    y += F7H + 8
-        body.t(F4, 0, y, subtitle);                                y += F4H + 6
-        if (!city.isNullOrBlank()) {
-            body.t(F4, 0, y, city);                                y += F4H + 4
-        }
-        if (!address.isNullOrBlank()) {
-            body.t(F4, 0, y, address.take(28));                    y += F4H + 4
-        }
-        if (!phone.isNullOrBlank()) {
-            body.t(F4, 0, y, phone);                               y += F4H + 4
-        }
-        body.t(F4, 0, y, date);                                    y += F4H + 4
+        // ── Cabecera empresa ────────────────────────────
+        // Nombre: F4 LEFT (hasta 33 chars sin truncar). Subtítulo: CENTER.
+        // ── Cabecera empresa ────────────────────────────
+        // Todo LEFT — nombre y subtítulo sin truncar
+        body.left()
+        body.t(F4, 0, y, companyName.take(33));                    y += F4H + 4
+        body.t(F4, 0, y, subtitle.take(32));                       y += F4H + 4
+        if (!city.isNullOrBlank())
+            { body.t(F4, 0, y, city.take(32));                     y += F4H + 2 }
+        if (!address.isNullOrBlank())
+            { body.t(F4, 0, y, address.take(32));                  y += F4H + 2 }
+        if (!phone.isNullOrBlank())
+            { body.t(F4, 0, y, phone.take(32));                    y += F4H + 2 }
 
+        // ── Info del pedido ─────────────────────────────
+        y += 6
+        body.t(F4, 0, y, SEP);                                     y += F4H + 6
+        body.t(F4, 0, y, date);                                    y += F4H + 4
         if (batchId.isNotBlank()) {
-            body.t(F4, 0, y, "Pedido #${batchId.takeLast(8)}");    y += F4H + 4
+            body.t(F4, 0, y, "Pedido  #${batchId.takeLast(8)}");   y += F4H + 4
         }
         if (!invoiceId.isNullOrBlank()) {
-            body.t(F4, 0, y, "Factura #$invoiceId");               y += F4H + 4
+            body.t(F4, 0, y, "Factura #${invoiceId.take(20)}");    y += F4H + 4
         }
+
+        // ── Cliente ─────────────────────────────────────
         if (!customerName.isNullOrBlank()) {
-            y += 6
-            body.t(F4, 0, y, "Cliente: $customerName");            y += F4H + 4
+            y += 4
+            body.t(F4, 0, y, DASH);                                y += F4H + 6
+            // Wrappear nombre si excede el ancho
+            val clientLines = wrapText("Cliente: $customerName", 28)
+            for (line in clientLines) { body.t(F4, 0, y, line);   y += F4H + 3 }
+            y += 1
             if (!paymentMethod.isNullOrBlank()) {
                 body.t(F4, 0, y, "Payment: $paymentMethod");       y += F4H + 4
             }
             if (!customerAddress.isNullOrBlank()) {
-                // Si la dirección supera 32 chars, separarla en dos líneas por la primera coma
                 if (customerAddress.length <= 32) {
-                    body.t(F4, 0, y, customerAddress);              y += F4H + 4
+                    body.t(F4, 4, y, customerAddress);             y += F4H + 3
                 } else {
-                    val commaIdx = customerAddress.indexOf(", ")
-                    if (commaIdx > 0) {
-                        body.t(F4, 0, y, customerAddress.substring(0, commaIdx).take(32))
-                        y += F4H + 4
-                        body.t(F4, 0, y, customerAddress.substring(commaIdx + 2).take(32))
-                        y += F4H + 4
+                    val ci = customerAddress.indexOf(", ")
+                    if (ci > 0) {
+                        body.t(F4, 4, y, customerAddress.substring(0, ci).take(32));   y += F4H + 3
+                        body.t(F4, 4, y, customerAddress.substring(ci + 2).take(32)); y += F4H + 3
                     } else {
-                        body.t(F4, 0, y, customerAddress.take(32));y += F4H + 4
+                        for (l in wrapText(customerAddress, 30)) {
+                            body.t(F4, 4, y, l);                   y += F4H + 3
+                        }
                     }
                 }
+                y += 1
             }
         }
 
-        y += 20
-
-        // ── Ítems ─────────────────────────────────────
-        // 3 líneas por ítem:
-        //   Línea 1: Nombre del producto
-        //   Línea 2: Código de barras  ·  $precio/lb
-        //   Línea 3: X.XX lb  =  $total
+        // ── Ítems ──────────────────────────────────────
+        // Línea 1+: nombre del producto (con salto de línea si es largo)
+        // Última línea: "X.XX lb x $X.XX/lb      $XX.XX"  (twoCol)
+        y += 4
+        body.t(F4, 0, y, SEP);                                     y += F4H + 8
         for (item in items) {
-            body.left()
-            body.t(F4, 8, y, item.productName.take(26));           y += F4H + 4
-            body.t(F4, 8, y,
-                "${item.barcode}  \$${String.format(Locale.US, "%.2f", item.price)}/lb")
-            y += F4H + 4
-            body.t(F4, 8, y,
-                String.format(Locale.US, "%.2f lb  =  \$%.2f", item.quantity, item.total))
-            y += F4H
-            y += 18
+            val totalStr  = String.format(Locale.US, "\$%.2f", item.total)
+            val detailStr = String.format(Locale.US, "%.2f lb x \$%.2f/lb",
+                                          item.quantity, item.price)
+            // Nombre: wrappear si excede 32 chars
+            for (line in wrapText(item.productName, 28)) {
+                body.t(F4, 0, y, line);                            y += F4H + 3
+            }
+            // Detalle + total en la misma línea (twoCol)
+            body.t(F4, 0, y, twoCol(detailStr, totalStr, 28));     y += F4H + 12
         }
 
-        y += 10
-
-        // ── Total ─────────────────────────────────────
-        body.center()
-        body.t(F4, 0, y, "TOTAL");                                 y += F4H + 10
-        body.t(F7, 0, y, String.format(Locale.US, "\$%.2f", grandTotal)); y += F7H + 14
-
-        // ── Pie ───────────────────────────────────────
+        // ── Total ──────────────────────────────────────
+        // "TOTAL:" en F4 como label, monto en F7 solo en su línea (grande y claro)
+        body.t(F4, 0, y, SEP);                                     y += F4H + 10
+        body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 8
         body.t(F4, 0, y,
-            String.format(Locale.US, "%.2f lb en total", totalQty)); y += F4H + 10
-        body.t(F4, 0, y, companyName.take(20));                    y += F4H + 16
+            String.format(Locale.US, "%.2f lb en total", totalQty)); y += F4H + 6
+        body.t(F4, 0, y, companyName.take(32));                    y += F4H + 16
 
         // ── Negative Sale ──────────────────────────────
         if (damageQty > 0) {
-            body.center()
-            body.t(F4, 0, y, "------------------------------");     y += F4H + 6
-            body.t(F4, 0, y, "Negative Sale");                      y += F4H + 4
+            body.t(F4, 0, y, DASH);                                y += F4H + 6
+            body.t(F4, 0, y, "Negative Sale");                     y += F4H + 4
             body.t(F4, 0, y, "$damageQty unit(s) damaged/expired"); y += F4H + 6
-            body.t(F4, 0, y, "------------------------------");     y += F4H + 16
+            body.t(F4, 0, y, DASH);                                y += F4H + 16
         }
 
-        // ── Términos y condiciones ─────────────────────
-        body.center()
+        // ── Términos y condiciones ──────────────────────
+        // wrapText(28) = 476px — margen seguro para evitar corte en el borde físico
+        y += 8
+        body.left()
         val terms = "I hereby acknowledge that all above referenced goods have been received and are in good condition. I also understand that this sale is expressly conditioned upon my assent to all terms on the reverse of this page and I accept all the terms of this sale."
-        for (line in wrapText(terms, 30)) {
-            body.t(F4, 0, y, line);                                  y += F4H + 2
+        for (line in wrapText(terms, 28)) {
+            body.t(F4, 0, y, line);                                y += F4H + 4
         }
+        y += 4
 
-        // ── Firma ─────────────────────────────────────
+        // ── Firma ──────────────────────────────────────
         if (!signature.isNullOrBlank()) {
-            y += 18
-            body.center()
-            body.t(F4, 0, y, "------------------------------");     y += F4H + 8
-            body.t(F4, 0, y, "Customer Signature");                  y += F4H + 12
+            y += 16
+            body.t(F4, 0, y, DASH);                               y += F4H + 8
+            body.t(F4, 0, y, "Customer Signature");               y += F4H + 12
             val sigWidth = 480
             val sigX = (PW - sigWidth) / 2
             val (egCmd, newY) = buildSignatureEg(signature, sigWidth, sigX, y)
             if (egCmd.isNotEmpty()) {
-                body.left()
                 body.append(egCmd)
                 y = newY
             }
@@ -319,6 +324,14 @@ object PrintService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // Devuelve una cadena de `width` chars con `left` a la izquierda y `right` a la derecha
+    private fun twoCol(left: String, right: String, width: Int = 32): String {
+        val maxLeft = (width - right.length - 1).coerceAtLeast(0)
+        val l = left.take(maxLeft)
+        val padding = (width - l.length - right.length).coerceAtLeast(1)
+        return l + " ".repeat(padding) + right
+    }
 
     private fun wrapText(text: String, maxChars: Int = 30): List<String> {
         val words = text.split(" ")

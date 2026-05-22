@@ -524,6 +524,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                         putExtra("invoice_id", response.invoiceId ?: "")
                         putExtra("customer_name", customerName)
                         putExtra("customer_address", customerAddress)
+                        putExtra("signature", sigForPrinting)
                         putExtra("total", grandTotal)
                         putExtra("item_count", items.size)
                         putExtra("orders_json", Gson().toJson(

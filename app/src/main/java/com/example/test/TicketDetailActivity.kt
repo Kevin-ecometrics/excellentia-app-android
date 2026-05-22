@@ -1,14 +1,19 @@
 package com.example.test
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
+import android.util.Base64
+import android.widget.ImageView
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -26,6 +31,9 @@ import java.util.TimeZone
 
 class TicketDetailActivity : AppCompatActivity() {
 
+    private lateinit var ticketContent: LinearLayout
+    private val dp get() = resources.displayMetrics.density
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -36,110 +44,79 @@ class TicketDetailActivity : AppCompatActivity() {
             insets
         }
 
-        val ordersJson = intent.getStringExtra("orders_json") ?: "[]"
+        ticketContent = findViewById(R.id.ticketContent)
+
+        val ordersJson   = intent.getStringExtra("orders_json") ?: "[]"
         val orders: List<OrderDto> = Gson().fromJson(ordersJson, Array<OrderDto>::class.java).toList()
-        val invoiceId = intent.getStringExtra("invoice_id") ?: ""
-        val batchId = intent.getStringExtra("batch_id") ?: ""
-
-        // Batch / invoice
-        findViewById<TextView>(R.id.tvTicketBatch).text =
-            if (batchId.isNotBlank()) "#${batchId.takeLast(8)}" else "PENDIENTE"
-        findViewById<TextView>(R.id.tvTicketInvoice).text =
-            if (invoiceId.isNotBlank()) "#$invoiceId" else "—"
-
-        // Date from first order or now
-        val rawDate = orders.firstOrNull()?.createdAt
-        findViewById<TextView>(R.id.tvTicketDate).text = formatDate(rawDate)
-
-        // Customer name + address
-        val customerName    = intent.getStringExtra("customer_name")
-            ?: orders.firstOrNull()?.customerName
+        val batchId      = intent.getStringExtra("batch_id") ?: ""
+        val invoiceId    = intent.getStringExtra("invoice_id") ?: ""
+        val customerName = intent.getStringExtra("customer_name") ?: orders.firstOrNull()?.customerName
         val customerAddress = intent.getStringExtra("customer_address")
-        val cardCustomer = findViewById<View>(R.id.cardCustomer)
-        if (!customerName.isNullOrBlank()) {
-            cardCustomer.visibility = View.VISIBLE
-            findViewById<TextView>(R.id.tvTicketCustomer).text = customerName
-        } else {
-            cardCustomer.visibility = View.GONE
-        }
+        // Firma: desde intent extra (flujo inmediato) o desde primer OrderDto (historial via API)
+        val signature    = intent.getStringExtra("signature")
+            ?: orders.firstOrNull()?.signature
+        val rawDate      = orders.firstOrNull()?.createdAt
+        val grandTotal   = orders.sumOf { it.total }
+        val totalQty     = orders.sumOf { it.quantity }
 
-        // Items — cada orden como ítem individual con todos sus detalles
-        val container = findViewById<LinearLayout>(R.id.layoutTicketItems)
-        val inflater = LayoutInflater.from(this)
-        for (order in orders) {
-            val row = inflater.inflate(R.layout.item_order_product, container, false)
-            row.findViewById<TextView>(R.id.tvProductName).text = order.productName
-            row.findViewById<TextView>(R.id.tvProductBarcode).text =
-                "${order.barcode}  ·  ${String.format(Locale.US, "$%.2f/lb", order.price)}"
-            row.findViewById<TextView>(R.id.tvProductQty).text =
-                String.format(Locale.US, "%.2f lb", order.quantity)
-            row.findViewById<TextView>(R.id.tvProductTotal).text =
-                String.format(Locale.US, "$%.2f", order.total)
-            container.addView(row)
-        }
+        val prefs = SecurePreferences(this)
+        val companyName = prefs.getCompanyName()
 
-        // Total
-        val grandTotal = orders.sumOf { it.total }
-        findViewById<TextView>(R.id.tvTicketTotal).text =
-            String.format(Locale.US, "$%.2f", grandTotal)
-
-        // Item count
-        val totalQty = orders.sumOf { it.quantity }
-        findViewById<TextView>(R.id.tvTicketItemCount).text =
-            String.format(Locale.US, "%d producto(s) · %.2f lb", orders.size, totalQty)
-
-        // Status chip
-        val allSent = orders.all { it.status == "SENT" }
-        val hasPending = orders.any { it.status == "PENDING" }
-        val tvStatus = findViewById<TextView>(R.id.tvTicketStatus)
-        when {
-            allSent -> {
-                tvStatus.text = "ENVIADO"
-                tvStatus.setBackgroundResource(R.drawable.bg_chip_sent)
-                tvStatus.setTextColor(ContextCompat.getColor(this, R.color.success))
+        buildReceipt(
+            companyName       = companyName,
+            subtitle          = prefs.getCompanySubtitle(),
+            city              = prefs.getCompanyCity(),
+            address           = prefs.getCompanyAddress(),
+            phone             = prefs.getCompanyPhone(),
+            date              = formatDate(rawDate),
+            batchId           = batchId,
+            invoiceId         = invoiceId,
+            customerName      = customerName,
+            customerAddress   = customerAddress,
+            orders            = orders,
+            grandTotal        = grandTotal,
+            totalQty          = totalQty,
+            companyNameFooter = companyName,
+            signature         = signature,
+            status            = when {
+                orders.all { it.status == "SENT" }     -> "ENVIADO"
+                orders.any { it.status == "PENDING" }  -> "PENDIENTE"
+                orders.any { it.status == "FAILED" }   -> "FALLIDO"
+                else                                   -> null
             }
-            hasPending -> {
-                tvStatus.text = "PENDIENTE"
-                tvStatus.setBackgroundResource(R.drawable.bg_chip_pending)
-                tvStatus.setTextColor(ContextCompat.getColor(this, R.color.warning))
-            }
-            else -> tvStatus.visibility = View.GONE
-        }
+        )
 
         findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
             .setNavigationOnClickListener { finish() }
 
-        // Botón reimprimir — visible solo si hay impresora configurada
+        // Botón reimprimir
         val btnReprint = findViewById<MaterialButton>(R.id.btnReprint)
-        val printerAddress = SecurePreferences(this).getPrinterAddress()
+        val printerAddress = prefs.getPrinterAddress()
         if (!printerAddress.isNullOrBlank()) {
-            btnReprint.visibility = View.VISIBLE
+            btnReprint.visibility = android.view.View.VISIBLE
             btnReprint.setOnClickListener {
                 btnReprint.isEnabled = false
                 btnReprint.text = "Imprimiendo…"
                 val items = orders.map { o ->
-                    BatchItem(
-                        barcode = o.barcode,
-                        productName = o.productName,
-                        price = o.price,
-                        quantity = o.quantity,
-                        total = o.total
-                    )
+                    BatchItem(barcode = o.barcode, productName = o.productName,
+                              price = o.price, quantity = o.quantity, total = o.total)
                 }
                 lifecycleScope.launch {
                     val result = PrintService.printTicket(
-                        context = this@TicketDetailActivity,
-                        deviceAddress = printerAddress,
-                        items = items,
-                        customerName = customerName,
-                        batchId = batchId,
-                        invoiceId = invoiceId,
+                        context         = this@TicketDetailActivity,
+                        deviceAddress   = printerAddress,
+                        items           = items,
+                        customerName    = customerName,
+                        batchId         = batchId,
+                        invoiceId       = invoiceId,
                         customerAddress = customerAddress
                     )
                     result.onSuccess {
-                        Snackbar.make(findViewById(android.R.id.content), "Ticket enviado a la impresora", Snackbar.LENGTH_SHORT).show()
+                        Snackbar.make(findViewById(android.R.id.content),
+                            "Ticket enviado a la impresora", Snackbar.LENGTH_SHORT).show()
                     }.onFailure { e ->
-                        Snackbar.make(findViewById(android.R.id.content), "Error al imprimir: ${e.localizedMessage}", Snackbar.LENGTH_LONG).show()
+                        Snackbar.make(findViewById(android.R.id.content),
+                            "Error al imprimir: ${e.localizedMessage}", Snackbar.LENGTH_LONG).show()
                     }
                     btnReprint.isEnabled = true
                     btnReprint.text = "Reimprimir ticket"
@@ -148,16 +125,188 @@ class TicketDetailActivity : AppCompatActivity() {
         }
     }
 
+    // ── Receipt builder ───────────────────────────────────────────────────────
+
+    private fun buildReceipt(
+        companyName: String, subtitle: String,
+        city: String?, address: String?, phone: String?,
+        date: String, batchId: String, invoiceId: String,
+        customerName: String?, customerAddress: String?,
+        orders: List<OrderDto>,
+        grandTotal: Double, totalQty: Double,
+        companyNameFooter: String,
+        signature: String?,
+        status: String?
+    ) {
+        // ── Cabecera empresa ────────────────────────────
+        addLine(companyName, bold = true, sizeSp = 13f)
+        addLine(subtitle, sizeSp = 12f)
+        if (!city.isNullOrBlank())    addLine(city,    sizeSp = 12f)
+        if (!address.isNullOrBlank()) addLine(address, sizeSp = 12f)
+        if (!phone.isNullOrBlank())   addLine(phone,   sizeSp = 12f)
+
+        // ── Info del pedido ─────────────────────────────
+        addSep(heavy = true)
+        addLine(date, sizeSp = 12f)
+        if (batchId.isNotBlank())    addLine("Pedido  #${batchId.takeLast(8)}", sizeSp = 12f)
+        if (invoiceId.isNotBlank())  addLine("Factura #$invoiceId", sizeSp = 12f)
+
+        // ── Cliente ─────────────────────────────────────
+        if (!customerName.isNullOrBlank()) {
+            addSep(heavy = false)
+            addLine("Cliente: $customerName", sizeSp = 12f)
+            if (!customerAddress.isNullOrBlank()) {
+                val ci = customerAddress.indexOf(", ")
+                if (ci > 0 && customerAddress.length > 28) {
+                    addLine(customerAddress.substring(0, ci), sizeSp = 12f, indent = true)
+                    addLine(customerAddress.substring(ci + 2), sizeSp = 12f, indent = true)
+                } else {
+                    addLine(customerAddress, sizeSp = 12f, indent = true)
+                }
+            }
+        }
+
+        // ── Ítems ───────────────────────────────────────
+        addSep(heavy = true)
+        for (order in orders) {
+            addLine(order.productName, sizeSp = 12f)
+            addTwoCol(
+                left  = String.format(Locale.US, "%.2f lb x \$%.2f/lb", order.quantity, order.price),
+                right = String.format(Locale.US, "\$%.2f", order.total),
+                sizeSp = 12f
+            )
+            addBlank(4)
+        }
+
+        // ── Total ───────────────────────────────────────
+        addSep(heavy = true)
+        addTwoCol(
+            left   = "TOTAL:",
+            right  = String.format(Locale.US, "\$%.2f", grandTotal),
+            bold   = true,
+            sizeSp = 13f
+        )
+        addLine(String.format(Locale.US, "%.2f lb en total", totalQty), sizeSp = 12f)
+        addLine(companyNameFooter, sizeSp = 12f)
+
+        // ── Términos ────────────────────────────────────
+        addSep(heavy = false)
+        addLine(
+            "I hereby acknowledge that all above referenced goods have been received " +
+            "and are in good condition. I also understand that this sale is expressly " +
+            "conditioned upon my assent to all terms on the reverse of this page and " +
+            "I accept all the terms of this sale.",
+            sizeSp = 10f
+        )
+
+        // ── Firma ───────────────────────────────────────
+        addSep(heavy = false)
+        addLine("Customer Signature:", sizeSp = 12f)
+        if (!signature.isNullOrBlank()) {
+            try {
+                val bytes = Base64.decode(signature, Base64.DEFAULT)
+                val bmp: Bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                ticketContent.addView(ImageView(this).apply {
+                    setImageBitmap(bmp)
+                    adjustViewBounds = true
+                    scaleType = ImageView.ScaleType.FIT_START
+                    layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
+                        topMargin    = (8 * dp).toInt()
+                        bottomMargin = (8 * dp).toInt()
+                    }
+                })
+            } catch (_: Exception) {
+                addBlank(48)
+            }
+        } else {
+            addBlank(48)
+        }
+
+        // ── Estado ──────────────────────────────────────
+        if (status != null) {
+            addSep(heavy = false)
+            val statusColor = when (status) {
+                "ENVIADO"   -> Color.parseColor("#2E7D32")
+                "PENDIENTE" -> Color.parseColor("#E65100")
+                else        -> Color.parseColor("#B71C1C")
+            }
+            addLine(status, bold = true, sizeSp = 12f, color = statusColor)
+        }
+    }
+
+    // ── View helpers ──────────────────────────────────────────────────────────
+
+    private fun addLine(
+        text: String,
+        bold: Boolean = false,
+        sizeSp: Float = 12f,
+        indent: Boolean = false,
+        color: Int = Color.BLACK
+    ) {
+        val tv = TextView(this).apply {
+            this.text = text
+            textSize = sizeSp
+            setTextColor(color)
+            typeface = if (bold) Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+                       else Typeface.MONOSPACE
+            val leftPad = if (indent) (12 * dp).toInt() else 0
+            setPadding(leftPad, 0, 0, 0)
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
+                bottomMargin = (2 * dp).toInt()
+            }
+        }
+        ticketContent.addView(tv)
+    }
+
+    private fun addTwoCol(left: String, right: String, bold: Boolean = false, sizeSp: Float = 12f) {
+        val tf = if (bold) Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) else Typeface.MONOSPACE
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
+                bottomMargin = (2 * dp).toInt()
+            }
+        }
+        row.addView(TextView(this).apply {
+            text = left; textSize = sizeSp; setTextColor(Color.BLACK); typeface = tf
+            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
+        })
+        row.addView(TextView(this).apply {
+            text = right; textSize = sizeSp; setTextColor(Color.BLACK); typeface = tf
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)
+        })
+        ticketContent.addView(row)
+    }
+
+    private fun addSep(heavy: Boolean = true) {
+        ticketContent.addView(TextView(this).apply {
+            text = if (heavy) "================================" else "--------------------------------"
+            textSize = 12f
+            setTextColor(Color.BLACK)
+            typeface = Typeface.MONOSPACE
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
+                topMargin    = (4 * dp).toInt()
+                bottomMargin = (4 * dp).toInt()
+            }
+        })
+    }
+
+    private fun addBlank(heightDp: Int = 8) {
+        ticketContent.addView(android.view.View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, (heightDp * dp).toInt())
+        })
+    }
+
+    // ── Date formatter ────────────────────────────────────────────────────────
+
     private fun formatDate(rawDate: String?): String {
         if (rawDate.isNullOrBlank()) {
-            return SimpleDateFormat("dd MMM yyyy · hh:mm a", Locale.getDefault()).format(Date())
+            return SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(Date())
         }
         return try {
             val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
                 timeZone = TimeZone.getTimeZone("UTC")
             }
-            val display = SimpleDateFormat("dd MMM yyyy · hh:mm a", Locale.getDefault())
-            display.format(parser.parse(rawDate)!!)
+            SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(parser.parse(rawDate)!!)
         } catch (_: Exception) { rawDate }
     }
 }

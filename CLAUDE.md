@@ -124,38 +124,39 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 
 **Estructura del ticket CPCL:**
 ```
-EXCELLENTIA          (F7, CENTER)
-Ticket de Venta      (F4, CENTER)
-dd/MM/yyyy HH:mm     (F4, CENTER)
-Pedido #XXXXXXXX     (F4, CENTER, si aplica)
-Factura #XXXXX       (F4, CENTER, si aplica)
-Cliente: Nombre      (F4, CENTER, si aplica)
-1 Infinite Loop      (F4, CENTER, dirección línea 1 si > 32 chars)
-Cupertino, CA 95014  (F4, CENTER, dirección línea 2)
-
-Nombre producto      (F4, LEFT, x=8)
-barcode  $precio/lb  (F4, LEFT, x=8)
-qty lb  =  $total    (F4, LEFT, x=8)
-[espacio entre ítems]
-
-TOTAL                (F4, CENTER)
-$XX.XX               (F7, CENTER)
-X.XX lb en total     (F4, CENTER)
-Excellentia          (F4, CENTER)
-
------------------------------- ← solo si damageQty > 0
-Negative Sale          (F4, CENTER)
-X unit(s) damaged/expired
-------------------------------
-
-I hereby acknowledge that all  ← leyenda legal (siempre)
-above referenced goods have    ← word-wrapped 30 chars
-been received...               ← (wrapText helper)
-
-------------------------------
-Customer Signature             ← solo si hay firma
+      EXCELLENTIA         F7, CENTER
+     Ticket de Venta      F4, CENTER (+ ciudad, dir, tel si aplica)
+================================ separador principal 32x'='
+12/06/2026 10:30          F4, LEFT x=0
+Pedido  #XXXXXXXX         F4, LEFT x=0 (si aplica)
+Factura #XXXXX            F4, LEFT x=0 (si aplica)
+-------------------------------- separador si hay cliente
+Cliente: Cool Cars         F4, LEFT x=0
+Payment: Cash             F4, LEFT x=0 (si aplica)
+  1 Infinite Loop         F4, LEFT x=8 (dirección)
+  Cupertino, CA 95014     F4, LEFT x=8
+================================ separador
+Sprinkler Pipes     $4.10 F4, LEFT — twoCol(nombre, total, 32)
+  22.8 lb x $0.18/lb      F4, LEFT x=8
+================================ separador
+           TOTAL           F4, CENTER
+          $XX.XX           F7, CENTER
+    XX.XX lb en total      F4, CENTER
+      Excellentia          F4, CENTER
+-------------------------------- solo si damageQty > 0
+      Negative Sale        F4, CENTER
+   X unit(s) damaged       F4, CENTER
+--------------------------------
+[terms 30ch word-wrap]     F4, CENTER — siempre
+-------------------------------- solo si hay firma
+   Customer Signature      F4, CENTER
 [imagen PNG firma]
 ```
+**Regla de alignment:** TODO LEFT — incluyendo nombre empresa y subtítulo. No se usa CENTER en ninguna línea del ticket (eliminado para coherencia y para evitar truncado en nombres largos) — city, address, phone, date, pedido, cliente, ítems, TOTAL (F7), lb total, footer, negative sale, terms, firma.
+**Overflow:** `wrapText(str, 28)` en nombre de producto, nombre del cliente, términos — 28×17px=476px deja ~100px de margen físico seguro. `take(N)` en subtitle/city/address/phone/invoiceId.
+**Ítems layout:** nombre wrappeable (F4, wrapText 28); luego `twoCol("X.XX lb x $X.XX/lb", "$XX.XX", 28)` en línea siguiente.
+**TOTAL:** `twoCol("TOTAL:", "$XX.XX", 28)` en F4 — misma línea, mismo tamaño que el resto del ticket.
+**Helpers:** `twoCol(left, right, width)` rellena con espacios; `wrapText(text, maxChars)` divide por palabras.
 
 **Setup impresora:**
 1. Emparejar ZQ630 en Ajustes → Bluetooth del TC22
