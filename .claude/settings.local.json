@@ -53,7 +53,10 @@
       "Bash(/c/Users/kevin/.bun/bin/bun.exe x *)",
       "PowerShell(Head *)",
       "Bash(/c/Users/kevin/.bun/bin/bun.exe run *)",
-      "Bash(.\\\\gradlew assembleDebug --quiet)"
+      "Bash(.\\\\gradlew assembleDebug --quiet)",
+      "Bash(bun run *)",
+      "Bash(curl -s http://localhost:3000/api/setup)",
+      "Bash(python -m json.tool)"
     ]
   }
 }

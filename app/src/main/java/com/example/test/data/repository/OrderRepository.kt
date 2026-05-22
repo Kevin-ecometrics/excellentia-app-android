@@ -101,7 +101,7 @@ class OrderRepository(
         customerId: String? = null,
         customerName: String? = null,
         signature: String? = null,
-        damageQty: Int = 0,
+        damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null
     ): Result<BatchResponse> = withContext(Dispatchers.IO) {
         try {
@@ -111,7 +111,7 @@ class OrderRepository(
                     customerId = customerId,
                     customerName = customerName,
                     signature = signature,
-                    damageQty = if (damageQty > 0) damageQty else null,
+                    damageItems = damageItems.ifEmpty { null },
                     paymentMethod = paymentMethod
                 )
             )

@@ -55,7 +55,7 @@ class CurrentOrderActivity : AppCompatActivity() {
     private var customerName: String? = null
     private var customerAddress: String? = null
     private var pendingSignature: String? = null
-    private var pendingDamageQty: Int = 0
+    private var pendingDamageItems: List<com.example.test.data.DamageItem> = emptyList()
     private var pendingPaymentMethod: String? = null
     private var launchSignatureAfterCustomer = false
 
@@ -371,28 +371,98 @@ class CurrentOrderActivity : AppCompatActivity() {
     }
 
     private fun askDamagedItems() {
-        val input = android.widget.EditText(this).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            hint = "0"
-            setText("0")
-            textSize = 20f
-            gravity = android.view.Gravity.CENTER
-            setPadding(48, 24, 48, 24)
+        lifecycleScope.launch {
+            val pending = orderRepository.getPendingOrders()
+            if (pending.isEmpty()) { askPaymentMethod(); return@launch }
+
+            val ctx = this@CurrentOrderActivity
+            val density = resources.displayMetrics.density
+
+            // ScrollView con una fila por producto
+            val scroll = android.widget.ScrollView(ctx)
+            val container = android.widget.LinearLayout(ctx).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(
+                    (20 * density).toInt(), (8 * density).toInt(),
+                    (20 * density).toInt(), (8 * density).toInt()
+                )
+            }
+            scroll.addView(container)
+
+            // Lista de pares (orden, editText) para leer al confirmar
+            val inputs = mutableListOf<Pair<com.example.test.data.local.entities.PendingOrderEntity, android.widget.EditText>>()
+
+            for (order in pending) {
+                // Nombre del producto
+                val tvName = android.widget.TextView(ctx).apply {
+                    text = order.productName
+                    textSize = 14f
+                    setTextColor(getColor(R.color.text_primary))
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                    layoutParams = android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = (14 * density).toInt() }
+                }
+
+                // Fila: detalle (izq) + input (der)
+                val row = android.widget.LinearLayout(ctx).apply {
+                    orientation = android.widget.LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    layoutParams = android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = (4 * density).toInt() }
+                }
+
+                val tvDetail = android.widget.TextView(ctx).apply {
+                    text = String.format(Locale.US, "%.2f lb · $%.2f/lb", order.quantity, order.price)
+                    textSize = 12f
+                    setTextColor(getColor(R.color.text_secondary))
+                    layoutParams = android.widget.LinearLayout.LayoutParams(0,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+
+                val etQty = android.widget.EditText(ctx).apply {
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    setText("0")
+                    textSize = 15f
+                    gravity = android.view.Gravity.CENTER
+                    layoutParams = android.widget.LinearLayout.LayoutParams(
+                        (64 * density).toInt(),
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    selectAll()
+                }
+
+                row.addView(tvDetail)
+                row.addView(etQty)
+                container.addView(tvName)
+                container.addView(row)
+                inputs.add(Pair(order, etQty))
+            }
+
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("¿Artículos dañados o vencidos?")
+                .setMessage("Indica las unidades dañadas por producto (0 = ninguna).")
+                .setView(scroll)
+                .setPositiveButton("Continuar") { _, _ ->
+                    pendingDamageItems = inputs.mapNotNull { (order, et) ->
+                        val qty = et.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
+                        if (qty > 0) com.example.test.data.DamageItem(
+                            barcode     = order.barcode,
+                            productName = order.productName,
+                            qty         = qty
+                        ) else null
+                    }
+                    askPaymentMethod()
+                }
+                .setNegativeButton("Ninguno") { _, _ ->
+                    pendingDamageItems = emptyList()
+                    askPaymentMethod()
+                }
+                .show()
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("¿Artículos dañados o vencidos?")
-            .setMessage("Indica cuántas unidades no se entregaron en buenas condiciones.\nEscribe 0 si no hay ninguna.")
-            .setView(input)
-            .setPositiveButton("Continuar") { _, _ ->
-                pendingDamageQty = input.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
-                askPaymentMethod()
-            }
-            .setNegativeButton("Sin devoluciones") { _, _ ->
-                pendingDamageQty = 0
-                askPaymentMethod()
-            }
-            .show()
-        input.selectAll()
     }
 
     private fun askPaymentMethod() {
@@ -476,11 +546,11 @@ class CurrentOrderActivity : AppCompatActivity() {
             }
 
             val sigForPrinting     = pendingSignature
-            val damageForPrinting  = pendingDamageQty
+            val damageForPrinting  = pendingDamageItems
             val paymentForPrinting = pendingPaymentMethod
-            val result = orderRepository.sendBatch(items, customerId, customerName, pendingSignature, pendingDamageQty, pendingPaymentMethod)
-            pendingSignature = null
-            pendingDamageQty = 0
+            val result = orderRepository.sendBatch(items, customerId, customerName, pendingSignature, pendingDamageItems, pendingPaymentMethod)
+            pendingSignature    = null
+            pendingDamageItems  = emptyList()
             pendingPaymentMethod = null
             result.onSuccess { response ->
                 setStep(2)
@@ -503,7 +573,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                         batchId = response.batchId,
                         invoiceId = response.invoiceId,
                         customerAddress = customerAddress,
-                        damageQty = damageForPrinting,
+                        damageItems = damageForPrinting,
                         paymentMethod = paymentForPrinting,
                         signature = sigForPrinting
                     )

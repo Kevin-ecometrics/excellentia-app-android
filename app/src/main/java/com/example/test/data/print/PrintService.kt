@@ -36,7 +36,7 @@ object PrintService {
         batchId: String,
         invoiceId: String?,
         customerAddress: String? = null,
-        damageQty: Int = 0,
+        damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null,
         signature: String? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
@@ -54,7 +54,7 @@ object PrintService {
             address         = prefs.getCompanyAddress(),
             phone           = prefs.getCompanyPhone(),
             city            = prefs.getCompanyCity(),
-            damageQty       = damageQty,
+            damageItems     = damageItems,
             paymentMethod   = paymentMethod,
             signature       = signature
         ))
@@ -131,7 +131,7 @@ object PrintService {
         address: String? = null,
         phone: String? = null,
         city: String? = null,
-        damageQty: Int = 0,
+        damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null,
         signature: String? = null
     ): String {
@@ -207,29 +207,32 @@ object PrintService {
             val totalStr  = String.format(Locale.US, "\$%.2f", item.total)
             val detailStr = String.format(Locale.US, "%.2f lb x \$%.2f/lb",
                                           item.quantity, item.price)
-            // Nombre: wrappear si excede 32 chars
             for (line in wrapText(item.productName, 28)) {
                 body.t(F4, 0, y, line);                            y += F4H + 3
             }
-            // Detalle + total en la misma línea (twoCol)
-            body.t(F4, 0, y, twoCol(detailStr, totalStr, 28));     y += F4H + 12
+            body.t(F4, 0, y, twoCol(detailStr, totalStr, 28));     y += F4H + 4
+            y += 8
+        }
+
+        // ── Resumen Negative Sale (si hay alguno) ───────
+        val totalDamage = damageItems.sumOf { it.qty }
+        if (totalDamage > 0) {
+            body.t(F4, 0, y, DASH);                                y += F4H + 6
+            body.t(F4, 0, y, "Negative Sale Summary:");            y += F4H + 4
+            for (dmg in damageItems.filter { it.qty > 0 }) {
+                for (line in wrapText("${dmg.productName}: ${dmg.qty} unit(s)", 28)) {
+                    body.t(F4, 4, y, line);                        y += F4H + 3
+                }
+            }
+            body.t(F4, 0, y, DASH);                                y += F4H + 10
         }
 
         // ── Total ──────────────────────────────────────
-        // "TOTAL:" en F4 como label, monto en F7 solo en su línea (grande y claro)
         body.t(F4, 0, y, SEP);                                     y += F4H + 10
         body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 8
         body.t(F4, 0, y,
             String.format(Locale.US, "%.2f lb en total", totalQty)); y += F4H + 6
         body.t(F4, 0, y, companyName.take(32));                    y += F4H + 16
-
-        // ── Negative Sale ──────────────────────────────
-        if (damageQty > 0) {
-            body.t(F4, 0, y, DASH);                                y += F4H + 6
-            body.t(F4, 0, y, "Negative Sale");                     y += F4H + 4
-            body.t(F4, 0, y, "$damageQty unit(s) damaged/expired"); y += F4H + 6
-            body.t(F4, 0, y, DASH);                                y += F4H + 16
-        }
 
         // ── Términos y condiciones ──────────────────────
         // wrapText(28) = 476px — margen seguro para evitar corte en el borde físico

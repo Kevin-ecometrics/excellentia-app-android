@@ -144,8 +144,14 @@ data class BatchRequest(
     @SerializedName("customer_id") val customerId: String? = null,
     @SerializedName("customer_name") val customerName: String? = null,
     @SerializedName("signature") val signature: String? = null,
-    @SerializedName("damage_qty") val damageQty: Int? = null,
+    @SerializedName("damage_items") val damageItems: List<DamageItem>? = null,
     @SerializedName("payment_method") val paymentMethod: String? = null
+)
+
+data class DamageItem(
+    val barcode: String,
+    @SerializedName("product_name") val productName: String,
+    val qty: Int
 )
 
 // ── QuickBooks Customer Models ──
