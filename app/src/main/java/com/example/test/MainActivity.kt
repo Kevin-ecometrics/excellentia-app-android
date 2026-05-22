@@ -67,6 +67,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnManualEntry: View
     private lateinit var btnSelectCustomer: MaterialButton
     private lateinit var btnChangeCustomer: MaterialButton
+    private lateinit var btnViewClientHistory: MaterialButton
+    private lateinit var btnPreOrders: MaterialButton
     private lateinit var layoutLastScan: View
     private lateinit var layoutCustomerCard: MaterialCardView
     private lateinit var layoutSelectCustomer: MaterialCardView
@@ -270,8 +272,10 @@ class MainActivity : AppCompatActivity() {
         bottomNav       = findViewById(R.id.bottomNav)
         layoutCustomerCard = findViewById(R.id.layoutCustomerCard)
         layoutSelectCustomer = findViewById(R.id.layoutSelectCustomer)
-        btnSelectCustomer = findViewById(R.id.btnSelectCustomer)
-        btnChangeCustomer = findViewById(R.id.btnChangeCustomer)
+        btnSelectCustomer    = findViewById(R.id.btnSelectCustomer)
+        btnChangeCustomer    = findViewById(R.id.btnChangeCustomer)
+        btnViewClientHistory = findViewById(R.id.btnViewClientHistory)
+        btnPreOrders         = findViewById(R.id.btnPreOrders)
 
         btnHoldScan.setOnClickListener { toggleScan() }
         btnScan.setOnClickListener { showGuide() }
@@ -306,6 +310,17 @@ class MainActivity : AppCompatActivity() {
         }
         btnChangeCustomer.setOnClickListener {
             customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
+        }
+        btnViewClientHistory.setOnClickListener {
+            val id   = securePrefs.getActiveCustomerId() ?: return@setOnClickListener
+            val name = securePrefs.getActiveCustomerName() ?: return@setOnClickListener
+            startActivity(Intent(this, ClientHistoryActivity::class.java).apply {
+                putExtra("customer_id", id)
+                putExtra("customer_name", name)
+            })
+        }
+        btnPreOrders.setOnClickListener {
+            startActivity(Intent(this, PreOrderListActivity::class.java))
         }
 
         layoutLastScan.setOnClickListener {

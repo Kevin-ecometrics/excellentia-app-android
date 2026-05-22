@@ -21,7 +21,8 @@ interface ApiService {
     suspend fun listOrders(
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 20,
-        @Query("status") status: String? = null
+        @Query("status") status: String? = null,
+        @Query("customer_id") customerId: String? = null
     ): Response<ApiResponse<List<OrderDto>>>
 
     @POST("api/scans")
@@ -64,4 +65,38 @@ interface ApiService {
     suspend fun getBatchDamage(
         @Path("batchId") batchId: String
     ): Response<ApiResponse<List<DamageItem>>>
+
+    // ── Pre-Orders ──
+
+    @POST("api/preorders")
+    suspend fun createPreOrder(@Body request: PreOrderRequest): Response<PreOrderResponse>
+
+    @GET("api/preorders")
+    suspend fun listPreOrders(
+        @Query("status") status: String? = null,
+        @Query("customer_id") customerId: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 30
+    ): Response<ApiResponse<List<PreOrderDto>>>
+
+    @GET("api/preorders/{id}")
+    suspend fun getPreOrder(@Path("id") id: Int): Response<ApiResponse<PreOrderDto>>
+
+    @PUT("api/preorders/{id}")
+    suspend fun updatePreOrder(@Path("id") id: Int, @Body request: PreOrderRequest): Response<Unit>
+
+    @DELETE("api/preorders/{id}")
+    suspend fun deletePreOrder(@Path("id") id: Int): Response<Unit>
+
+    @POST("api/preorders/{id}/convert")
+    suspend fun convertPreOrder(@Path("id") id: Int, @Body request: ConvertPreOrderRequest): Response<ConvertPreOrderResponse>
+
+    // ── Customer History ──
+
+    @GET("api/customers/{customerId}/orders")
+    suspend fun getCustomerOrders(
+        @Path("customerId") customerId: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): Response<ApiResponse<List<CustomerBatchSummary>>>
 }

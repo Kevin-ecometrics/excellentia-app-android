@@ -177,14 +177,29 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnChangeCustomer"
-                        style="@style/Widget.Material3.Button.TextButton"
+                    <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:text="Cambiar"
-                        android:textColor="#FFFFFF"
-                        android:textSize="12sp" />
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnChangeCustomer"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="Cambiar"
+                            android:textColor="#FFFFFF"
+                            android:textSize="11sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnViewClientHistory"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="Historial"
+                            android:textColor="#CCE0F0FF"
+                            android:textSize="11sp" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -319,6 +334,21 @@
                 app:icon="@drawable/ic_keyboard"
                 app:iconGravity="textStart"
                 app:iconSize="16dp"
+                app:iconTint="@color/primary" />
+
+            <!-- Pre-órdenes shortcut -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPreOrders"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginTop="4dp"
+                android:text="Pre-órdenes"
+                android:textColor="@color/primary"
+                android:textSize="13sp"
+                app:icon="@drawable/ic_schedule"
+                app:iconGravity="textStart"
+                app:iconSize="15dp"
                 app:iconTint="@color/primary" />
 
             <!-- Scanner guide link -->

@@ -26,10 +26,14 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 3. **ProductDetailActivity** — muestra producto con precio/lb. Múltiples unidades con peso individual cada una (+/- 0.1). Tap en cantidad → diálogo numérico. "Agregar al pedido" → SQLite local.
 4. **CurrentOrderActivity** — lista todos los ítems pendientes. Cada ítem con botón **editar** (cantidad total lb + precio/lb editable, resumen dinámico) y **borrar** (con confirmación). Loading overlay mientras se envía el batch. "Ver ticket" → TicketDetailActivity. "Finalizar pedido" → SignatureActivity (luego checkPrinterThenFinalize).
 5. **SignatureActivity** — pantalla completa de firma del cliente. Canvas táctil (`SignatureView`). Botones "Limpiar" y "Confirmar firma". Exporta firma como PNG base64. Al confirmar → checkPrinterThenFinalize() en CurrentOrderActivity.
-6. **CustomerPickerActivity** — carga clientes de QB (`GET /api/customers`). Búsqueda en tiempo real. Cada card muestra nombre + dirección completa (gris). Modal de confirmación con nombre y dirección. Retorna `customer_id`, `customer_name`, `customer_address` en el intent result.
+6. **CustomerPickerActivity** — carga clientes de QB (`GET /api/customers`). Búsqueda en tiempo real. Cada card muestra nombre + dirección completa (gris). Modal de confirmación con nombre y dirección. Retorna `customer_id`, `customer_name`, `customer_address` en el intent result. **Long-press** en card muestra menú: "Asignar como cliente activo" o "Ver historial de pedidos" → ClientHistoryActivity.
 7. **HistoryActivity** — pedidos locales pendientes + remotos del API. Filtros ALL/PENDING/SENT. Cada batch mostrado con card azul (Pedido #, fecha, cliente, total, estado) — click → TicketDetailActivity.
 8. **TicketDetailActivity** — ticket estilo recibo con header de la tienda, fecha, batch#, factura#, chip del cliente, ítems individuales (nombre + barcode·precio/lb + qty + total), grand total, estado. Botón **"Reimprimir ticket"** visible si hay impresora configurada en Settings.
 9. **SettingsActivity** — backend URL, offline mode, **impresora Bluetooth** (lista dispositivos emparejados, botón probar), cerrar sesión.
+10. **PreOrderListActivity** — lista pre-órdenes del servidor con chips filtro (Todas/Borrador/Confirmada/Convertida). FAB "Nueva pre-orden" → CreatePreOrderActivity. Click card → PreOrderDetailActivity. Accesible desde botón "Pre-órdenes" en MainActivity.
+11. **CreatePreOrderActivity** — crear pre-orden: seleccionar cliente (CustomerPickerActivity launcher), DatePicker para fecha de entrega, notas, agregar ítems por escaneo DataWedge o dialog manual (barcode + qty + price). Guarda via `POST /api/preorders`. Pre-llena cliente activo si hay uno seleccionado.
+12. **PreOrderDetailActivity** — detalle de pre-orden: cliente, status, fecha, notas, lista de ítems con total. Botón "Convertir a pedido" → SignatureActivity → askPaymentMethod → `POST /api/preorders/:id/convert`. Botón "Cancelar" → soft delete (status CANCELLED). Recibe `pre_order_id` por intent.
+13. **ClientHistoryActivity** — historial de pedidos de un cliente específico. Header con nombre + resumen (pedidos, total). Lista de batch cards (reutiliza `item_batch_header.xml`). Click → carga orders del cliente y abre TicketDetailActivity. Recibe `customer_id` + `customer_name` por intent. Accesible desde: botón "Historial" en tarjeta de cliente activo de MainActivity, y long-press en CustomerPickerActivity.
 
 ### Data Layer
 
@@ -51,6 +55,10 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 | `data/print/BluetoothPermission.kt` | `hasBtConnectPermission()` helper para Android 12+ |
 | `data/Models.kt` | DTOs: `QbCustomer(id, displayName, active, addressLine1?, city?, stateCode?, postalCode?, fullAddress)`, `QbCustomersResponse`, `BatchRequest(items, customerId, customerName, signature)`, `OrderDto(…customerName)` |
 | `SignatureView.kt` | Custom View táctil — captura trazos en Canvas (quadratic bezier), `getBase64()` exporta PNG base64, `clear()`, `isEmpty` |
+| `PreOrderListActivity.kt` | Lista pre-órdenes del servidor; chips filtro; FAB → CreatePreOrderActivity |
+| `CreatePreOrderActivity.kt` | Crea pre-órdenes: scanner DataWedge + dialog manual; DatePicker; guarda via API |
+| `PreOrderDetailActivity.kt` | Detalle de pre-orden; convierte a pedido real (firma → payment → `/api/preorders/:id/convert`) |
+| `ClientHistoryActivity.kt` | Historial de batches por cliente; usa `GET /api/customers/:id/orders`; click → TicketDetailActivity |
 | `SignatureActivity.kt` | Pantalla completa de firma — muestra nombre del cliente, `SignatureView`, botones Limpiar/Confirmar, retorna base64 via `RESULT_OK` |
 
 ### Layouts
@@ -69,6 +77,11 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 | `item_order_product.xml` | Ítem individual dentro del ticket (TicketDetailActivity e HistoryActivity) |
 | `item_ticket_row.xml` | Fila simple de ticket (legado) |
 | `item_scan_entry.xml` | Card de pedido local pendiente en historial |
+| `activity_pre_order_list.xml` | Lista de pre-órdenes — chips filtro + scroll + FAB |
+| `activity_pre_order_detail.xml` | Detalle de pre-orden — info card + items card + botones Convertir/Cancelar |
+| `activity_create_pre_order.xml` | Crear pre-orden — card cliente, fecha/notas, lista items dinámica, total estimado, btn Guardar |
+| `item_pre_order.xml` | Card de pre-orden en lista — cliente, status, fecha, items count, total |
+| `activity_client_history.xml` | Historial por cliente — header resumen (primary card) + lista de batch cards + swipe refresh |
 
 ### Flujo de Pedido (completo)
 
@@ -192,8 +205,15 @@ Sprinkler Pipes     $4.10 F4, LEFT — twoCol(nombre, total, 32)
 - **Botón Reimprimir** en TicketDetailActivity — solo visible si `SecurePreferences.getPrinterAddress() != null`.
 - **Edit dialog (`dialog_edit_order.xml`)** — dos inputs: "Cantidad total (lb)" (`etQty`) y "Precio / lb" (`etPricePerLb`). Resumen dinámico `tvTotal` ("X.XX lb = $Y.YY"). Sin input de precio total — se eliminó; el precio/lb es editable directamente. Advertencia `tvMinWarning` compara `qty × rate` contra `minPrice`.
 
+- **Pre-órdenes** — server-only (sin SQLite local); requieren internet. `CreatePreOrderActivity` soporta DataWedge + dialog manual. `PreOrderDetailActivity` convierte via SignatureActivity → payment → `/api/preorders/:id/convert`.
+- **Historial por cliente** — `ClientHistoryActivity` usa `GET /api/customers/:id/orders` (endpoint nuevo en backend). Al hacer click en un batch carga los orders del cliente y abre TicketDetailActivity.
+- **CustomerPickerActivity long-press** — menú contextual con "Asignar" (comportamiento original) y "Ver historial" (abre ClientHistoryActivity).
+- **MainActivity** — botón "Pre-órdenes" (ic_schedule) + botón "Historial" dentro de la tarjeta de cliente activo.
+
 ### Pending Improvements
 
 - [ ] **Device registration** — auto-call `POST /api/devices/register` on login
 - [ ] **Retry button** — in HistoryActivity, resend failed/pending orders manually
 - [ ] **Almacenar pesos individuales** — guardar el desglose de unidades en `PendingOrderEntity` para poder editarlos individualmente después
+- [ ] **Editar pre-orden** — actualmente solo se puede ver y convertir; agregar edición de items/fecha/notas desde PreOrderDetailActivity
+- [ ] **Pre-órdenes offline** — actualmente requieren internet; considerar SQLite local (pre_orders v7) para borradores offline

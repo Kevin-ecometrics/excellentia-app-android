@@ -250,3 +250,64 @@ data class PriceHistoryResponse(
     val product: ProductHistoryInfo?,
     val history: List<PriceHistoryItem>
 )
+
+// ── Pre-Order Models ──
+
+data class PreOrderItem(
+    val barcode: String,
+    @SerializedName("product_name") val productName: String,
+    val price: Double,
+    val quantity: Double,
+    val total: Double
+)
+
+data class PreOrderRequest(
+    @SerializedName("customer_id") val customerId: String,
+    @SerializedName("customer_name") val customerName: String,
+    @SerializedName("scheduled_date") val scheduledDate: String? = null,
+    val notes: String? = null,
+    val items: List<PreOrderItem>
+)
+
+data class PreOrderDto(
+    val id: Int,
+    @SerializedName("customer_id") val customerId: String,
+    @SerializedName("customer_name") val customerName: String,
+    @SerializedName("scheduled_date") val scheduledDate: String? = null,
+    val notes: String? = null,
+    val status: String,
+    @SerializedName("item_count") val itemCount: Int = 0,
+    val total: Double = 0.0,
+    @SerializedName("created_at") val createdAt: String? = null,
+    val items: List<PreOrderItem> = emptyList()
+)
+
+data class PreOrderResponse(
+    val id: Int,
+    val status: String
+)
+
+data class ConvertPreOrderRequest(
+    val signature: String? = null,
+    @SerializedName("payment_method") val paymentMethod: String? = null,
+    @SerializedName("damage_items") val damageItems: List<DamageItem>? = null
+)
+
+data class ConvertPreOrderResponse(
+    @SerializedName("batchId") val batchId: String,
+    @SerializedName("invoiceId") val invoiceId: String? = null,
+    @SerializedName("preOrderId") val preOrderId: String
+)
+
+// ── Customer Batch Summary ──
+
+data class CustomerBatchSummary(
+    @SerializedName("batch_id") val batchId: String,
+    @SerializedName("customer_id") val customerId: String,
+    @SerializedName("customer_name") val customerName: String,
+    @SerializedName("created_at") val createdAt: String? = null,
+    val total: Double,
+    @SerializedName("qb_invoice_id") val qbInvoiceId: String? = null,
+    @SerializedName("item_count") val itemCount: Int = 0,
+    val status: String
+)

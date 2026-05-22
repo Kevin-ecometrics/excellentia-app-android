@@ -65,7 +65,11 @@
       "Bash(findstr LISTENING)",
       "Bash(tasklist *)",
       "PowerShell(Get-Process *)",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(bun --version)",
+      "Bash(bun --print \"import\\('./src/routes/preOrders.ts'\\).then\\(m => console.log\\('OK'\\)\\).catch\\(e => console.error\\('ERROR:', e.message\\)\\)\")",
+      "Bash(bun --print \"import\\('./src/index.ts'\\).then\\(\\(\\) => console.log\\('OK'\\)\\).catch\\(e => console.error\\('ERROR:', e.message\\)\\)\")",
+      "Bash(findstr :3000)"
     ]
   }
 }

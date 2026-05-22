@@ -238,9 +238,34 @@ class CustomerPickerActivity : AppCompatActivity() {
 
             row.addView(nameAddressCol)
             row.addView(tvId)
+            card.setOnLongClickListener {
+                showCustomerOptions(customer)
+                true
+            }
+
             card.addView(row)
             layoutCustomers.addView(card)
         }
+    }
+
+    private fun showCustomerOptions(customer: QbCustomer) {
+        val options = arrayOf("Asignar como cliente activo", "Ver historial de pedidos")
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(customer.displayName)
+            .setItems(options) { _, i ->
+                when (i) {
+                    0 -> confirmSelection(customer)
+                    1 -> openClientHistory(customer)
+                }
+            }
+            .show()
+    }
+
+    private fun openClientHistory(customer: QbCustomer) {
+        startActivity(Intent(this, ClientHistoryActivity::class.java).apply {
+            putExtra("customer_id", customer.id)
+            putExtra("customer_name", customer.displayName)
+        })
     }
 
     private fun confirmSelection(customer: QbCustomer) {
