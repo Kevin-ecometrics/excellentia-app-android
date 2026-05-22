@@ -45,6 +45,7 @@ class CurrentOrderActivity : AppCompatActivity() {
     private lateinit var tvTotalItems: TextView
     private lateinit var tvOrderCount: TextView
     private lateinit var tvCustomerLabel: TextView
+    private lateinit var tvCustomerAddress: TextView
     private lateinit var btnViewTicket: MaterialButton
     private lateinit var btnFinalize: MaterialButton
     private lateinit var orderRepository: OrderRepository
@@ -52,6 +53,11 @@ class CurrentOrderActivity : AppCompatActivity() {
 
     private var customerId: String? = null
     private var customerName: String? = null
+    private var customerAddress: String? = null
+    private var pendingSignature: String? = null
+    private var pendingDamageQty: Int = 0
+    private var pendingPaymentMethod: String? = null
+    private var launchSignatureAfterCustomer = false
 
     private val customerPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -59,10 +65,25 @@ class CurrentOrderActivity : AppCompatActivity() {
         if (result.resultCode == Activity.RESULT_OK) {
             val id = result.data?.getStringExtra("customer_id") ?: return@registerForActivityResult
             val name = result.data?.getStringExtra("customer_name") ?: return@registerForActivityResult
-            securePrefs.setActiveCustomer(id, name)
+            val address = result.data?.getStringExtra("customer_address")
+            securePrefs.setActiveCustomer(id, name, address)
             customerId = id
             customerName = name
+            customerAddress = address
             updateCustomerLabel()
+            if (launchSignatureAfterCustomer) {
+                launchSignatureAfterCustomer = false
+                launchSignature()
+            }
+        }
+    }
+
+    private val signatureLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            pendingSignature = result.data?.getStringExtra("signature")
+            askDamagedItems()
         }
     }
 
@@ -82,6 +103,7 @@ class CurrentOrderActivity : AppCompatActivity() {
 
         customerId = securePrefs.getActiveCustomerId()
         customerName = securePrefs.getActiveCustomerName()
+        customerAddress = securePrefs.getActiveCustomerAddress()
 
         layoutOrderItems = findViewById(R.id.layoutOrderItems)
         layoutEmpty = findViewById(R.id.layoutEmpty)
@@ -98,6 +120,7 @@ class CurrentOrderActivity : AppCompatActivity() {
         tvTotalItems = findViewById(R.id.tvTotalItems)
         tvOrderCount = findViewById(R.id.tvOrderCount)
         tvCustomerLabel = findViewById(R.id.tvCustomerLabel)
+        tvCustomerAddress = findViewById(R.id.tvCustomerAddress)
         btnViewTicket = findViewById(R.id.btnViewTicket)
         btnFinalize = findViewById(R.id.btnFinalize)
 
@@ -105,8 +128,9 @@ class CurrentOrderActivity : AppCompatActivity() {
         btnViewTicket.setOnClickListener { openTicket() }
         btnFinalize.setOnClickListener {
             if (customerId != null && customerName != null) {
-                checkPrinterThenFinalize()
+                launchSignature()
             } else {
+                launchSignatureAfterCustomer = true
                 customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
             }
         }
@@ -123,6 +147,7 @@ class CurrentOrderActivity : AppCompatActivity() {
         super.onResume()
         customerId = securePrefs.getActiveCustomerId()
         customerName = securePrefs.getActiveCustomerName()
+        customerAddress = securePrefs.getActiveCustomerAddress()
         updateCustomerLabel()
         loadOrder()
     }
@@ -131,8 +156,15 @@ class CurrentOrderActivity : AppCompatActivity() {
         if (!customerName.isNullOrBlank()) {
             tvCustomerLabel.text = "Cliente: $customerName  ·  Toca para cambiar"
             tvCustomerLabel.visibility = View.VISIBLE
+            if (!customerAddress.isNullOrBlank()) {
+                tvCustomerAddress.text = customerAddress
+                tvCustomerAddress.visibility = View.VISIBLE
+            } else {
+                tvCustomerAddress.visibility = View.GONE
+            }
         } else {
             tvCustomerLabel.visibility = View.GONE
+            tvCustomerAddress.visibility = View.GONE
         }
     }
 
@@ -292,6 +324,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                 putExtra("batch_id", "")
                 putExtra("invoice_id", "")
                 putExtra("orders_json", Gson().toJson(orders))
+                putExtra("customer_address", customerAddress)
             })
         }
     }
@@ -327,6 +360,58 @@ class CurrentOrderActivity : AppCompatActivity() {
                 tvStep3Label.setTextColor(textPrimary)
             }
         }
+    }
+
+    private fun launchSignature() {
+        signatureLauncher.launch(
+            Intent(this, SignatureActivity::class.java).apply {
+                putExtra("customer_name", customerName)
+            }
+        )
+    }
+
+    private fun askDamagedItems() {
+        val input = android.widget.EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = "0"
+            setText("0")
+            textSize = 20f
+            gravity = android.view.Gravity.CENTER
+            setPadding(48, 24, 48, 24)
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("¿Artículos dañados o vencidos?")
+            .setMessage("Indica cuántas unidades no se entregaron en buenas condiciones.\nEscribe 0 si no hay ninguna.")
+            .setView(input)
+            .setPositiveButton("Continuar") { _, _ ->
+                pendingDamageQty = input.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
+                askPaymentMethod()
+            }
+            .setNegativeButton("Sin devoluciones") { _, _ ->
+                pendingDamageQty = 0
+                askPaymentMethod()
+            }
+            .show()
+        input.selectAll()
+    }
+
+    private fun askPaymentMethod() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Método de pago")
+            .setMessage("¿Cómo paga el cliente?")
+            .setPositiveButton("Cash") { _, _ ->
+                pendingPaymentMethod = "Cash"
+                checkPrinterThenFinalize()
+            }
+            .setNeutralButton("Check") { _, _ ->
+                pendingPaymentMethod = "Check"
+                checkPrinterThenFinalize()
+            }
+            .setNegativeButton("Omitir") { _, _ ->
+                pendingPaymentMethod = null
+                checkPrinterThenFinalize()
+            }
+            .show()
     }
 
     private fun checkPrinterThenFinalize() {
@@ -390,7 +475,13 @@ class CurrentOrderActivity : AppCompatActivity() {
                 )
             }
 
-            val result = orderRepository.sendBatch(items, customerId, customerName)
+            val sigForPrinting     = pendingSignature
+            val damageForPrinting  = pendingDamageQty
+            val paymentForPrinting = pendingPaymentMethod
+            val result = orderRepository.sendBatch(items, customerId, customerName, pendingSignature, pendingDamageQty, pendingPaymentMethod)
+            pendingSignature = null
+            pendingDamageQty = 0
+            pendingPaymentMethod = null
             result.onSuccess { response ->
                 setStep(2)
                 tvLoadingTitle.text = "Generando factura..."
@@ -410,7 +501,11 @@ class CurrentOrderActivity : AppCompatActivity() {
                         items = items,
                         customerName = customerName,
                         batchId = response.batchId,
-                        invoiceId = response.invoiceId
+                        invoiceId = response.invoiceId,
+                        customerAddress = customerAddress,
+                        damageQty = damageForPrinting,
+                        paymentMethod = paymentForPrinting,
+                        signature = sigForPrinting
                     )
                     printResult.onFailure { e ->
                         Snackbar.make(
@@ -428,6 +523,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                         putExtra("batch_id", response.batchId ?: "")
                         putExtra("invoice_id", response.invoiceId ?: "")
                         putExtra("customer_name", customerName)
+                        putExtra("customer_address", customerAddress)
                         putExtra("total", grandTotal)
                         putExtra("item_count", items.size)
                         putExtra("orders_json", Gson().toJson(

@@ -51,9 +51,10 @@ class TicketDetailActivity : AppCompatActivity() {
         val rawDate = orders.firstOrNull()?.createdAt
         findViewById<TextView>(R.id.tvTicketDate).text = formatDate(rawDate)
 
-        // Customer name
-        val customerName = intent.getStringExtra("customer_name")
+        // Customer name + address
+        val customerName    = intent.getStringExtra("customer_name")
             ?: orders.firstOrNull()?.customerName
+        val customerAddress = intent.getStringExtra("customer_address")
         val cardCustomer = findViewById<View>(R.id.cardCustomer)
         if (!customerName.isNullOrBlank()) {
             cardCustomer.visibility = View.VISIBLE
@@ -132,7 +133,8 @@ class TicketDetailActivity : AppCompatActivity() {
                         items = items,
                         customerName = customerName,
                         batchId = batchId,
-                        invoiceId = invoiceId
+                        invoiceId = invoiceId,
+                        customerAddress = customerAddress
                     )
                     result.onSuccess {
                         Snackbar.make(findViewById(android.R.id.content), "Ticket enviado a la impresora", Snackbar.LENGTH_SHORT).show()

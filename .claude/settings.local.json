@@ -39,7 +39,21 @@
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 15)",
       "Bash(bun add *)",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 12)",
-      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 8)"
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; .\\\\gradlew assembleDebug 2>&1 | Select-Object -Last 8)",
+      "PowerShell(cd \"C:\\\\Users\\\\kevin\\\\AndroidStudioProjects\\\\test\"; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; .\\\\gradlew.bat assembleDebug 2>&1 | Select-Object -Last 50)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(mysql *)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"ALTER TABLE orders ADD COLUMN IF NOT EXISTS signature MEDIUMTEXT NULL AFTER customer_name;\" excellentia 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"DESCRIBE orders;\" excellentia 2>&1)",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; cd \"C:\\\\Users\\\\kevin\\\\e-commetrics\\\\excellentia\"; npx tsc --noEmit 2>&1)",
+      "Bash(npx tsc *)",
+      "Read(//c/Users/kevin/AppData/Local/Programs/nodejs/**)",
+      "Read(//c/Users/kevin/scoop/**)",
+      "Read(//c/Users/kevin/**)",
+      "Bash(/c/Users/kevin/.bun/bin/bun.exe x *)",
+      "PowerShell(Head *)",
+      "Bash(/c/Users/kevin/.bun/bin/bun.exe run *)",
+      "Bash(.\\\\gradlew assembleDebug --quiet)"
     ]
   }
 }

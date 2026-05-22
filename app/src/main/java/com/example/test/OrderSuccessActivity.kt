@@ -25,9 +25,10 @@ class OrderSuccessActivity : AppCompatActivity() {
             insets
         }
 
-        val batchId    = intent.getStringExtra("batch_id") ?: ""
-        val invoiceId  = intent.getStringExtra("invoice_id") ?: ""
-        val customerName = intent.getStringExtra("customer_name")
+        val batchId         = intent.getStringExtra("batch_id") ?: ""
+        val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
+        val customerName    = intent.getStringExtra("customer_name")
+        val customerAddress = intent.getStringExtra("customer_address")
         val total      = intent.getDoubleExtra("total", 0.0)
         val itemCount  = intent.getIntExtra("item_count", 0)
         val ordersJson = intent.getStringExtra("orders_json") ?: "[]"
@@ -59,6 +60,7 @@ class OrderSuccessActivity : AppCompatActivity() {
                 putExtra("invoice_id", invoiceId)
                 putExtra("orders_json", ordersJson)
                 putExtra("customer_name", customerName)
+                putExtra("customer_address", customerAddress)
             }
             startActivity(intent)
         }

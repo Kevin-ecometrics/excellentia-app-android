@@ -97,7 +97,14 @@ class CustomerPickerActivity : AppCompatActivity() {
 
                     // Guardar en cache local
                     customerDao.insertAll(customers.map {
-                        CachedCustomerEntity(id = it.id, displayName = it.displayName)
+                        CachedCustomerEntity(
+                            id = it.id,
+                            displayName = it.displayName,
+                            addressLine1 = it.addressLine1,
+                            city = it.city,
+                            stateCode = it.stateCode,
+                            postalCode = it.postalCode
+                        )
                     })
 
                     allCustomers = customers
@@ -116,7 +123,16 @@ class CustomerPickerActivity : AppCompatActivity() {
     private fun loadFromCache(reason: String) {
         val cached = customerDao.getAll()
         if (cached.isNotEmpty()) {
-            allCustomers = cached.map { QbCustomer(id = it.id, displayName = it.displayName) }
+            allCustomers = cached.map {
+                QbCustomer(
+                    id = it.id,
+                    displayName = it.displayName,
+                    addressLine1 = it.addressLine1,
+                    city = it.city,
+                    stateCode = it.stateCode,
+                    postalCode = it.postalCode
+                )
+            }
             progressBar.visibility = View.GONE
             scrollCustomers.visibility = View.VISIBLE
             tvOfflineBanner.visibility = View.VISIBLE
@@ -177,23 +193,50 @@ class CustomerPickerActivity : AppCompatActivity() {
                 )
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(16.dp, 16.dp, 16.dp, 16.dp)
+                setPadding(16.dp, 14.dp, 16.dp, 14.dp)
+            }
+
+            val nameAddressCol = LinearLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                orientation = LinearLayout.VERTICAL
             }
 
             val tvName = TextView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
                 text = customer.displayName
                 textSize = 15f
                 setTextColor(resources.getColor(R.color.text_primary, theme))
             }
+            nameAddressCol.addView(tvName)
+
+            val address = customer.fullAddress
+            if (!address.isNullOrBlank()) {
+                val tvAddress = TextView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = 2.dp }
+                    text = address
+                    textSize = 12f
+                    setTextColor(resources.getColor(R.color.text_secondary, theme))
+                }
+                nameAddressCol.addView(tvAddress)
+            }
 
             val tvId = TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { marginStart = 8.dp }
                 text = "#${customer.id}"
                 textSize = 12f
                 setTextColor(resources.getColor(R.color.text_secondary, theme))
             }
 
-            row.addView(tvName)
+            row.addView(nameAddressCol)
             row.addView(tvId)
             card.addView(row)
             layoutCustomers.addView(card)
@@ -201,13 +244,15 @@ class CustomerPickerActivity : AppCompatActivity() {
     }
 
     private fun confirmSelection(customer: QbCustomer) {
+        val addressLine = customer.fullAddress?.let { "\n$it" } ?: ""
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Confirmar cliente")
-            .setMessage("¿Asignar este pedido a:\n\n${customer.displayName}?")
+            .setMessage("¿Asignar este pedido a:\n\n${customer.displayName}$addressLine?")
             .setPositiveButton("Sí, asignar") { _, _ ->
                 setResult(Activity.RESULT_OK, Intent().apply {
                     putExtra("customer_id", customer.id)
                     putExtra("customer_name", customer.displayName)
+                    putExtra("customer_address", customer.fullAddress)
                 })
                 finish()
             }

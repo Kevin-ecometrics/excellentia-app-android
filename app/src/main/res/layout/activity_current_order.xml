@@ -48,6 +48,14 @@
                         android:textAppearance="?attr/textAppearanceLabelSmall"
                         android:textColor="@color/primary"
                         android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvCustomerAddress"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="10sp"
+                        android:textColor="@color/text_secondary"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton

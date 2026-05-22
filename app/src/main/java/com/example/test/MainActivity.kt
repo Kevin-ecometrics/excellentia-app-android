@@ -86,7 +86,8 @@ class MainActivity : AppCompatActivity() {
         if (result.resultCode == Activity.RESULT_OK) {
             val customerId = result.data?.getStringExtra("customer_id") ?: return@registerForActivityResult
             val customerName = result.data?.getStringExtra("customer_name") ?: return@registerForActivityResult
-            securePrefs.setActiveCustomer(customerId, customerName)
+            val customerAddress = result.data?.getStringExtra("customer_address")
+            securePrefs.setActiveCustomer(customerId, customerName, customerAddress)
             updateCustomerUi()
         }
     }
@@ -185,6 +186,20 @@ class MainActivity : AppCompatActivity() {
         updateCustomerUi()
         bottomNav.selectedItemId = R.id.nav_scanner
         bannerOffline.visibility = if (securePrefs.isOfflineMode()) View.VISIBLE else View.GONE
+        refreshCompanySettings()
+    }
+
+    private fun refreshCompanySettings() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getCompanySettings()
+                if (resp.isSuccessful) {
+                    resp.body()?.data?.let { d ->
+                        securePrefs.saveCompanySettings(d.companyName, d.subtitle, d.address, d.phone, d.city)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     override fun onDestroy() {

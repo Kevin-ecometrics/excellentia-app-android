@@ -141,7 +141,10 @@ data class BatchItem(
 data class BatchRequest(
     val items: List<BatchItem>,
     @SerializedName("customer_id") val customerId: String? = null,
-    @SerializedName("customer_name") val customerName: String? = null
+    @SerializedName("customer_name") val customerName: String? = null,
+    @SerializedName("signature") val signature: String? = null,
+    @SerializedName("damage_qty") val damageQty: Int? = null,
+    @SerializedName("payment_method") val paymentMethod: String? = null
 )
 
 // ── QuickBooks Customer Models ──
@@ -157,8 +160,23 @@ data class QbQueryResponse(
 data class QbCustomer(
     @SerializedName("Id") val id: String,
     @SerializedName("DisplayName") val displayName: String,
-    @SerializedName("Active") val active: Boolean = true
-)
+    @SerializedName("Active") val active: Boolean = true,
+    @SerializedName("AddressLine1") val addressLine1: String? = null,
+    @SerializedName("City") val city: String? = null,
+    @SerializedName("StateCode") val stateCode: String? = null,
+    @SerializedName("PostalCode") val postalCode: String? = null
+) {
+    val fullAddress: String?
+        get() {
+            val line1 = addressLine1?.takeIf { it.isNotBlank() }
+            val cityState = buildString {
+                if (!city.isNullOrBlank()) append(city)
+                if (!stateCode.isNullOrBlank()) { if (isNotEmpty()) append(", "); append(stateCode) }
+                if (!postalCode.isNullOrBlank()) { if (isNotEmpty()) append(" "); append(postalCode) }
+            }.takeIf { it.isNotBlank() }
+            return listOfNotNull(line1, cityState).joinToString(", ").takeIf { it.isNotBlank() }
+        }
+}
 
 
 data class BatchResponse(

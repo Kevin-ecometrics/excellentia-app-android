@@ -1,0 +1,50 @@
+package com.example.test
+
+import android.app.Activity
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.snackbar.Snackbar
+
+class SignatureActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_signature)
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(b.left, 0, b.right, b.bottom)
+            insets
+        }
+
+        val customerName = intent.getStringExtra("customer_name")
+        val tvCustomer   = findViewById<TextView>(R.id.tvSignatureCustomer)
+        val signatureView = findViewById<SignatureView>(R.id.signatureView)
+        val btnClear     = findViewById<Button>(R.id.btnClear)
+        val btnConfirm   = findViewById<Button>(R.id.btnConfirm)
+
+        if (!customerName.isNullOrBlank()) {
+            tvCustomer.text = customerName
+        }
+
+        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
+
+        btnClear.setOnClickListener { signatureView.clear() }
+
+        btnConfirm.setOnClickListener {
+            if (signatureView.isEmpty) {
+                Snackbar.make(btnConfirm, "Dibuja la firma antes de confirmar", Snackbar.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val base64 = signatureView.getBase64()
+            setResult(Activity.RESULT_OK, Intent().putExtra("signature", base64))
+            finish()
+        }
+    }
+}

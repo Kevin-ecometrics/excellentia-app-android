@@ -24,11 +24,12 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 1. **LoginActivity** (LAUNCHER) — POST `/api/auth/login`, guarda JWT + refreshToken + URL en SecurePreferences, navega a MainActivity.
 2. **MainActivity** — verifica token en `onCreate`/`onResume`. DataWedge profile configurado automáticamente. Escaneo físico o botón manual → ProductDetailActivity. Badge "Ver pedido (N)" → CurrentOrderActivity. Pide `BLUETOOTH_CONNECT` en startup (Android 12+).
 3. **ProductDetailActivity** — muestra producto con precio/lb. Múltiples unidades con peso individual cada una (+/- 0.1). Tap en cantidad → diálogo numérico. "Agregar al pedido" → SQLite local.
-4. **CurrentOrderActivity** — lista todos los ítems pendientes. Cada ítem con botón **editar** (cantidad total lb + precio/lb, resumen dinámico) y **borrar** (con confirmación). Loading overlay mientras se envía el batch. "Ver ticket" → TicketDetailActivity. "Finalizar pedido" → CustomerPickerActivity.
-5. **CustomerPickerActivity** — carga clientes de QB (`GET /api/customers`). Búsqueda en tiempo real. Modal de confirmación al seleccionar.
-6. **HistoryActivity** — pedidos locales pendientes + remotos del API. Filtros ALL/PENDING/SENT. Cada batch mostrado con card azul (Pedido #, fecha, cliente, total, estado) — click → TicketDetailActivity.
-7. **TicketDetailActivity** — ticket estilo recibo con header de la tienda, fecha, batch#, factura#, chip del cliente, ítems individuales (nombre + barcode·precio/lb + qty + total), grand total, estado. Botón **"Reimprimir ticket"** visible si hay impresora configurada en Settings.
-8. **SettingsActivity** — backend URL, offline mode, **impresora Bluetooth** (lista dispositivos emparejados, botón probar), cerrar sesión.
+4. **CurrentOrderActivity** — lista todos los ítems pendientes. Cada ítem con botón **editar** (cantidad total lb + precio/lb editable, resumen dinámico) y **borrar** (con confirmación). Loading overlay mientras se envía el batch. "Ver ticket" → TicketDetailActivity. "Finalizar pedido" → SignatureActivity (luego checkPrinterThenFinalize).
+5. **SignatureActivity** — pantalla completa de firma del cliente. Canvas táctil (`SignatureView`). Botones "Limpiar" y "Confirmar firma". Exporta firma como PNG base64. Al confirmar → checkPrinterThenFinalize() en CurrentOrderActivity.
+6. **CustomerPickerActivity** — carga clientes de QB (`GET /api/customers`). Búsqueda en tiempo real. Cada card muestra nombre + dirección completa (gris). Modal de confirmación con nombre y dirección. Retorna `customer_id`, `customer_name`, `customer_address` en el intent result.
+7. **HistoryActivity** — pedidos locales pendientes + remotos del API. Filtros ALL/PENDING/SENT. Cada batch mostrado con card azul (Pedido #, fecha, cliente, total, estado) — click → TicketDetailActivity.
+8. **TicketDetailActivity** — ticket estilo recibo con header de la tienda, fecha, batch#, factura#, chip del cliente, ítems individuales (nombre + barcode·precio/lb + qty + total), grand total, estado. Botón **"Reimprimir ticket"** visible si hay impresora configurada en Settings.
+9. **SettingsActivity** — backend URL, offline mode, **impresora Bluetooth** (lista dispositivos emparejados, botón probar), cerrar sesión.
 
 ### Data Layer
 
@@ -37,18 +38,20 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 | `data/network/ApiService.kt` | Retrofit interface — incluye `getCustomers()` |
 | `data/network/AuthInterceptor.kt` | JWT Bearer en todos los requests |
 | `data/network/RetrofitClient.kt` | Singleton Retrofit + TokenAuthenticator (refresh 401 + SESSION_EXPIRED broadcast) |
-| `data/local/SecurePreferences.kt` | JWT, refreshToken, backend URL, offline mode, `printer_bt_address`, `printer_bt_name` |
-| `data/local/AppDatabase.kt` | SQLiteOpenHelper — tablas `cached_products` + `pending_orders` |
+| `data/local/SecurePreferences.kt` | JWT, refreshToken, backend URL, offline mode, `printer_bt_address`, `printer_bt_name`, `active_customer_id/name/address`, datos de empresa, user info, last scan |
+| `data/local/AppDatabase.kt` | SQLiteOpenHelper v6 — tablas `cached_products`, `pending_orders`, `cached_customers` |
 | `data/local/dao/OrderDao.kt` | `insert`, `getAllPending`, `getById`, `update(id, price, qty)`, `deleteById`, `deleteAll`, `count` |
 | `data/local/entities/PendingOrderEntity.kt` | `id, barcode, productName, price, quantity(Double), deviceId, createdAt, retryCount` |
 | `data/repository/ProductRepository.kt` | API first, SQLite fallback |
-| `data/repository/OrderRepository.kt` | `savePendingOrder`, `updatePendingOrder(id, price, qty)`, `deletePendingOrder`, `sendBatch(items, customerId, customerName)` |
+| `data/repository/OrderRepository.kt` | `savePendingOrder`, `updatePendingOrder(id, price, qty)`, `deletePendingOrder`, `sendBatch(items, customerId, customerName, signature)` |
 | `data/sync/SyncWorker.kt` | WorkManager — reenvía pending cada 15 min |
 | `data/sync/OrderStatusWorker.kt` | WorkManager — consulta SENT cada 2 min, notifica cambios |
 | `data/local/NotificationHelper.kt` | Canal + notificación de pedido sincronizado |
 | `data/print/PrintService.kt` | Bluetooth SPP → ZQ630 Plus. CPCL. `printTicket()` + `printTest()` |
 | `data/print/BluetoothPermission.kt` | `hasBtConnectPermission()` helper para Android 12+ |
-| `data/Models.kt` | DTOs: `QbCustomer`, `QbCustomersResponse`, `BatchRequest(items, customerId, customerName)`, `OrderDto(…customerName)` |
+| `data/Models.kt` | DTOs: `QbCustomer(id, displayName, active, addressLine1?, city?, stateCode?, postalCode?, fullAddress)`, `QbCustomersResponse`, `BatchRequest(items, customerId, customerName, signature)`, `OrderDto(…customerName)` |
+| `SignatureView.kt` | Custom View táctil — captura trazos en Canvas (quadratic bezier), `getBase64()` exporta PNG base64, `clear()`, `isEmpty` |
+| `SignatureActivity.kt` | Pantalla completa de firma — muestra nombre del cliente, `SignatureView`, botones Limpiar/Confirmar, retorna base64 via `RESULT_OK` |
 
 ### Layouts
 
@@ -60,6 +63,7 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 | `activity_history.xml` | Historial — chips filtro + lista batches |
 | `activity_customer_picker.xml` | Selector de cliente QB — búsqueda + lista |
 | `activity_settings.xml` | Ajustes — conexión, scanner, offline, impresora BT |
+| `activity_signature.xml` | Firma del cliente — toolbar + nombre cliente + `SignatureView` (fill) + botones Limpiar/Confirmar |
 | `item_pending_order.xml` | Ítem del pedido actual — nombre, barcode·precio, qty=total, btn editar, btn borrar |
 | `item_batch_header.xml` | Card de batch en historial — azul, pedido#, fecha, cliente, total, estado |
 | `item_order_product.xml` | Ítem individual dentro del ticket (TicketDetailActivity e HistoryActivity) |
@@ -75,18 +79,26 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 
 2. Badge "Ver pedido (N)" → CurrentOrderActivity
    - Cada ítem como card individual con editar/borrar
-   - Editar: dialog con "Cantidad total (lb)" + "Precio/lb" + resumen dinámico
+   - Editar: dialog con "Cantidad total (lb)" + "Precio/lb" (ambos editables), resumen "X.XX lb = $Y.YY" dinámico
    - Borrar: confirmación AlertDialog
    - "Ver ticket" → TicketDetailActivity (preview)
-   - "Finalizar pedido" → CustomerPickerActivity
+   - "Finalizar pedido" → SignatureActivity (o CustomerPickerActivity si no hay cliente)
 
 3. CustomerPickerActivity
-   - GET /api/customers (JWT) → lista QB
-   - Modal "¿Asignar pedido a [cliente]?" antes de confirmar
+   - GET /api/customers (JWT) → lista QB (con dirección desde BillAddr)
+   - Cards muestran nombre + dirección completa en gris
+   - Modal "¿Asignar pedido a [cliente]?\n[dirección]" antes de confirmar
+   - Retorna customer_id + customer_name + customer_address al activity llamador
+   - Tras confirmar → SignatureActivity automáticamente
 
-4. Confirmado → CurrentOrderActivity.finalizeOrder()
+4. SignatureActivity
+   - Canvas táctil para firma del cliente
+   - "Limpiar" borra el trazo, "Confirmar" valida que no esté vacío
+   - Retorna PNG base64 → CurrentOrderActivity.checkPrinterThenFinalize()
+
+5. CurrentOrderActivity.finalizeOrder()
    - Loading overlay: "Enviando pedido…" / "Imprimiendo ticket…"
-   - POST /api/orders/batch con customer_id + customer_name
+   - POST /api/orders/batch con customer_id + customer_name + signature (base64)
    - Si printer configurada → PrintService.printTicket() via BT
    - clearPending() → finish() → MainActivity
 
@@ -118,6 +130,8 @@ dd/MM/yyyy HH:mm     (F4, CENTER)
 Pedido #XXXXXXXX     (F4, CENTER, si aplica)
 Factura #XXXXX       (F4, CENTER, si aplica)
 Cliente: Nombre      (F4, CENTER, si aplica)
+1 Infinite Loop      (F4, CENTER, dirección línea 1 si > 32 chars)
+Cupertino, CA 95014  (F4, CENTER, dirección línea 2)
 
 Nombre producto      (F4, LEFT, x=8)
 barcode  $precio/lb  (F4, LEFT, x=8)
@@ -128,6 +142,19 @@ TOTAL                (F4, CENTER)
 $XX.XX               (F7, CENTER)
 X.XX lb en total     (F4, CENTER)
 Excellentia          (F4, CENTER)
+
+------------------------------ ← solo si damageQty > 0
+Negative Sale          (F4, CENTER)
+X unit(s) damaged/expired
+------------------------------
+
+I hereby acknowledge that all  ← leyenda legal (siempre)
+above referenced goods have    ← word-wrapped 30 chars
+been received...               ← (wrapText helper)
+
+------------------------------
+Customer Signature             ← solo si hay firma
+[imagen PNG firma]
 ```
 
 **Setup impresora:**
@@ -145,8 +172,14 @@ Excellentia          (F4, CENTER)
 
 - **PendingOrderEntity.quantity** = peso TOTAL en lb (suma de todas las unidades). Los pesos individuales por unidad NO se almacenan — al editar solo se puede editar el total.
 - **customer_id + customer_name** en orders — guardados en MySQL, enviados a QB al crear invoice.
-- **BatchRequest** incluye `customerId` y `customerName` opcionales.
-- **SecurePreferences** guarda: JWT, refreshToken, backend URL, offline mode, `printer_bt_address`, `printer_bt_name`.
+- **BatchRequest** incluye `customerId`, `customerName`, y `signature` (base64 PNG) opcionales.
+- **SignatureView** — custom View en `com.example.test`. No requiere permisos. Canvas blanco con Paint stroke 7f, bezier suavizado. `getBase64()` crea Bitmap ARGB_8888 y lo comprime a PNG.
+- **Flujo firma** — `pendingSignature: String?` en CurrentOrderActivity. Se limpia a `null` tras cada `sendBatch()`. `launchSignatureAfterCustomer: Boolean` flag para lanzar firma automáticamente tras elegir cliente desde "Finalizar pedido".
+- **Payment Method** — `pendingPaymentMethod: String?` en CurrentOrderActivity. `askPaymentMethod()` muestra diálogo Cash/Check/Omitir tras `askDamagedItems()`. Se muestra en el ticket ("Payment: Cash") y en `CustomerMemo` de QB junto con el negative sale.
+- **Negative Sale** — `pendingDamageQty: Int` en CurrentOrderActivity. Tras confirmar firma, `askDamagedItems()` muestra diálogo para capturar unidades dañadas/caducas. Se pasa a `PrintService.printTicket(damageQty)` (aparece en el ticket), y también a `OrderRepository.sendBatch(damageQty)` → `BatchRequest.damageQty` → backend → `createBatchInvoice(damageQty)` → línea `DescriptionOnly` en QB invoice. Se limpia a 0 tras `sendBatch()`.
+- **Leyenda legal** — `wrapText()` en PrintService divide el texto de términos en líneas de ≤ 30 chars. Siempre impresa antes de la firma ("Customer Signature").
+- **Company settings refresh** — `MainActivity.refreshCompanySettings()` hace fetch de `GET /api/settings` en cada `onResume()` en background (silencioso). Actualiza `SecurePreferences` sin re-login. El ticket siempre refleja los datos más recientes de la webapp.
+- **SecurePreferences** guarda: JWT, refreshToken, backend URL, offline mode, `printer_bt_address`, `printer_bt_name`, `active_customer_id`, `active_customer_name`, `active_customer_address`, user info, last scan, company settings.
 - **Offline mode** default true. LoginActivity lo pone false tras login exitoso.
 - **TokenAuthenticator** usa OkHttpClient independiente para el refresh (evita loops).
 - **registerReceiver con `RECEIVER_NOT_EXPORTED`** — obligatorio API 33+.
@@ -156,6 +189,7 @@ Excellentia          (F4, CENTER)
 - **Timezone** — `SimpleDateFormat` usa UTC al parsear timestamps ISO 8601 del backend.
 - **Loading overlay** en CurrentOrderActivity — se muestra durante todo el envío del batch + impresión, con texto descriptivo de la etapa actual.
 - **Botón Reimprimir** en TicketDetailActivity — solo visible si `SecurePreferences.getPrinterAddress() != null`.
+- **Edit dialog (`dialog_edit_order.xml`)** — dos inputs: "Cantidad total (lb)" (`etQty`) y "Precio / lb" (`etPricePerLb`). Resumen dinámico `tvTotal` ("X.XX lb = $Y.YY"). Sin input de precio total — se eliminó; el precio/lb es editable directamente. Advertencia `tvMinWarning` compara `qty × rate` contra `minPrice`.
 
 ### Pending Improvements
 

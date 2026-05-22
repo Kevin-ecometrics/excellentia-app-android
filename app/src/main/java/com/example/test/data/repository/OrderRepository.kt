@@ -99,11 +99,21 @@ class OrderRepository(
     suspend fun sendBatch(
         items: List<BatchItem>,
         customerId: String? = null,
-        customerName: String? = null
+        customerName: String? = null,
+        signature: String? = null,
+        damageQty: Int = 0,
+        paymentMethod: String? = null
     ): Result<BatchResponse> = withContext(Dispatchers.IO) {
         try {
             val response = RetrofitClient.getApi().createBatch(
-                BatchRequest(items = items, customerId = customerId, customerName = customerName)
+                BatchRequest(
+                    items = items,
+                    customerId = customerId,
+                    customerName = customerName,
+                    signature = signature,
+                    damageQty = if (damageQty > 0) damageQty else null,
+                    paymentMethod = paymentMethod
+                )
             )
             if (response.isSuccessful && response.body() != null) {
                 return@withContext Result.success(response.body()!!)

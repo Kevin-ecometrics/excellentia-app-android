@@ -3,6 +3,8 @@ package com.example.test.data.print
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.util.Base64
 import com.example.test.data.BatchItem
 import com.example.test.data.local.SecurePreferences
 import kotlinx.coroutines.Dispatchers
@@ -32,21 +34,29 @@ object PrintService {
         items: List<BatchItem>,
         customerName: String?,
         batchId: String,
-        invoiceId: String?
+        invoiceId: String?,
+        customerAddress: String? = null,
+        damageQty: Int = 0,
+        paymentMethod: String? = null,
+        signature: String? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         if (!hasBtConnectPermission(context))
             return@withContext Result.failure(Exception("Permiso Bluetooth no otorgado"))
         val prefs = SecurePreferences(context)
         send(context, deviceAddress, buildCpcl(
-            items        = items,
-            customerName = customerName,
-            batchId      = batchId,
-            invoiceId    = invoiceId,
-            companyName  = prefs.getCompanyName(),
-            subtitle     = prefs.getCompanySubtitle(),
-            address      = prefs.getCompanyAddress(),
-            phone        = prefs.getCompanyPhone(),
-            city         = prefs.getCompanyCity()
+            items           = items,
+            customerName    = customerName,
+            customerAddress = customerAddress,
+            batchId         = batchId,
+            invoiceId       = invoiceId,
+            companyName     = prefs.getCompanyName(),
+            subtitle        = prefs.getCompanySubtitle(),
+            address         = prefs.getCompanyAddress(),
+            phone           = prefs.getCompanyPhone(),
+            city            = prefs.getCompanyCity(),
+            damageQty       = damageQty,
+            paymentMethod   = paymentMethod,
+            signature       = signature
         ))
     }
 
@@ -113,13 +123,17 @@ object PrintService {
     private fun buildCpcl(
         items: List<BatchItem>,
         customerName: String?,
+        customerAddress: String? = null,
         batchId: String,
         invoiceId: String?,
         companyName: String = "EXCELLENTIA",
         subtitle: String = "Ticket de Venta",
         address: String? = null,
         phone: String? = null,
-        city: String? = null
+        city: String? = null,
+        damageQty: Int = 0,
+        paymentMethod: String? = null,
+        signature: String? = null
     ): String {
         val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(Date())
         val grandTotal = items.sumOf { it.total }
@@ -152,6 +166,25 @@ object PrintService {
         if (!customerName.isNullOrBlank()) {
             y += 6
             body.t(F4, 0, y, "Cliente: $customerName");            y += F4H + 4
+            if (!paymentMethod.isNullOrBlank()) {
+                body.t(F4, 0, y, "Payment: $paymentMethod");       y += F4H + 4
+            }
+            if (!customerAddress.isNullOrBlank()) {
+                // Si la dirección supera 32 chars, separarla en dos líneas por la primera coma
+                if (customerAddress.length <= 32) {
+                    body.t(F4, 0, y, customerAddress);              y += F4H + 4
+                } else {
+                    val commaIdx = customerAddress.indexOf(", ")
+                    if (commaIdx > 0) {
+                        body.t(F4, 0, y, customerAddress.substring(0, commaIdx).take(32))
+                        y += F4H + 4
+                        body.t(F4, 0, y, customerAddress.substring(commaIdx + 2).take(32))
+                        y += F4H + 4
+                    } else {
+                        body.t(F4, 0, y, customerAddress.take(32));y += F4H + 4
+                    }
+                }
+            }
         }
 
         y += 20
@@ -183,7 +216,40 @@ object PrintService {
         // ── Pie ───────────────────────────────────────
         body.t(F4, 0, y,
             String.format(Locale.US, "%.2f lb en total", totalQty)); y += F4H + 10
-        body.t(F4, 0, y, companyName.take(20));                    y += F4H
+        body.t(F4, 0, y, companyName.take(20));                    y += F4H + 16
+
+        // ── Negative Sale ──────────────────────────────
+        if (damageQty > 0) {
+            body.center()
+            body.t(F4, 0, y, "------------------------------");     y += F4H + 6
+            body.t(F4, 0, y, "Negative Sale");                      y += F4H + 4
+            body.t(F4, 0, y, "$damageQty unit(s) damaged/expired"); y += F4H + 6
+            body.t(F4, 0, y, "------------------------------");     y += F4H + 16
+        }
+
+        // ── Términos y condiciones ─────────────────────
+        body.center()
+        val terms = "I hereby acknowledge that all above referenced goods have been received and are in good condition. I also understand that this sale is expressly conditioned upon my assent to all terms on the reverse of this page and I accept all the terms of this sale."
+        for (line in wrapText(terms, 30)) {
+            body.t(F4, 0, y, line);                                  y += F4H + 2
+        }
+
+        // ── Firma ─────────────────────────────────────
+        if (!signature.isNullOrBlank()) {
+            y += 18
+            body.center()
+            body.t(F4, 0, y, "------------------------------");     y += F4H + 8
+            body.t(F4, 0, y, "Customer Signature");                  y += F4H + 12
+            val sigWidth = 480
+            val sigX = (PW - sigWidth) / 2
+            val (egCmd, newY) = buildSignatureEg(signature, sigWidth, sigX, y)
+            if (egCmd.isNotEmpty()) {
+                body.left()
+                body.append(egCmd)
+                y = newY
+            }
+            y += 8
+        }
 
         val height = y + BOTTOM
         return "! 0 200 200 $height 1\r\nPAGE-WIDTH $PW\r\n" +
@@ -208,7 +274,66 @@ object PrintService {
                "PRINT\r\n"
     }
 
+    // Convierte base64 PNG a comando CPCL EG (1-bit, MSB first).
+    // Retorna (comando, nuevaY). Si falla, retorna ("", startY).
+    private fun buildSignatureEg(base64: String, targetWidth: Int, x: Int, startY: Int): Pair<String, Int> {
+        return try {
+            val raw = Base64.decode(base64, Base64.DEFAULT)
+            var bmp = BitmapFactory.decodeByteArray(raw, 0, raw.size)
+                ?: return Pair("", startY)
+
+            val scale = targetWidth.toFloat() / bmp.width
+            val newH = (bmp.height * scale).toInt().coerceAtLeast(1)
+            bmp = android.graphics.Bitmap.createScaledBitmap(bmp, targetWidth, newH, true)
+
+            val widthBytes = (targetWidth + 7) / 8
+            val sb = StringBuilder()
+            sb.append("EG $widthBytes $newH $x $startY ")
+
+            for (row in 0 until newH) {
+                var acc = 0
+                var bits = 0
+                for (col in 0 until targetWidth) {
+                    val px = bmp.getPixel(col, row)
+                    val r = (px shr 16) and 0xFF
+                    val g = (px shr 8) and 0xFF
+                    val b = px and 0xFF
+                    val lum = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
+                    acc = (acc shl 1) or (if (lum < 128) 1 else 0)
+                    bits++
+                    if (bits == 8) {
+                        sb.append(String.format("%02X", acc))
+                        acc = 0; bits = 0
+                    }
+                }
+                if (bits > 0) {
+                    acc = acc shl (8 - bits)
+                    sb.append(String.format("%02X", acc))
+                }
+            }
+            sb.append("\r\n")
+            Pair(sb.toString(), startY + newH)
+        } catch (_: Exception) {
+            Pair("", startY)
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private fun wrapText(text: String, maxChars: Int = 30): List<String> {
+        val words = text.split(" ")
+        val lines = mutableListOf<String>()
+        val current = StringBuilder()
+        for (word in words) {
+            when {
+                current.isEmpty() -> current.append(word)
+                current.length + 1 + word.length <= maxChars -> current.append(" $word")
+                else -> { lines.add(current.toString()); current.clear(); current.append(word) }
+            }
+        }
+        if (current.isNotEmpty()) lines.add(current.toString())
+        return lines
+    }
 
     private fun StringBuilder.t(font: Int, x: Int, y: Int, data: String) =
         append("T $font 0 $x $y $data\r\n")

@@ -16,6 +16,10 @@ class CustomerDao(private val db: AppDatabase) {
                 val values = ContentValues().apply {
                     put("id", c.id)
                     put("display_name", c.displayName)
+                    put("address_line1", c.addressLine1)
+                    put("city", c.city)
+                    put("state_code", c.stateCode)
+                    put("postal_code", c.postalCode)
                     put("cached_at", c.cachedAt)
                 }
                 wdb.insertWithOnConflict("cached_customers", null, values,
@@ -47,8 +51,12 @@ class CustomerDao(private val db: AppDatabase) {
     }
 
     private fun cursorToEntity(c: Cursor) = CachedCustomerEntity(
-        id          = c.getString(c.getColumnIndexOrThrow("id")),
-        displayName = c.getString(c.getColumnIndexOrThrow("display_name")),
-        cachedAt    = c.getLong(c.getColumnIndexOrThrow("cached_at"))
+        id           = c.getString(c.getColumnIndexOrThrow("id")),
+        displayName  = c.getString(c.getColumnIndexOrThrow("display_name")),
+        addressLine1 = c.getString(c.getColumnIndexOrThrow("address_line1")),
+        city         = c.getString(c.getColumnIndexOrThrow("city")),
+        stateCode    = c.getString(c.getColumnIndexOrThrow("state_code")),
+        postalCode   = c.getString(c.getColumnIndexOrThrow("postal_code")),
+        cachedAt     = c.getLong(c.getColumnIndexOrThrow("cached_at"))
     )
 }

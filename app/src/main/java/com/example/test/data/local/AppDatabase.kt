@@ -25,6 +25,10 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             CREATE TABLE IF NOT EXISTS cached_customers (
                 id TEXT PRIMARY KEY,
                 display_name TEXT NOT NULL,
+                address_line1 TEXT,
+                city TEXT,
+                state_code TEXT,
+                postal_code TEXT,
                 cached_at INTEGER NOT NULL
             )
         """)
@@ -57,9 +61,19 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 CREATE TABLE IF NOT EXISTS cached_customers (
                     id TEXT PRIMARY KEY,
                     display_name TEXT NOT NULL,
+                    address_line1 TEXT,
+                    city TEXT,
+                    state_code TEXT,
+                    postal_code TEXT,
                     cached_at INTEGER NOT NULL
                 )
             """)
+        }
+        if (oldVersion < 6) {
+            try { db.execSQL("ALTER TABLE cached_customers ADD COLUMN address_line1 TEXT") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE cached_customers ADD COLUMN city TEXT") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE cached_customers ADD COLUMN state_code TEXT") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE cached_customers ADD COLUMN postal_code TEXT") } catch (_: Exception) {}
         }
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_id TEXT")
@@ -86,7 +100,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 5
+        private const val DATABASE_VERSION = 6
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

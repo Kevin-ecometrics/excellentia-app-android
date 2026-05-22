@@ -69,16 +69,26 @@ class SecurePreferences(context: Context) {
 
     fun getPrinterName(): String? = prefs.getString(KEY_PRINTER_NAME, null)?.takeIf { it.isNotBlank() }
 
-    fun setActiveCustomer(id: String, name: String) {
-        prefs.edit().putString(KEY_ACTIVE_CUSTOMER_ID, id).putString(KEY_ACTIVE_CUSTOMER_NAME, name).apply()
+    fun setActiveCustomer(id: String, name: String, address: String? = null) {
+        prefs.edit()
+            .putString(KEY_ACTIVE_CUSTOMER_ID, id)
+            .putString(KEY_ACTIVE_CUSTOMER_NAME, name)
+            .putString(KEY_ACTIVE_CUSTOMER_ADDRESS, address)
+            .apply()
     }
 
     fun getActiveCustomerId(): String? = prefs.getString(KEY_ACTIVE_CUSTOMER_ID, null)?.takeIf { it.isNotBlank() }
 
     fun getActiveCustomerName(): String? = prefs.getString(KEY_ACTIVE_CUSTOMER_NAME, null)?.takeIf { it.isNotBlank() }
 
+    fun getActiveCustomerAddress(): String? = prefs.getString(KEY_ACTIVE_CUSTOMER_ADDRESS, null)?.takeIf { it.isNotBlank() }
+
     fun clearActiveCustomer() {
-        prefs.edit().remove(KEY_ACTIVE_CUSTOMER_ID).remove(KEY_ACTIVE_CUSTOMER_NAME).apply()
+        prefs.edit()
+            .remove(KEY_ACTIVE_CUSTOMER_ID)
+            .remove(KEY_ACTIVE_CUSTOMER_NAME)
+            .remove(KEY_ACTIVE_CUSTOMER_ADDRESS)
+            .apply()
     }
 
     fun saveCompanySettings(name: String, subtitle: String, address: String?, phone: String?, city: String?) {
@@ -129,6 +139,7 @@ class SecurePreferences(context: Context) {
         private const val KEY_PRINTER_NAME = "printer_bt_name"
         private const val KEY_ACTIVE_CUSTOMER_ID = "active_customer_id"
         private const val KEY_ACTIVE_CUSTOMER_NAME = "active_customer_name"
+        private const val KEY_ACTIVE_CUSTOMER_ADDRESS = "active_customer_address"
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_NAME  = "user_name"
         private const val KEY_USER_ROLE  = "user_role"
