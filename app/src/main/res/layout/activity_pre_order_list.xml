@@ -45,33 +45,33 @@
                 app:singleSelection="true">
 
                 <com.google.android.material.chip.Chip
-                    android:id="@+id/chipAll"
+                    android:id="@+id/chipActive"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    android:text="Todas" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipDraft"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Borrador" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipConfirmed"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Confirmada" />
+                    android:text="Pendientes" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipConverted"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Convertida" />
+                    android:text="Convertidas" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipCancelled"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Canceladas" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipAll"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Todas" />
             </com.google.android.material.chip.ChipGroup>
         </HorizontalScrollView>
 
@@ -110,9 +110,10 @@
                         android:visibility="gone">
 
                         <TextView
+                            android:id="@+id/tvEmptyLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Sin pre-órdenes"
+                            android:text="Sin pre-órdenes activas"
                             android:textColor="@color/text_secondary"
                             android:textSize="15sp" />
 
@@ -139,7 +140,9 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:text="Nueva pre-orden"
+        android:textColor="#FFFFFF"
         app:icon="@drawable/ic_add"
+        app:iconTint="#FFFFFF"
         app:backgroundTint="@color/primary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

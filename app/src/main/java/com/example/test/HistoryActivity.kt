@@ -132,16 +132,6 @@ class HistoryActivity : AppCompatActivity() {
                 else
                     allBatches
 
-                if (localFiltered.isEmpty() && batchesFiltered.isEmpty() && !append) {
-                    layoutEntries.visibility = View.GONE
-                    layoutEmpty.visibility = View.VISIBLE
-                    btnLoadMore.visibility = View.GONE
-                    return@launch
-                }
-
-                layoutEntries.visibility = View.VISIBLE
-                layoutEmpty.visibility = View.GONE
-
                 if (!append) layoutEntries.removeAllViews()
                 val inflater = LayoutInflater.from(this@HistoryActivity)
 
@@ -149,8 +139,7 @@ class HistoryActivity : AppCompatActivity() {
                 if (currentFilter != "SENT") {
                     for (order in localFiltered) {
                         val isFailed = order.retryCount == -1
-                        if (currentFilter == "SENT")             continue
-                        if (currentFilter == "PENDING" && isFailed) continue
+                        if (currentFilter == "PENDING" && isFailed)  continue
                         if (currentFilter == "FAILED"  && !isFailed) continue
 
                         val itemView = inflater.inflate(R.layout.item_scan_entry, layoutEntries, false)
@@ -169,15 +158,34 @@ class HistoryActivity : AppCompatActivity() {
 
                 // Batches remotos
                 for ((batchId, orders) in batchesFiltered) {
-                    val allSent = orders.all { it.status == "SENT" }
-                    if (currentFilter == "PENDING" && allSent) continue
-                    if (currentFilter == "SENT" && !allSent) continue
+                    val allSent   = orders.all { it.status == "SENT" }
+                    val hasFailed = orders.any { it.status == "FAILED" }
+                    if (currentFilter == "PENDING" && allSent)   continue
+                    if (currentFilter == "SENT"    && !allSent)  continue
+                    if (currentFilter == "FAILED"  && !hasFailed) continue
 
                     val headerView = inflater.inflate(R.layout.item_batch_header, layoutEntries, false)
                     bindBatchHeader(headerView, batchId, orders, orders.firstOrNull()?.qbInvoiceId)
                     layoutEntries.addView(headerView)
                 }
-                btnLoadMore.visibility = if (hasMorePages) View.VISIBLE else View.GONE
+
+                // Mostrar empty state si no hay nada visible tras aplicar filtros
+                if (!append && layoutEntries.childCount == 0) {
+                    layoutEntries.visibility = View.GONE
+                    layoutEmpty.visibility   = View.VISIBLE
+                    btnLoadMore.visibility   = View.GONE
+                    val tvEmpty = layoutEmpty.findViewById<android.widget.TextView>(R.id.tvEmptyMessage)
+                    tvEmpty?.text = when (currentFilter) {
+                        "SENT"    -> "Sin pedidos enviados"
+                        "PENDING" -> "Sin pedidos pendientes"
+                        "FAILED"  -> "Sin pedidos fallidos"
+                        else      -> "Sin pedidos registrados"
+                    }
+                } else {
+                    layoutEntries.visibility = View.VISIBLE
+                    layoutEmpty.visibility   = View.GONE
+                    btnLoadMore.visibility   = if (hasMorePages) View.VISIBLE else View.GONE
+                }
             } finally {
                 swipeRefresh.isRefreshing = false
             }

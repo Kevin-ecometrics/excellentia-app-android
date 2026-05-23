@@ -23,6 +23,53 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- Loading overlay -->
+    <FrameLayout
+        android:id="@+id/layoutLoading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC000000"
+        android:elevation="10dp"
+        android:visibility="gone"
+        android:gravity="center"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="280dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@color/surface"
+            android:orientation="vertical"
+            android:padding="28dp">
+
+            <ProgressBar
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/primary" />
+
+            <TextView
+                android:id="@+id/tvLoadingTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="Procesando..."
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvLoadingSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </FrameLayout>
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -196,7 +243,7 @@
                 android:layout_marginTop="32dp"
                 android:visibility="gone" />
 
-            <!-- Action buttons -->
+            <!-- Action buttons — activas (DRAFT) -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnConvert"
                 android:layout_width="match_parent"
@@ -204,6 +251,7 @@
                 android:layout_marginTop="8dp"
                 android:text="Convertir a pedido"
                 android:textStyle="bold"
+                android:visibility="gone"
                 app:backgroundTint="@color/primary"
                 app:cornerRadius="26dp"
                 app:icon="@drawable/ic_check_circle"
@@ -218,8 +266,37 @@
                 android:layout_marginTop="8dp"
                 android:text="Cancelar pre-orden"
                 android:textColor="@color/red"
+                android:visibility="gone"
                 app:cornerRadius="24dp"
                 app:strokeColor="@color/red" />
+
+            <!-- Botones visibles solo cuando ya fue convertida -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReuse"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:text="Reusar pre-orden"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:backgroundTint="@color/primary"
+                app:cornerRadius="26dp"
+                app:icon="@drawable/ic_add_cart"
+                app:iconGravity="textStart"
+                app:iconSize="18dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnViewHistory"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:text="Ver en historial"
+                android:visibility="gone"
+                app:cornerRadius="24dp"
+                app:icon="@drawable/ic_history"
+                app:iconGravity="textStart"
+                app:iconSize="16dp" />
 
         </LinearLayout>
     </ScrollView>

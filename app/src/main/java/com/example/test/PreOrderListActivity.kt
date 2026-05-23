@@ -36,6 +36,7 @@ class PreOrderListActivity : AppCompatActivity() {
     private lateinit var fabNewPreOrder: ExtendedFloatingActionButton
     private lateinit var securePrefs: SecurePreferences
 
+    // null = activas (DRAFT + CONFIRMED), "ALL" = todas, "DRAFT"/"CONFIRMED"/"CONVERTED" = específico
     private var currentFilter: String? = null
 
     private val createPreOrderLauncher = registerForActivityResult(
@@ -76,10 +77,10 @@ class PreOrderListActivity : AppCompatActivity() {
 
         chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
             currentFilter = when {
-                checkedIds.contains(R.id.chipDraft)     -> "DRAFT"
-                checkedIds.contains(R.id.chipConfirmed) -> "CONFIRMED"
-                checkedIds.contains(R.id.chipConverted) -> "CONVERTED"
-                else                                    -> null
+                checkedIds.contains(R.id.chipConverted)  -> "CONVERTED"
+                checkedIds.contains(R.id.chipCancelled)  -> "CANCELLED"
+                checkedIds.contains(R.id.chipAll)        -> "ALL"
+                else                                     -> null  // Pendientes (DRAFT)
             }
             loadPreOrders()
         }
@@ -99,9 +100,19 @@ class PreOrderListActivity : AppCompatActivity() {
     private fun loadPreOrders() {
         lifecycleScope.launch {
             try {
-                val resp = RetrofitClient.getApi().listPreOrders(status = currentFilter)
+                val apiStatus = when (currentFilter) {
+                    "CONVERTED"  -> "CONVERTED"
+                    "CANCELLED"  -> "CANCELLED"
+                    "ALL"        -> null
+                    else         -> null   // Pendientes: traemos todo y filtramos DRAFT
+                }
+                val resp = RetrofitClient.getApi().listPreOrders(status = apiStatus)
                 if (resp.isSuccessful) {
-                    val list = resp.body()?.data ?: emptyList()
+                    val all  = resp.body()?.data ?: emptyList()
+                    val list = when (currentFilter) {
+                        null -> all.filter { it.status == "DRAFT" }  // solo pendientes/borrador
+                        else -> all
+                    }
                     renderList(list)
                 } else {
                     Snackbar.make(findViewById(android.R.id.content), "Error ${resp.code()}", Snackbar.LENGTH_SHORT).show()
@@ -122,6 +133,12 @@ class PreOrderListActivity : AppCompatActivity() {
         if (list.isEmpty()) {
             layoutEntries.visibility = View.GONE
             layoutEmpty.visibility   = View.VISIBLE
+            layoutEmpty.findViewById<TextView>(R.id.tvEmptyLabel)?.text = when (currentFilter) {
+                "CONVERTED"  -> "Sin pre-órdenes convertidas"
+                "CANCELLED"  -> "Sin pre-órdenes canceladas"
+                "ALL"        -> "Sin pre-órdenes"
+                else         -> "Sin pre-órdenes pendientes"
+            }
             return
         }
         layoutEntries.visibility = View.VISIBLE
@@ -163,14 +180,9 @@ class PreOrderListActivity : AppCompatActivity() {
             setTextColor(ContextCompat.getColor(this@PreOrderListActivity, statusColor))
         }
 
-        val dateStr = po.scheduledDate?.let { "Entrega: $it" }
-            ?: po.createdAt?.let {
-                try {
-                    val p = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
-                    val d = SimpleDateFormat("dd MMM yyyy", Locale.US)
-                    "Creado: ${d.format(p.parse(it)!!)}"
-                } catch (_: Exception) { "" }
-            } ?: ""
+        val dateStr = po.scheduledDate?.let { "Entrega: ${formatDate(it, "dd MMM yyyy")}" }
+            ?: po.createdAt?.let { "Creado: ${formatDate(it, "dd MMM yyyy")}" }
+            ?: ""
         view.findViewById<TextView>(R.id.tvPreOrderDate).text = dateStr
         view.findViewById<TextView>(R.id.tvPreOrderItems).text = "${po.itemCount} producto(s)"
 
@@ -190,5 +202,22 @@ class PreOrderListActivity : AppCompatActivity() {
                 putExtra("pre_order_id", po.id)
             })
         }
+    }
+
+    private fun formatDate(raw: String, pattern: String): String {
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd"
+        )
+        val display = SimpleDateFormat(pattern, Locale.US)
+        for (fmt in formats) {
+            try {
+                val parser = SimpleDateFormat(fmt, Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
+                return display.format(parser.parse(raw)!!)
+            } catch (_: Exception) {}
+        }
+        return raw
     }
 }
