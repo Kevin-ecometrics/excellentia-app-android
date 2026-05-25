@@ -19,6 +19,7 @@ import com.example.test.data.network.RetrofitClient
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
+import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -185,11 +186,14 @@ class ClientHistoryActivity : AppCompatActivity() {
                     val orders = resp.body()?.data
                         ?.filter { it.batchId == batchId }
                         ?: emptyList()
+                    val signature = orders.firstOrNull()?.signature
+                    val ordersStripped = orders.map { it.copy(signature = null) }
                     startActivity(Intent(this@ClientHistoryActivity, TicketDetailActivity::class.java).apply {
                         putExtra("batch_id", batchId)
                         putExtra("invoice_id", invoiceId ?: "")
-                        putExtra("orders_json", com.google.gson.Gson().toJson(orders))
+                        putExtra("orders_json", Gson().toJson(ordersStripped))
                         putExtra("customer_name", customerName)
+                        if (!signature.isNullOrBlank()) putExtra("signature", signature)
                     })
                 }
             } catch (_: Exception) {

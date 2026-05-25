@@ -34,7 +34,8 @@ data class ScanEntry(
 data class ApiResponse<T>(
     val data: T? = null,
     val error: String? = null,
-    val meta: PaginationMeta? = null
+    val meta: PaginationMeta? = null,
+    val signature: String? = null
 )
 
 data class PaginationMeta(

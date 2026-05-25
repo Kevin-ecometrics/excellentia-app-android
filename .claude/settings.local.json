@@ -73,7 +73,11 @@
       "Bash(bun -e ' *)",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\e-commetrics\\\\excellentia\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\e-commetrics\\\\excellentia\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName)",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\e-commetrics\\\\excellentia-webapp\\\\app\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName)"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\e-commetrics\\\\excellentia-webapp\\\\app\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName)",
+      "Bash(Select-String -Pattern \"\\\\.env\")",
+      "Bash(del *)",
+      "Bash(bun -e *)",
+      "Bash(node *)"
     ]
   }
 }

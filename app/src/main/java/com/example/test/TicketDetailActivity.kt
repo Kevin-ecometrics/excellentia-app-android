@@ -36,6 +36,7 @@ class TicketDetailActivity : AppCompatActivity() {
     private lateinit var ticketContent: LinearLayout
     private val dp get() = resources.displayMetrics.density
     private var damageItemsForReprint: List<DamageItem> = emptyList()
+    private var signatureForReprint: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,20 +56,29 @@ class TicketDetailActivity : AppCompatActivity() {
         val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
         val customerName    = intent.getStringExtra("customer_name") ?: orders.firstOrNull()?.customerName
         val customerAddress = intent.getStringExtra("customer_address")
-        val signature       = intent.getStringExtra("signature") ?: orders.firstOrNull()?.signature
         val rawDate         = orders.firstOrNull()?.createdAt
         val grandTotal      = orders.sumOf { it.total }
         val totalQty        = orders.sumOf { it.quantity }
+        val orderStatus     = when {
+            orders.all { it.status == "SENT" }    -> "ENVIADO"
+            orders.any { it.status == "PENDING" } -> "PENDIENTE"
+            orders.any { it.status == "FAILED" }  -> "FALLIDO"
+            else                                  -> null
+        }
+
+        signatureForReprint = intent.getStringExtra("signature") ?: orders.firstOrNull()?.signature
 
         val prefs = SecurePreferences(this)
         val companyName = prefs.getCompanyName()
 
-        // Cargar damage items desde el intent (flujo inmediato) o desde la API (historial)
+        // Cargar damage items desde el intent (flujo inmediato)
         val intentDamage = intent.getStringExtra("damage_items_json")
         val initialDamage: List<DamageItem> = if (!intentDamage.isNullOrBlank()) {
             try { Gson().fromJson(intentDamage, Array<DamageItem>::class.java).toList() }
             catch (_: Exception) { emptyList() }
         } else emptyList()
+
+        damageItemsForReprint = initialDamage
 
         buildReceipt(
             companyName       = companyName,
@@ -85,32 +95,30 @@ class TicketDetailActivity : AppCompatActivity() {
             grandTotal        = grandTotal,
             totalQty          = totalQty,
             companyNameFooter = companyName,
-            signature         = signature,
+            signature         = signatureForReprint,
             damageItems       = initialDamage,
-            status            = when {
-                orders.all { it.status == "SENT" }     -> "ENVIADO"
-                orders.any { it.status == "PENDING" }  -> "PENDIENTE"
-                orders.any { it.status == "FAILED" }   -> "FALLIDO"
-                else                                   -> null
-            }
+            status            = orderStatus
         )
 
-        // Si viene del historial y hay batchId, cargar damage desde API y actualizar recibo
-        damageItemsForReprint = initialDamage
-        if (batchId.isNotBlank() && initialDamage.isEmpty()) {
+        // Si hay batchId, cargar firma + damage desde API y actualizar recibo
+        if (batchId.isNotBlank()) {
             lifecycleScope.launch {
                 try {
-                    // Asegurar que RetrofitClient esté inicializado
                     if (!RetrofitClient.isInitialized()) {
-                        val baseUrl = prefs.getBackendUrl()
-                        RetrofitClient.initialize(baseUrl, prefs, this@TicketDetailActivity)
+                        RetrofitClient.initialize(prefs.getBackendUrl(), prefs, this@TicketDetailActivity)
                     }
                     val resp = RetrofitClient.getApi().getBatchDamage(batchId)
-                    android.util.Log.d("DamageDebug", "getBatchDamage resp=${resp.code()} body=${resp.body()?.data?.size} items")
                     if (resp.isSuccessful) {
-                        val apiDamage = resp.body()?.data ?: emptyList()
-                        if (apiDamage.isNotEmpty()) {
-                            damageItemsForReprint = apiDamage
+                        val body = resp.body()
+                        val apiDamage = body?.data ?: emptyList()
+                        val apiSignature = body?.signature
+
+                        val damageChanged = apiDamage.isNotEmpty() && apiDamage != damageItemsForReprint
+                        val signatureChanged = !apiSignature.isNullOrBlank() && apiSignature != signatureForReprint
+
+                        if (damageChanged || signatureChanged) {
+                            if (damageChanged)   damageItemsForReprint = apiDamage
+                            if (signatureChanged) signatureForReprint  = apiSignature
                             ticketContent.removeAllViews()
                             buildReceipt(
                                 companyName       = companyName,
@@ -127,19 +135,14 @@ class TicketDetailActivity : AppCompatActivity() {
                                 grandTotal        = grandTotal,
                                 totalQty          = totalQty,
                                 companyNameFooter = companyName,
-                                signature         = signature,
-                                damageItems       = apiDamage,
-                                status            = when {
-                                    orders.all { it.status == "SENT" }    -> "ENVIADO"
-                                    orders.any { it.status == "PENDING" } -> "PENDIENTE"
-                                    orders.any { it.status == "FAILED" }  -> "FALLIDO"
-                                    else                                   -> null
-                                }
+                                signature         = signatureForReprint,
+                                damageItems       = damageItemsForReprint,
+                                status            = orderStatus
                             )
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("DamageDebug", "Error cargando damage items: ${e.message}", e)
+                    android.util.Log.e("TicketDetail", "Error cargando batch desde API: ${e.message}", e)
                 }
             }
         }
@@ -169,7 +172,7 @@ class TicketDetailActivity : AppCompatActivity() {
                         invoiceId       = invoiceId,
                         customerAddress = customerAddress,
                         damageItems     = damageItemsForReprint,
-                        signature       = signature
+                        signature       = signatureForReprint
                     )
                     result.onSuccess {
                         Snackbar.make(findViewById(android.R.id.content),
