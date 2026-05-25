@@ -70,7 +70,10 @@
       "Bash(bun --print \"import\\('./src/routes/preOrders.ts'\\).then\\(m => console.log\\('OK'\\)\\).catch\\(e => console.error\\('ERROR:', e.message\\)\\)\")",
       "Bash(bun --print \"import\\('./src/index.ts'\\).then\\(\\(\\) => console.log\\('OK'\\)\\).catch\\(e => console.error\\('ERROR:', e.message\\)\\)\")",
       "Bash(findstr :3000)",
-      "Bash(bun -e ' *)"
+      "Bash(bun -e ' *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\e-commetrics\\\\excellentia\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\e-commetrics\\\\excellentia\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\kevin\\\\e-commetrics\\\\excellentia-webapp\\\\app\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName)"
     ]
   }
 }
