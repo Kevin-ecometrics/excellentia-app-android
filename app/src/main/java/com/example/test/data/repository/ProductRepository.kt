@@ -38,14 +38,14 @@ class ProductRepository(
             // 2. Fallback to cache
             val cached = productDao.findByBarcode(barcode)
             if (cached != null) {
-                return@withContext Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit)
+                return@withContext Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit, cached.stock)
             }
             null
         } catch (_: Exception) {
             // Offline: try cache
             val cached = productDao.findByBarcode(barcode)
             return@withContext if (cached != null) {
-                Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit)
+                Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit, cached.stock)
             } else null
         }
     }

@@ -163,18 +163,17 @@ object PrintService {
         body.t(F4, 0, y, SEP);                                     y += F4H + 6
         body.t(F4, 0, y, date);                                    y += F4H + 4
         if (batchId.isNotBlank()) {
-            body.t(F4, 0, y, "Pedido  #${batchId.takeLast(8)}");   y += F4H + 4
+            body.t(F4, 0, y, "Order   #${batchId.takeLast(8)}");   y += F4H + 4
         }
         if (!invoiceId.isNullOrBlank()) {
-            body.t(F4, 0, y, "Factura #${invoiceId.take(20)}");    y += F4H + 4
+            body.t(F4, 0, y, "Invoice #${invoiceId.take(20)}");    y += F4H + 4
         }
 
         // ── Cliente ─────────────────────────────────────
         if (!customerName.isNullOrBlank()) {
             y += 4
             body.t(F4, 0, y, DASH);                                y += F4H + 6
-            // Wrappear nombre si excede el ancho
-            val clientLines = wrapText("Cliente: $customerName", 28)
+            val clientLines = wrapText("Customer: $customerName", 28)
             for (line in clientLines) { body.t(F4, 0, y, line);   y += F4H + 3 }
             y += 1
             if (!paymentMethod.isNullOrBlank()) {
@@ -231,7 +230,7 @@ object PrintService {
         body.t(F4, 0, y, SEP);                                     y += F4H + 10
         body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 8
         body.t(F4, 0, y,
-            String.format(Locale.US, "%.2f lb en total", totalQty)); y += F4H + 6
+            String.format(Locale.US, "%.2f lb total", totalQty));    y += F4H + 6
         body.t(F4, 0, y, companyName.take(32));                    y += F4H + 16
 
         // ── Términos y condiciones ──────────────────────

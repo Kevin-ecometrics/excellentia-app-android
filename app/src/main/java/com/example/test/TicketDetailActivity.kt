@@ -157,7 +157,7 @@ class TicketDetailActivity : AppCompatActivity() {
             btnReprint.visibility = android.view.View.VISIBLE
             btnReprint.setOnClickListener {
                 btnReprint.isEnabled = false
-                btnReprint.text = "Imprimiendo…"
+                btnReprint.text = "Printing…"
                 val items = orders.map { o ->
                     BatchItem(barcode = o.barcode, productName = o.productName,
                               price = o.price, quantity = o.quantity, total = o.total)
@@ -182,7 +182,7 @@ class TicketDetailActivity : AppCompatActivity() {
                             "Error al imprimir: ${e.localizedMessage}", Snackbar.LENGTH_LONG).show()
                     }
                     btnReprint.isEnabled = true
-                    btnReprint.text = "Reimprimir ticket"
+                    btnReprint.text = "Reprint ticket"
                 }
             }
         }
@@ -212,13 +212,13 @@ class TicketDetailActivity : AppCompatActivity() {
         // ── Info del pedido ─────────────────────────────
         addSep(heavy = true)
         addLine(date, sizeSp = 12f)
-        if (batchId.isNotBlank())    addLine("Pedido  #${batchId.takeLast(8)}", sizeSp = 12f)
-        if (invoiceId.isNotBlank())  addLine("Factura #$invoiceId", sizeSp = 12f)
+        if (batchId.isNotBlank())    addLine("Order   #${batchId.takeLast(8)}", sizeSp = 12f)
+        if (invoiceId.isNotBlank())  addLine("Invoice #$invoiceId", sizeSp = 12f)
 
         // ── Cliente ─────────────────────────────────────
         if (!customerName.isNullOrBlank()) {
             addSep(heavy = false)
-            addLine("Cliente: $customerName", sizeSp = 12f)
+            addLine("Customer: $customerName", sizeSp = 12f)
             if (!customerAddress.isNullOrBlank()) {
                 val ci = customerAddress.indexOf(", ")
                 if (ci > 0 && customerAddress.length > 28) {
@@ -250,7 +250,7 @@ class TicketDetailActivity : AppCompatActivity() {
             bold   = true,
             sizeSp = 13f
         )
-        addLine(String.format(Locale.US, "%.2f lb en total", totalQty), sizeSp = 12f)
+        addLine(String.format(Locale.US, "%.2f lb total", totalQty), sizeSp = 12f)
         addLine(companyNameFooter, sizeSp = 12f)
 
         // ── Negative Sale Summary ────────────────────────

@@ -37,6 +37,7 @@ class ProductDetailActivity : AppCompatActivity() {
     private lateinit var tvUnits: TextView
     private lateinit var tvTotalWeight: TextView
     private lateinit var tvMinPrice: TextView
+    private lateinit var tvStock: TextView
     private lateinit var layoutWeights: LinearLayout
     private lateinit var layoutHistory: LinearLayout
     private lateinit var cardWeights: View
@@ -83,6 +84,25 @@ class ProductDetailActivity : AppCompatActivity() {
         resetWeights()
         showProduct()
         if (customerId != null) loadPriceHistory()
+
+        val stock = intent.getIntExtra("STOCK", -1)
+        if (stock >= 0) {
+            tvStock.visibility = View.VISIBLE
+            if (stock == 0) {
+                tvStock.text = "Sin stock disponible"
+                tvStock.setTextColor(resources.getColor(R.color.red, theme))
+                btnAddOrder.text = "PRODUCTO SIN STOCK"
+                btnAddOrder.isEnabled = false
+                btnAddOrder.backgroundTintList =
+                    android.content.res.ColorStateList.valueOf(resources.getColor(R.color.red, theme))
+                btnAddOrder.setTextColor(resources.getColor(android.R.color.white, theme))
+                btnUnitMinus.isEnabled = false
+                btnUnitPlus.isEnabled = false
+            } else {
+                tvStock.text = "Stock disponible: $stock unidad(es)"
+                tvStock.setTextColor(resources.getColor(R.color.success, theme))
+            }
+        }
     }
 
     private fun initViews() {
@@ -93,6 +113,7 @@ class ProductDetailActivity : AppCompatActivity() {
         tvUnits = findViewById(R.id.tvUnits)
         tvTotalWeight = findViewById(R.id.tvTotalWeight)
         tvMinPrice = findViewById(R.id.tvMinPrice)
+        tvStock = findViewById(R.id.tvStock)
         layoutWeights = findViewById(R.id.layoutWeights)
         layoutHistory = findViewById(R.id.layoutHistory)
         cardWeights = findViewById(R.id.cardWeights)

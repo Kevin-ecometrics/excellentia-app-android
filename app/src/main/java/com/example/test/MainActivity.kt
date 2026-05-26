@@ -513,6 +513,7 @@ class MainActivity : AppCompatActivity() {
                     putExtra("PRODUCT_NAME", product.name)
                     putExtra("PRODUCT_PRICE", product.price)
                     putExtra("QUANTITY", initialQty)
+                    putExtra("STOCK", product.stock)
                     putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
                     putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
                 }

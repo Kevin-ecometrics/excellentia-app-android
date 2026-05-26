@@ -236,8 +236,17 @@ class PreOrderDetailActivity : AppCompatActivity() {
         val scroll = ScrollView(this)
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), (8 * density).toInt())
+            setPadding((20 * density).toInt(), (4 * density).toInt(), (20 * density).toInt(), (8 * density).toInt())
         }
+        container.addView(TextView(this).apply {
+            text = "Indica las unidades dañadas (0 = ninguna)."
+            textSize = 13f
+            setTextColor(getColor(R.color.text_secondary))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (4 * density).toInt() }
+        })
         scroll.addView(container)
 
         val inputs = mutableListOf<Pair<PreOrderItem, EditText>>()
@@ -281,10 +290,15 @@ class PreOrderDetailActivity : AppCompatActivity() {
             inputs.add(Pair(item, etQty))
         }
 
+        val maxH = (resources.displayMetrics.heightPixels * 0.38).toInt()
+        val wrapper = android.widget.FrameLayout(this)
+        wrapper.addView(scroll, android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT, maxH
+        ))
+
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("¿Artículos dañados o vencidos?")
-            .setMessage("Indica las unidades dañadas por producto (0 = ninguna).")
-            .setView(scroll)
+            .setView(wrapper)
             .setPositiveButton("Continuar") { _, _ ->
                 pendingDamageItems = inputs.mapNotNull { (item, et) ->
                     val qty = et.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0

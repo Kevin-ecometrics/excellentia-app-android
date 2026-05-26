@@ -151,7 +151,8 @@ class HistoryActivity : AppCompatActivity() {
                             timestamp = order.createdAt,
                             status = if (isFailed) SyncStatus.FAILED else SyncStatus.PENDING
                         ))
-                        bindRetry(itemView, order)
+                        itemView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnRetryEntry)
+                            ?.visibility = View.GONE
                         layoutEntries.addView(itemView)
                     }
                 }

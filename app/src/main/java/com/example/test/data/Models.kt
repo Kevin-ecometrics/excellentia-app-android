@@ -9,7 +9,8 @@ data class Product(
     val barcode: String,
     val name: String,
     val price: Double,
-    val weightPerUnit: Double? = null
+    val weightPerUnit: Double? = null,
+    val stock: Int = 0
 )
 
 enum class SyncStatus { PENDING, SENT, FAILED }
@@ -60,7 +61,8 @@ data class ProductDto(
         barcode = barcode ?: "unknown",
         name = name,
         price = price,
-        weightPerUnit = weightPerUnit
+        weightPerUnit = weightPerUnit,
+        stock = stock
     )
 }
 

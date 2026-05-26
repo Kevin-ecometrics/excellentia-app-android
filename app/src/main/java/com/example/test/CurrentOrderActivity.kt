@@ -384,10 +384,22 @@ class CurrentOrderActivity : AppCompatActivity() {
             val container = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
                 setPadding(
-                    (20 * density).toInt(), (8 * density).toInt(),
+                    (20 * density).toInt(), (4 * density).toInt(),
                     (20 * density).toInt(), (8 * density).toInt()
                 )
             }
+
+            // Mensaje dentro del scroll para no ocupar espacio del diálogo
+            container.addView(android.widget.TextView(ctx).apply {
+                text = "Indica las unidades dañadas (0 = ninguna)."
+                textSize = 13f
+                setTextColor(getColor(R.color.text_secondary))
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = (4 * density).toInt() }
+            })
+
             scroll.addView(container)
 
             // Lista de pares (orden, editText) para leer al confirmar
@@ -443,10 +455,16 @@ class CurrentOrderActivity : AppCompatActivity() {
                 inputs.add(Pair(order, etQty))
             }
 
+            // Wrapper de altura fija — el diálogo respeta el tamaño del wrapper
+            val maxH = (resources.displayMetrics.heightPixels * 0.38).toInt()
+            val wrapper = android.widget.FrameLayout(ctx)
+            wrapper.addView(scroll, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT, maxH
+            ))
+
             com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                 .setTitle("¿Artículos dañados o vencidos?")
-                .setMessage("Indica las unidades dañadas por producto (0 = ninguna).")
-                .setView(scroll)
+                .setView(wrapper)
                 .setPositiveButton("Continuar") { _, _ ->
                     pendingDamageItems = inputs.mapNotNull { (order, et) ->
                         val qty = et.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
