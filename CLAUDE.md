@@ -203,6 +203,11 @@ Sprinkler Pipes     $4.10 F4, LEFT — twoCol(nombre, total, 32)
 - **Timezone** — `SimpleDateFormat` usa UTC al parsear timestamps ISO 8601 del backend.
 - **Loading overlay** en CurrentOrderActivity — se muestra durante todo el envío del batch + impresión, con texto descriptivo de la etapa actual.
 - **Botón Reimprimir** en TicketDetailActivity — solo visible si `SecurePreferences.getPrinterAddress() != null`.
+- **`signatureForReprint`** — `var` de clase en TicketDetailActivity (análogo a `damageItemsForReprint`). Se inicializa desde el intent `"signature"` extra. Cuando `batchId` existe, `getBatchDamage` retorna la firma desde la API y la actualiza. El botón Reimprimir usa este `var` para que la firma correcta llegue a la impresora también desde historial.
+- **TransactionTooLargeException fix** — `listOrders` backend excluye `signature` (nunca fue columna de `orders` tras Fase 48). La firma se carga bajo demanda via `GET /api/orders/damage/:batchId` → `{ data: [...], signature: "..." }`. `HistoryActivity` y `ClientHistoryActivity` pasan orders directo al Intent sin strip.
+- **`batch_signatures` table** — tabla dedicada `(batch_id PK, signature MEDIUMTEXT)`. Un batch de N ítems almacena la firma una sola vez. `createBatch` y `convertPreOrder` insertan en esta tabla; `getBatchDamage` la lee.
+- **`ApiResponse<T>`** — campo `signature: String? = null` en el modelo genérico para deserializar la firma de `getBatchDamage`.
+- **`OrderDto`** — no tiene campo `signature` (eliminado en Fase 48; `listOrders` nunca lo retorna).
 - **Edit dialog (`dialog_edit_order.xml`)** — dos inputs: "Cantidad total (lb)" (`etQty`) y "Precio / lb" (`etPricePerLb`). Resumen dinámico `tvTotal` ("X.XX lb = $Y.YY"). Sin input de precio total — se eliminó; el precio/lb es editable directamente. Advertencia `tvMinWarning` compara `qty × rate` contra `minPrice`.
 
 - **Pre-órdenes** — server-only (sin SQLite local); requieren internet. Flujo de conversión idéntico a `CurrentOrderActivity`: firma → dañados → método de pago → check impresora → convert → print → `OrderSuccessActivity`. `reusePreOrder()` crea una nueva pre-orden DRAFT con los mismos ítems.

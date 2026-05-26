@@ -308,16 +308,11 @@ class HistoryActivity : AppCompatActivity() {
         }
 
         view.setOnClickListener {
-            // Strip signature from each order before putting in intent to avoid
-            // TransactionTooLargeException (base64 PNG can be 100-500 KB per order)
-            val signature = orders.firstOrNull()?.signature
-            val ordersStripped = orders.map { it.copy(signature = null) }
             startActivity(Intent(this, TicketDetailActivity::class.java).apply {
                 putExtra("batch_id", batchId)
                 putExtra("invoice_id", invoiceId ?: "")
-                putExtra("orders_json", Gson().toJson(ordersStripped))
+                putExtra("orders_json", Gson().toJson(orders))
                 putExtra("customer_name", customerName ?: "")
-                if (!signature.isNullOrBlank()) putExtra("signature", signature)
             })
         }
     }

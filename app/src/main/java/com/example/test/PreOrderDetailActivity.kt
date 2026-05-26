@@ -426,8 +426,7 @@ class PreOrderDetailActivity : AppCompatActivity() {
                                         total        = bi.total,
                                         status       = "SENT",
                                         customerId   = po.customerId,
-                                        customerName = po.customerName,
-                                        signature    = sigForPrinting
+                                        customerName = po.customerName
                                     )
                                 }
                             ))

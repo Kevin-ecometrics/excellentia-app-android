@@ -66,7 +66,7 @@ class TicketDetailActivity : AppCompatActivity() {
             else                                  -> null
         }
 
-        signatureForReprint = intent.getStringExtra("signature") ?: orders.firstOrNull()?.signature
+        signatureForReprint = intent.getStringExtra("signature")
 
         val prefs = SecurePreferences(this)
         val companyName = prefs.getCompanyName()

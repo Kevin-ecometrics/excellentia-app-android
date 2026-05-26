@@ -93,8 +93,7 @@ data class OrderDto(
     @SerializedName("user_id") val userId: Int? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("customer_id") val customerId: String? = null,
-    @SerializedName("customer_name") val customerName: String? = null,
-    @SerializedName("signature") val signature: String? = null
+    @SerializedName("customer_name") val customerName: String? = null
 )
 
 data class DeviceRegisterRequest(
