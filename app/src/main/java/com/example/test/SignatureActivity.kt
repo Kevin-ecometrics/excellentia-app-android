@@ -5,13 +5,13 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.snackbar.Snackbar
 
-class SignatureActivity : AppCompatActivity() {
+class SignatureActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,7 +39,7 @@ class SignatureActivity : AppCompatActivity() {
 
         btnConfirm.setOnClickListener {
             if (signatureView.isEmpty) {
-                Snackbar.make(btnConfirm, "Dibuja la firma antes de confirmar", Snackbar.LENGTH_SHORT).show()
+                Snackbar.make(btnConfirm, getString(R.string.error_draw_signature), Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val base64 = signatureView.getBase64()

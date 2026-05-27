@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
+import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -32,6 +33,10 @@ import java.util.Locale
 import java.util.TimeZone
 
 class TicketDetailActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase, "en"))
+    }
 
     private lateinit var ticketContent: LinearLayout
     private val dp get() = resources.displayMetrics.density
@@ -59,10 +64,10 @@ class TicketDetailActivity : AppCompatActivity() {
         val rawDate         = orders.firstOrNull()?.createdAt
         val grandTotal      = orders.sumOf { it.total }
         val totalQty        = orders.sumOf { it.quantity }
-        val orderStatus     = when {
-            orders.all { it.status == "SENT" }    -> "ENVIADO"
-            orders.any { it.status == "PENDING" } -> "PENDIENTE"
-            orders.any { it.status == "FAILED" }  -> "FALLIDO"
+        val orderStatus = when {
+            orders.all { it.status == "SENT" }    -> "SENT"
+            orders.any { it.status == "PENDING" } -> "PENDING"
+            orders.any { it.status == "FAILED" }  -> "FAILED"
             else                                  -> null
         }
 
@@ -157,7 +162,7 @@ class TicketDetailActivity : AppCompatActivity() {
             btnReprint.visibility = android.view.View.VISIBLE
             btnReprint.setOnClickListener {
                 btnReprint.isEnabled = false
-                btnReprint.text = "Printing…"
+                btnReprint.text = getString(R.string.btn_printing)
                 val items = orders.map { o ->
                     BatchItem(barcode = o.barcode, productName = o.productName,
                               price = o.price, quantity = o.quantity, total = o.total)
@@ -176,13 +181,13 @@ class TicketDetailActivity : AppCompatActivity() {
                     )
                     result.onSuccess {
                         Snackbar.make(findViewById(android.R.id.content),
-                            "Ticket enviado a la impresora", Snackbar.LENGTH_SHORT).show()
+                            getString(R.string.msg_ticket_sent), Snackbar.LENGTH_SHORT).show()
                     }.onFailure { e ->
                         Snackbar.make(findViewById(android.R.id.content),
-                            "Error al imprimir: ${e.localizedMessage}", Snackbar.LENGTH_LONG).show()
+                            getString(R.string.error_print_generic, e.localizedMessage ?: ""), Snackbar.LENGTH_LONG).show()
                     }
                     btnReprint.isEnabled = true
-                    btnReprint.text = "Reprint ticket"
+                    btnReprint.text = getString(R.string.btn_reprint)
                 }
             }
         }
@@ -300,9 +305,9 @@ class TicketDetailActivity : AppCompatActivity() {
         if (status != null) {
             addSep(heavy = false)
             val statusColor = when (status) {
-                "ENVIADO"   -> Color.parseColor("#2E7D32")
-                "PENDIENTE" -> Color.parseColor("#E65100")
-                else        -> Color.parseColor("#B71C1C")
+                "SENT"    -> Color.parseColor("#2E7D32")
+                "PENDING" -> Color.parseColor("#E65100")
+                else      -> Color.parseColor("#B71C1C")
             }
             addLine(status, bold = true, sizeSp = 12f, color = statusColor)
         }

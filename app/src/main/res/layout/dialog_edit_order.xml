@@ -11,7 +11,7 @@
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Cantidad total (lb)"
+        android:hint="@string/hint_qty_total_lb"
         app:suffixText="lb">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -27,7 +27,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:hint="Precio / lb"
+        android:hint="@string/hint_price_per_lb"
         app:prefixText="$"
         app:suffixText="/lb">
 

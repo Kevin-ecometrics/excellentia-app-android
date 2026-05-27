@@ -10,7 +10,7 @@
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Código de barras">
+        android:hint="@string/hint_barcode">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etBarcode"

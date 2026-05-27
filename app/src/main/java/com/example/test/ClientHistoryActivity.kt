@@ -7,7 +7,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -25,7 +25,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-class ClientHistoryActivity : AppCompatActivity() {
+class ClientHistoryActivity : BaseActivity() {
 
     private lateinit var toolbar: MaterialToolbar
     private lateinit var tvCustomerHeader: TextView
@@ -57,7 +57,7 @@ class ClientHistoryActivity : AppCompatActivity() {
         RetrofitClient.initialize(securePrefs.getBackendUrl(), securePrefs, this)
 
         customerId   = intent.getStringExtra("customer_id")   ?: ""
-        customerName = intent.getStringExtra("customer_name") ?: "Cliente"
+        customerName = intent.getStringExtra("customer_name") ?: getString(R.string.default_customer_name)
 
         toolbar            = findViewById(R.id.toolbar)
         tvCustomerHeader   = findViewById(R.id.tvCustomerHeader)
@@ -110,10 +110,10 @@ class ClientHistoryActivity : AppCompatActivity() {
                     renderBatches()
                     btnLoadMore.visibility = if (hasMorePages) View.VISIBLE else View.GONE
                 } else {
-                    showError("Error ${resp.code()}")
+                    showError(getString(R.string.msg_server_error, resp.code().toString()))
                 }
             } catch (e: Exception) {
-                showError(e.localizedMessage ?: "Error de conexión")
+                showError(e.localizedMessage ?: getString(R.string.error_no_connection))
             } finally {
                 swipeRefresh.isRefreshing = false
             }
@@ -122,7 +122,7 @@ class ClientHistoryActivity : AppCompatActivity() {
 
     private fun updateSummary() {
         val total = allBatches.sumOf { it.total }
-        tvSummary.text = "${allBatches.size} pedido(s)  ·  $${String.format(Locale.US, "%.2f", total)} total"
+        tvSummary.text = getString(R.string.summary_orders_total, allBatches.size, String.format(Locale.US, "%.2f", total))
     }
 
     private fun renderBatches() {
@@ -146,7 +146,7 @@ class ClientHistoryActivity : AppCompatActivity() {
 
     private fun bindBatch(view: View, batch: CustomerBatchSummary) {
         view.findViewById<TextView>(R.id.tvBatchId).text =
-            "Pedido #${batch.batchId.takeLast(6)}  ·  ${batch.itemCount} producto(s)"
+            getString(R.string.batch_summary, batch.batchId.takeLast(6), batch.itemCount)
 
         val dateStr = batch.createdAt?.let {
             try {
@@ -165,7 +165,7 @@ class ClientHistoryActivity : AppCompatActivity() {
 
         val isSent = batch.status == "SENT"
         view.findViewById<TextView>(R.id.tvBatchStatus).apply {
-            text = if (isSent) "COMPLETADO" else "PENDIENTE"
+            text = if (isSent) getString(R.string.label_completed) else getString(R.string.label_pending_status)
             setBackgroundResource(if (isSent) R.drawable.bg_chip_sent else R.drawable.bg_chip_pending)
             setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, if (isSent) R.color.success else R.color.warning))
         }
@@ -196,7 +196,7 @@ class ClientHistoryActivity : AppCompatActivity() {
             } catch (_: Exception) {
                 Snackbar.make(
                     findViewById(android.R.id.content),
-                    "No se pudo cargar el detalle del pedido",
+                    getString(R.string.error_load_batch_detail),
                     Snackbar.LENGTH_SHORT
                 ).show()
             }

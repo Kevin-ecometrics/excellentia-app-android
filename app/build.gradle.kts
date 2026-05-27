@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.test"
+        applicationId = "com.excellentia.scanner"
         minSdk = 30
         targetSdk = 36
         versionCode = 1

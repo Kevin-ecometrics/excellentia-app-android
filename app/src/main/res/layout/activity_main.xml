@@ -30,7 +30,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Hola, Operador"
+                android:text="@string/label_hello_operator"
                 android:textColor="@color/text_primary"
                 android:textSize="17sp"
                 android:textStyle="bold" />
@@ -40,7 +40,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
-                android:text="Listo para escanear"
+                android:text="@string/label_ready_to_scan"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -67,7 +67,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.04"
-                android:text="ONLINE"
+                android:text="@string/status_online"
                 android:textColor="@color/text_primary"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -108,7 +108,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Modo offline — los pedidos se guardan localmente"
+                android:text="@string/label_offline_banner"
                 android:textColor="@color/warning"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -162,7 +162,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="CLIENTE ACTIVO"
+                            android:text="@string/label_active_customer"
                             android:textAllCaps="true"
                             android:textColor="#B3FFFFFF"
                             android:textSize="10sp" />
@@ -187,7 +187,7 @@
                             style="@style/Widget.Material3.Button.TextButton"
                             android:layout_width="wrap_content"
                             android:layout_height="32dp"
-                            android:text="Cambiar"
+                            android:text="@string/btn_change_customer"
                             android:textColor="#FFFFFF"
                             android:textSize="11sp" />
 
@@ -196,7 +196,7 @@
                             style="@style/Widget.Material3.Button.TextButton"
                             android:layout_width="wrap_content"
                             android:layout_height="32dp"
-                            android:text="Historial"
+                            android:text="@string/btn_customer_history"
                             android:textColor="#CCE0F0FF"
                             android:textSize="11sp" />
                     </LinearLayout>
@@ -225,7 +225,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Seleccionar cliente"
+                        android:text="@string/label_select_customer"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -235,7 +235,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:gravity="center"
-                        android:text="Elige un cliente antes de empezar a escanear"
+                        android:text="@string/label_select_customer_desc"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
 
@@ -244,7 +244,7 @@
                         android:layout_width="200dp"
                         android:layout_height="44dp"
                         android:layout_marginTop="14dp"
-                        android:text="Seleccionar cliente"
+                        android:text="@string/btn_select_customer"
                         android:textSize="13sp"
                         android:textStyle="bold"
                         app:backgroundTint="@color/primary"
@@ -292,7 +292,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:letterSpacing="0.08"
-                android:text="TAP TO SCAN"
+                android:text="@string/label_tap_to_scan"
                 android:textAllCaps="true"
                 android:textColor="@color/primary"
                 android:textSize="18sp"
@@ -302,7 +302,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Presiona el círculo o el gatillo físico"
+                android:text="@string/label_tap_circle_or_trigger"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />
 
@@ -315,7 +315,7 @@
                 android:background="@drawable/bg_chip_sent"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="4dp"
-                android:text="● ESCANEANDO..."
+                android:text="@string/label_scanning"
                 android:textColor="@color/success"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -328,7 +328,7 @@
                 android:layout_width="260dp"
                 android:layout_height="48dp"
                 android:layout_marginTop="28dp"
-                android:text="Ingresar código manualmente"
+                android:text="@string/btn_manual_entry"
                 android:textSize="13sp"
                 app:cornerRadius="24dp"
                 app:icon="@drawable/ic_keyboard"
@@ -343,7 +343,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="40dp"
                 android:layout_marginTop="4dp"
-                android:text="Pre-órdenes"
+                android:text="@string/btn_pre_orders"
                 android:textColor="@color/primary"
                 android:textSize="13sp"
                 app:icon="@drawable/ic_schedule"
@@ -358,7 +358,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="40dp"
                 android:layout_marginTop="4dp"
-                android:text="¿Cómo configurar el escáner?"
+                android:text="@string/btn_how_to_configure_scanner"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
 
@@ -392,7 +392,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:letterSpacing="0.06"
-                            android:text="ÚLTIMO ESCANEO"
+                            android:text="@string/label_last_scan_title"
                             android:textAllCaps="true"
                             android:textColor="@color/text_secondary"
                             android:textSize="10sp" />

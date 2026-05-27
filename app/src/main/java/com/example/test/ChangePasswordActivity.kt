@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -16,7 +16,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.launch
 
-class ChangePasswordActivity : AppCompatActivity() {
+class ChangePasswordActivity : BaseActivity() {
 
     private lateinit var etCurrent: TextInputEditText
     private lateinit var etNew: TextInputEditText
@@ -49,12 +49,12 @@ class ChangePasswordActivity : AppCompatActivity() {
         val new     = etNew.text.toString()
         val confirm = etConfirm.text.toString()
 
-        if (current.isBlank()) { showError("Ingresa tu contraseña actual"); return }
-        if (new.length < 6)    { showError("La nueva contraseña debe tener al menos 6 caracteres"); return }
-        if (new != confirm)    { showError("Las contraseñas no coinciden"); return }
+        if (current.isBlank()) { showError(getString(R.string.error_enter_current_password)); return }
+        if (new.length < 6)    { showError(getString(R.string.error_password_too_short)); return }
+        if (new != confirm)    { showError(getString(R.string.error_passwords_dont_match)); return }
 
         btnSave.isEnabled = false
-        btnSave.text = "Guardando…"
+        btnSave.text = getString(R.string.btn_saving)
         tvError.visibility = View.GONE
 
         lifecycleScope.launch {
@@ -65,22 +65,22 @@ class ChangePasswordActivity : AppCompatActivity() {
                 if (response.isSuccessful) {
                     Snackbar.make(
                         findViewById(android.R.id.content),
-                        "Contraseña actualizada correctamente",
+                        getString(R.string.success_password_changed),
                         Snackbar.LENGTH_SHORT
                     ).show()
                     finish()
                 } else {
                     val msg = when (response.code()) {
-                        401 -> "Contraseña actual incorrecta"
-                        else -> "Error del servidor (${response.code()})"
+                        401 -> getString(R.string.error_wrong_current_password)
+                        else -> getString(R.string.error_server_code, response.code())
                     }
                     showError(msg)
                 }
             } catch (e: Exception) {
-                showError("Sin conexión — verifica el servidor")
+                showError(getString(R.string.error_no_connection))
             } finally {
                 btnSave.isEnabled = true
-                btnSave.text = "Guardar contraseña"
+                btnSave.text = getString(R.string.btn_save_password)
             }
         }
     }

@@ -46,7 +46,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:gravity="center"
-            android:text="¡Pedido completado!"
+            android:text="@string/label_order_completed"
             android:textColor="@color/text_primary"
             android:textSize="26sp"
             android:textStyle="bold" />
@@ -56,7 +56,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:gravity="center"
-            android:text="El pedido fue enviado exitosamente\na QuickBooks"
+            android:text="@string/label_order_sent_successfully"
             android:textColor="@color/text_secondary"
             android:textSize="14sp" />
 
@@ -89,7 +89,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Pedido"
+                        android:text="@string/label_order"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 
@@ -117,7 +117,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Factura QB"
+                        android:text="@string/label_invoice_qb"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 
@@ -146,7 +146,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Cliente"
+                        android:text="@string/label_customer_field"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 
@@ -178,7 +178,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Productos"
+                        android:text="@string/label_products_field"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 
@@ -206,7 +206,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Total"
+                        android:text="@string/label_total_field"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -229,7 +229,7 @@
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="24dp"
-            android:text="VER TICKET"
+            android:text="@string/btn_view_ticket"
             android:textSize="14sp"
             android:textStyle="bold"
             app:cornerRadius="12dp"
@@ -242,7 +242,7 @@
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="10dp"
-            android:text="NUEVO PEDIDO"
+            android:text="@string/btn_new_order"
             android:textSize="14sp"
             android:textStyle="bold"
             app:backgroundTint="@color/primary"

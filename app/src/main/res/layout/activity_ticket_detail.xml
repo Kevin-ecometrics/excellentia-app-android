@@ -20,7 +20,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_back"
-            app:title="Sale Ticket" />
+            app:title="@string/title_ticket_detail" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <com.google.android.material.button.MaterialButton
@@ -29,7 +29,7 @@
         android:layout_height="52dp"
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="12dp"
-        android:text="Reprint ticket"
+            android:text="@string/btn_reprint"
         android:textColor="@color/white"
         android:textSize="14sp"
         android:textStyle="bold"

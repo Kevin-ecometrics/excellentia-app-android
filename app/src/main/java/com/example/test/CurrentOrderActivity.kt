@@ -11,7 +11,7 @@ import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -28,7 +28,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-class CurrentOrderActivity : AppCompatActivity() {
+class CurrentOrderActivity : BaseActivity() {
 
     private lateinit var layoutOrderItems: LinearLayout
     private lateinit var layoutEmpty: View
@@ -154,7 +154,7 @@ class CurrentOrderActivity : AppCompatActivity() {
 
     private fun updateCustomerLabel() {
         if (!customerName.isNullOrBlank()) {
-            tvCustomerLabel.text = "Cliente: $customerName  ·  Toca para cambiar"
+            tvCustomerLabel.text = getString(R.string.label_customer_tap_change, customerName)
             tvCustomerLabel.visibility = View.VISIBLE
             if (!customerAddress.isNullOrBlank()) {
                 tvCustomerAddress.text = customerAddress
@@ -176,10 +176,10 @@ class CurrentOrderActivity : AppCompatActivity() {
 
             if (pending.isEmpty()) {
                 layoutEmpty.visibility = View.VISIBLE
-                tvGrandTotal.text = "$0.00"
-                tvTotalQty.text = "0.00 lb"
-                tvTotalItems.text = "0 productos"
-                tvOrderCount.text = "0"
+                tvGrandTotal.text = getString(R.string.default_total_zero)
+                tvTotalQty.text = getString(R.string.default_qty_zero)
+                tvTotalItems.text = getString(R.string.label_products_count, 0)
+                tvOrderCount.text = getString(R.string.default_count_zero)
                 btnFinalize.isEnabled = false
                 btnViewTicket.isEnabled = false
                 return@launch
@@ -208,7 +208,7 @@ class CurrentOrderActivity : AppCompatActivity() {
             val totalQty = pending.sumOf { it.quantity }
             tvGrandTotal.text = String.format(Locale.US, "$%.2f", grandTotal)
             tvTotalQty.text = String.format(Locale.US, "%.2f lb", totalQty)
-            tvTotalItems.text = "${pending.size} producto(s)"
+            tvTotalItems.text = getString(R.string.label_products_count, pending.size)
             tvOrderCount.text = pending.size.toString()
         }
     }
@@ -244,7 +244,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                 tvTotal.text = String.format(Locale.US, "%.2f lb  =  \$%.2f", q, total)
                 if (minPrice != null && total > 0) {
                     if (Math.round(total * 100) < Math.round(minPrice * 100)) {
-                        tvMinWarning.text = "Mínimo: $${String.format(Locale.US, "%.2f", minPrice)}"
+                        tvMinWarning.text = getString(R.string.error_min_price, String.format(Locale.US, "%.2f", minPrice))
                         tvMinWarning.visibility = android.view.View.VISIBLE
                     } else {
                         tvMinWarning.visibility = android.view.View.GONE
@@ -265,7 +265,7 @@ class CurrentOrderActivity : AppCompatActivity() {
             com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                 .setTitle(order.productName)
                 .setView(dialogView)
-                .setPositiveButton("Guardar") { _, _ ->
+                .setPositiveButton(getString(R.string.btn_save_dialog)) { _, _ ->
                     val qty  = etQty.text.toString().toDoubleOrNull()
                     val rate = etPricePerLb.text.toString().toDoubleOrNull()
                     if (qty != null && qty > 0 && rate != null && rate > 0) {
@@ -273,7 +273,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                         if (minPrice != null && Math.round(total * 100) < Math.round(minPrice * 100)) {
                             Snackbar.make(
                                 ctx.findViewById(android.R.id.content),
-                                "Mínimo: $${String.format(Locale.US, "%.2f", minPrice)}",
+                                getString(R.string.error_min_price, String.format(Locale.US, "%.2f", minPrice)),
                                 Snackbar.LENGTH_LONG
                             ).show()
                             return@setPositiveButton
@@ -281,25 +281,25 @@ class CurrentOrderActivity : AppCompatActivity() {
                         orderRepository.updatePendingOrder(order.id, rate, qty)
                         loadOrder()
                     } else {
-                        Snackbar.make(ctx.findViewById(android.R.id.content), "Valores inválidos", Snackbar.LENGTH_SHORT).show()
+                        Snackbar.make(ctx.findViewById(android.R.id.content), getString(R.string.error_invalid_values), Snackbar.LENGTH_SHORT).show()
                     }
                 }
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
         }
     }
 
     private fun confirmDelete(id: Int, name: String) {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Eliminar producto")
-            .setMessage("¿Eliminar \"$name\" del pedido?")
-            .setPositiveButton("Eliminar") { _, _ ->
+            .setTitle(getString(R.string.title_delete_product))
+            .setMessage(getString(R.string.msg_delete_product, name))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
                 lifecycleScope.launch {
                     orderRepository.deletePendingOrder(id)
                     loadOrder()
                 }
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -346,7 +346,7 @@ class CurrentOrderActivity : AppCompatActivity() {
             }
             2 -> {
                 tvStep1Icon.backgroundTintList = android.content.res.ColorStateList.valueOf(successColor)
-                tvStep1Icon.text = "✓"
+                tvStep1Icon.text = getString(R.string.checkmark_icon)
                 tvStep2Icon.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
                 tvStep2Label.setTextColor(textPrimary)
                 tvStep3Icon.backgroundTintList = android.content.res.ColorStateList.valueOf(dimColor)
@@ -354,9 +354,9 @@ class CurrentOrderActivity : AppCompatActivity() {
             }
             3 -> {
                 tvStep1Icon.backgroundTintList = android.content.res.ColorStateList.valueOf(successColor)
-                tvStep1Icon.text = "✓"
+                tvStep1Icon.text = getString(R.string.checkmark_icon)
                 tvStep2Icon.backgroundTintList = android.content.res.ColorStateList.valueOf(successColor)
-                tvStep2Icon.text = "✓"
+                tvStep2Icon.text = getString(R.string.checkmark_icon)
                 tvStep3Icon.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
                 tvStep3Label.setTextColor(textPrimary)
             }
@@ -391,7 +391,7 @@ class CurrentOrderActivity : AppCompatActivity() {
 
             // Mensaje dentro del scroll para no ocupar espacio del diálogo
             container.addView(android.widget.TextView(ctx).apply {
-                text = "Indica las unidades dañadas (0 = ninguna)."
+                text = getString(R.string.msg_damaged_items_hint)
                 textSize = 13f
                 setTextColor(getColor(R.color.text_secondary))
                 layoutParams = android.widget.LinearLayout.LayoutParams(
@@ -438,7 +438,7 @@ class CurrentOrderActivity : AppCompatActivity() {
 
                 val etQty = android.widget.EditText(ctx).apply {
                     inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                    setText("0")
+                    setText(getString(R.string.default_count_zero))
                     textSize = 15f
                     gravity = android.view.Gravity.CENTER
                     layoutParams = android.widget.LinearLayout.LayoutParams(
@@ -463,9 +463,9 @@ class CurrentOrderActivity : AppCompatActivity() {
             ))
 
             com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                .setTitle("¿Artículos dañados o vencidos?")
+                .setTitle(getString(R.string.title_damaged_items))
                 .setView(wrapper)
-                .setPositiveButton("Continuar") { _, _ ->
+                .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
                     pendingDamageItems = inputs.mapNotNull { (order, et) ->
                         val qty = et.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
                         if (qty > 0) com.example.test.data.DamageItem(
@@ -476,7 +476,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                     }
                     askPaymentMethod()
                 }
-                .setNegativeButton("Ninguno") { _, _ ->
+                .setNegativeButton(getString(R.string.btn_none)) { _, _ ->
                     pendingDamageItems = emptyList()
                     askPaymentMethod()
                 }
@@ -486,17 +486,17 @@ class CurrentOrderActivity : AppCompatActivity() {
 
     private fun askPaymentMethod() {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Método de pago")
-            .setMessage("¿Cómo paga el cliente?")
-            .setPositiveButton("Cash") { _, _ ->
-                pendingPaymentMethod = "Cash"
+            .setTitle(getString(R.string.title_payment_method))
+            .setMessage(getString(R.string.msg_payment_method))
+            .setPositiveButton(getString(R.string.btn_cash)) { _, _ ->
+                pendingPaymentMethod = getString(R.string.btn_cash)
                 checkPrinterThenFinalize()
             }
-            .setNeutralButton("Check") { _, _ ->
-                pendingPaymentMethod = "Check"
+            .setNeutralButton(getString(R.string.btn_check)) { _, _ ->
+                pendingPaymentMethod = getString(R.string.btn_check)
                 checkPrinterThenFinalize()
             }
-            .setNegativeButton("Omitir") { _, _ ->
+            .setNegativeButton(getString(R.string.btn_skip)) { _, _ ->
                 pendingPaymentMethod = null
                 checkPrinterThenFinalize()
             }
@@ -505,34 +505,34 @@ class CurrentOrderActivity : AppCompatActivity() {
 
     private fun checkPrinterThenFinalize() {
         val printerAddress = securePrefs.getPrinterAddress()
-        val printerName    = securePrefs.getPrinterName() ?: "Impresora"
+        val printerName    = securePrefs.getPrinterName() ?: getString(R.string.label_no_printer_selected)
 
         if (printerAddress.isNullOrBlank()) {
-            // Sin impresora configurada
+            // No printer configured
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("Sin impresora configurada")
+                .setTitle(getString(R.string.title_no_printer))
                 .setIcon(android.R.drawable.ic_dialog_alert)
-                .setMessage("No hay ninguna impresora asignada en Ajustes. No se generará ticket físico.\n\n¿Deseas continuar sin imprimir o ir a Ajustes para configurarla?")
-                .setPositiveButton("Continuar sin imprimir") { _, _ ->
+                .setMessage(getString(R.string.msg_no_printer))
+                .setPositiveButton(getString(R.string.btn_continue_no_print)) { _, _ ->
                     finalizeOrder(customerId, customerName, skipPrint = true)
                 }
-                .setNeutralButton("Ir a Ajustes") { _, _ ->
+                .setNeutralButton(getString(R.string.btn_go_to_settings)) { _, _ ->
                     startActivity(Intent(this, SettingsActivity::class.java))
                 }
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
         } else {
-            // Impresora configurada — confirmar que esté encendida
+            // Printer configured — confirm it's on
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("Confirmar impresión")
-                .setMessage("Se imprimirá el ticket en:\n\n$printerName\n\nAsegúrate de que la impresora esté encendida y cerca antes de continuar.")
-                .setPositiveButton("Finalizar e imprimir") { _, _ ->
+                .setTitle(getString(R.string.title_confirm_print))
+                .setMessage(getString(R.string.msg_confirm_print, printerName))
+                .setPositiveButton(getString(R.string.btn_finalize_and_print)) { _, _ ->
                     finalizeOrder(customerId, customerName, skipPrint = false)
                 }
-                .setNeutralButton("Finalizar sin imprimir") { _, _ ->
+                .setNeutralButton(getString(R.string.btn_finalize_no_print)) { _, _ ->
                     finalizeOrder(customerId, customerName, skipPrint = true)
                 }
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
         }
     }
@@ -541,9 +541,9 @@ class CurrentOrderActivity : AppCompatActivity() {
         lifecycleScope.launch {
             layoutLoading.visibility = View.VISIBLE
             setStep(1)
-            tvLoadingTitle.text = "Enviando pedido..."
+            tvLoadingTitle.text = getString(R.string.loading_sending_order)
             tvLoadingSubtitle.text = if (!customerName.isNullOrBlank())
-                "Cliente: $customerName" else "Conectando con QuickBooks"
+                getString(R.string.loading_client, customerName) else getString(R.string.loading_connecting_qb)
             btnFinalize.isEnabled = false
             btnViewTicket.isEnabled = false
 
@@ -574,8 +574,8 @@ class CurrentOrderActivity : AppCompatActivity() {
             pendingPaymentMethod = null
             result.onSuccess { response ->
                 setStep(2)
-                tvLoadingTitle.text = "Generando factura..."
-                tvLoadingSubtitle.text = "Factura QB: ${response.invoiceId ?: "—"}"
+                tvLoadingTitle.text = getString(R.string.loading_generating_invoice)
+                tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, response.invoiceId ?: "—")
                 orderRepository.clearPending()
 
                 securePrefs.clearActiveCustomer()
@@ -583,8 +583,8 @@ class CurrentOrderActivity : AppCompatActivity() {
                 val printerAddress = securePrefs.getPrinterAddress()
                 if (!skipPrint && !printerAddress.isNullOrBlank()) {
                     setStep(3)
-                    tvLoadingTitle.text = "Imprimiendo ticket..."
-                    tvLoadingSubtitle.text = "Conectando con impresora"
+                    tvLoadingTitle.text = getString(R.string.loading_printing_ticket)
+                    tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
                     val printResult = PrintService.printTicket(
                         context = this@CurrentOrderActivity,
                         deviceAddress = printerAddress,
@@ -600,7 +600,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                     printResult.onFailure { e ->
                         Snackbar.make(
                             findViewById(android.R.id.content),
-                            "Pedido enviado · Error al imprimir: ${e.localizedMessage ?: "sin conexión"}",
+                            getString(R.string.error_order_sent_print_fail, e.localizedMessage ?: getString(R.string.error_no_connection)),
                             Snackbar.LENGTH_LONG
                         ).show()
                     }
@@ -643,7 +643,7 @@ class CurrentOrderActivity : AppCompatActivity() {
                 btnViewTicket.isEnabled = true
                 Snackbar.make(
                     findViewById(android.R.id.content),
-                    "Error al enviar: ${e.localizedMessage ?: "desconocido"}",
+                    getString(R.string.error_send_order, e.localizedMessage ?: getString(R.string.error_unknown)),
                     Snackbar.LENGTH_LONG
                 ).show()
             }

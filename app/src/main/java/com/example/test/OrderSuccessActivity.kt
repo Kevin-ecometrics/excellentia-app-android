@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.test.data.OrderDto
@@ -13,7 +13,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.Locale
 
-class OrderSuccessActivity : AppCompatActivity() {
+class OrderSuccessActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +51,7 @@ class OrderSuccessActivity : AppCompatActivity() {
         }
 
         findViewById<TextView>(R.id.tvSuccessItems).text =
-            if (itemCount == 1) "1 producto" else "$itemCount productos"
+            getString(R.string.label_products_count, itemCount)
 
         findViewById<TextView>(R.id.tvSuccessTotal).text =
             String.format(Locale.US, "$%.2f", total)

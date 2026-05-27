@@ -18,7 +18,7 @@
             android:background="@color/primary"
             app:navigationIcon="@drawable/ic_back"
             app:navigationIconTint="#FFFFFF"
-            app:title="Nueva pre-orden"
+            app:title="@string/title_create_pre_order"
             app:titleTextColor="#FFFFFF" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -66,7 +66,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:letterSpacing="0.06"
-                            android:text="CLIENTE"
+                            android:text="@string/label_active_customer"
                             android:textAllCaps="true"
                             android:textColor="@color/text_secondary"
                             android:textSize="10sp" />
@@ -76,7 +76,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Toca para seleccionar cliente"
+                            android:text="@string/label_select_customer_desc"
                             android:textColor="@color/text_secondary"
                             android:textSize="15sp" />
                     </LinearLayout>
@@ -110,7 +110,7 @@
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
-                        android:text="Seleccionar fecha de entrega (opcional)"
+                        android:text="@string/btn_pick_date"
                         android:textSize="12sp"
                         app:cornerRadius="22dp"
                         app:icon="@drawable/ic_schedule"
@@ -130,7 +130,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:hint="Notas (opcional)"
+                        android:hint="@string/hint_notes_optional"
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -170,7 +170,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:letterSpacing="0.06"
-                            android:text="PRODUCTOS"
+                            android:text="@string/label_products_section"
                             android:textAllCaps="true"
                             android:textColor="@color/text_secondary"
                             android:textSize="10sp" />
@@ -180,7 +180,7 @@
                             style="@style/Widget.Material3.Button.TextButton"
                             android:layout_width="wrap_content"
                             android:layout_height="36dp"
-                            android:text="+ Agregar"
+                            android:text="@string/btn_add_item"
                             android:textColor="@color/primary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -198,7 +198,7 @@
                         android:layout_height="wrap_content"
                         android:gravity="center"
                         android:padding="16dp"
-                        android:text="Sin productos. Toca '+ Agregar' o escanea un barcode."
+                        android:text="@string/label_no_items_scan"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
 
@@ -219,7 +219,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="TOTAL ESTIMADO"
+                            android:text="@string/label_estimated_total"
                             android:textColor="@color/text_primary"
                             android:textSize="12sp"
                             android:textStyle="bold" />
@@ -228,7 +228,7 @@
                             android:id="@+id/tvTotalEstimated"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="$0.00"
+                            android:text="@string/default_total_zero"
                             android:textColor="@color/primary"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -241,7 +241,7 @@
                 android:id="@+id/btnSavePreOrder"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:text="Guardar pre-orden"
+                android:text="@string/btn_save_pre_order"
                 android:textStyle="bold"
                 app:backgroundTint="@color/primary"
                 app:cornerRadius="26dp"

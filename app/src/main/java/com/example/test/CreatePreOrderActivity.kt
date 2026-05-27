@@ -17,7 +17,7 @@ import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
 
-class CreatePreOrderActivity : AppCompatActivity() {
+class CreatePreOrderActivity : BaseActivity() {
 
     private lateinit var cardCustomer: MaterialCardView
     private lateinit var tvSelectedCustomer: TextView
@@ -73,7 +73,7 @@ class CreatePreOrderActivity : AppCompatActivity() {
         if (result.resultCode == Activity.RESULT_OK) {
             selectedCustomerId   = result.data?.getStringExtra("customer_id")
             selectedCustomerName = result.data?.getStringExtra("customer_name")
-            tvSelectedCustomer.text = selectedCustomerName ?: "Cliente seleccionado"
+            tvSelectedCustomer.text = selectedCustomerName ?: getString(R.string.label_customer_selected)
             tvSelectedCustomer.setTextColor(getColor(R.color.text_primary))
         }
     }
@@ -143,7 +143,7 @@ class CreatePreOrderActivity : AppCompatActivity() {
         val cal = Calendar.getInstance()
         DatePickerDialog(this, { _, y, m, d ->
             selectedDate = String.format(Locale.US, "%04d-%02d-%02d", y, m + 1, d)
-            tvSelectedDate.text = "Entrega: $selectedDate"
+            tvSelectedDate.text = getString(R.string.label_delivery_date, selectedDate)
             tvSelectedDate.visibility = View.VISIBLE
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).also {
             it.datePicker.minDate = cal.timeInMillis
@@ -155,13 +155,13 @@ class CreatePreOrderActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 16, 48, 0)
         }
-        val etBarcode = EditText(this).apply { hint = "Barcode o código" }
+        val etBarcode = EditText(this).apply { hint = getString(R.string.hint_barcode_or_code) }
         val etQty = EditText(this).apply {
-            hint = "Cantidad (lb)"
+            hint = getString(R.string.hint_quantity_lb)
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
         val etPrice = EditText(this).apply {
-            hint = "Precio/lb"
+            hint = getString(R.string.hint_price_per_lb)
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
         layout.addView(etBarcode)
@@ -169,9 +169,9 @@ class CreatePreOrderActivity : AppCompatActivity() {
         layout.addView(etPrice)
 
         AlertDialog.Builder(this)
-            .setTitle("Agregar producto")
+            .setTitle(getString(R.string.title_add_product))
             .setView(layout)
-            .setPositiveButton("Agregar") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_add)) { _, _ ->
                 val barcode = etBarcode.text.toString().trim()
                 val qty     = etQty.text.toString().toDoubleOrNull() ?: 0.0
                 val price   = etPrice.text.toString().toDoubleOrNull() ?: 0.0
@@ -180,12 +180,12 @@ class CreatePreOrderActivity : AppCompatActivity() {
                 } else {
                     Snackbar.make(
                         findViewById(android.R.id.content),
-                        "Ingresa barcode, cantidad y precio válidos",
+                        getString(R.string.error_valid_barcode_qty_price),
                         Snackbar.LENGTH_SHORT
                     ).show()
                 }
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -213,14 +213,14 @@ class CreatePreOrderActivity : AppCompatActivity() {
                 } else {
                     Snackbar.make(
                         findViewById(android.R.id.content),
-                        "Producto no encontrado: $barcode",
+                        getString(R.string.error_product_not_found_barcode, barcode),
                         Snackbar.LENGTH_SHORT
                     ).show()
                 }
             } catch (e: Exception) {
                 Snackbar.make(
                     findViewById(android.R.id.content),
-                    "Error al buscar producto",
+                    getString(R.string.error_searching_product),
                     Snackbar.LENGTH_SHORT
                 ).show()
             }
@@ -233,11 +233,11 @@ class CreatePreOrderActivity : AppCompatActivity() {
             setPadding(48, 16, 48, 0)
         }
         val etQty = EditText(this).apply {
-            hint = "Cantidad (lb)"
+            hint = getString(R.string.hint_quantity_lb)
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
         val etPrice = EditText(this).apply {
-            hint = "Precio/lb"
+            hint = getString(R.string.hint_price_per_lb)
             setText(String.format(Locale.US, "%.2f", defaultPrice))
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
@@ -247,12 +247,12 @@ class CreatePreOrderActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(name)
             .setView(layout)
-            .setPositiveButton("Agregar") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_add)) { _, _ ->
                 val qty   = etQty.text.toString().toDoubleOrNull() ?: 0.0
                 val price = etPrice.text.toString().toDoubleOrNull() ?: defaultPrice
                 if (qty > 0) addItem(PreOrderItem(barcode, name, price, qty, price * qty))
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -309,7 +309,7 @@ class CreatePreOrderActivity : AppCompatActivity() {
         if (selectedCustomerId == null || selectedCustomerName == null) {
             Snackbar.make(
                 findViewById(android.R.id.content),
-                "Selecciona un cliente primero",
+                getString(R.string.error_select_customer_first),
                 Snackbar.LENGTH_SHORT
             ).show()
             return
@@ -317,14 +317,14 @@ class CreatePreOrderActivity : AppCompatActivity() {
         if (items.isEmpty()) {
             Snackbar.make(
                 findViewById(android.R.id.content),
-                "Agrega al menos un producto",
+                getString(R.string.error_add_at_least_one_product),
                 Snackbar.LENGTH_SHORT
             ).show()
             return
         }
 
         btnSavePreOrder.isEnabled = false
-        btnSavePreOrder.text = "Guardando..."
+        btnSavePreOrder.text = getString(R.string.btn_saving)
 
         val request = PreOrderRequest(
             customerId    = selectedCustomerId!!,
@@ -343,20 +343,20 @@ class CreatePreOrderActivity : AppCompatActivity() {
                 } else {
                     Snackbar.make(
                         findViewById(android.R.id.content),
-                        "Error ${resp.code()}",
+                        getString(R.string.error_server_code, resp.code()),
                         Snackbar.LENGTH_LONG
                     ).show()
                     btnSavePreOrder.isEnabled = true
-                    btnSavePreOrder.text = "Guardar pre-orden"
+                    btnSavePreOrder.text = getString(R.string.btn_save_pre_order)
                 }
             } catch (e: Exception) {
                 Snackbar.make(
                     findViewById(android.R.id.content),
-                    e.localizedMessage ?: "Error de conexión",
+                    e.localizedMessage ?: getString(R.string.error_no_connection),
                     Snackbar.LENGTH_LONG
                 ).show()
                 btnSavePreOrder.isEnabled = true
-                btnSavePreOrder.text = "Guardar pre-orden"
+                btnSavePreOrder.text = getString(R.string.btn_save_pre_order)
             }
         }
     }

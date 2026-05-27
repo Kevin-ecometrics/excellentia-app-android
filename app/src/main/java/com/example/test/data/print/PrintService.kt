@@ -41,7 +41,7 @@ object PrintService {
         signature: String? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         if (!hasBtConnectPermission(context))
-            return@withContext Result.failure(Exception("Permiso Bluetooth no otorgado"))
+            return@withContext Result.failure(Exception("Bluetooth permission not granted"))
         val prefs = SecurePreferences(context)
         send(context, deviceAddress, buildCpcl(
             items           = items,
@@ -64,7 +64,7 @@ object PrintService {
     suspend fun printTest(context: Context, deviceAddress: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             if (!hasBtConnectPermission(context))
-                return@withContext Result.failure(Exception("Permiso Bluetooth no otorgado"))
+                return@withContext Result.failure(Exception("Bluetooth permission not granted"))
             send(context, deviceAddress, buildTestCpcl())
         }
 
@@ -72,7 +72,7 @@ object PrintService {
     private fun send(context: Context, address: String, data: String): Result<Unit> {
         return try {
             val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
-                ?: return Result.failure(Exception("Bluetooth no disponible"))
+                ?: return Result.failure(Exception("Bluetooth not available"))
             val socket = adapter.getRemoteDevice(address)
                 .createRfcommSocketToServiceRecord(SPP_UUID)
             try {
@@ -82,7 +82,7 @@ object PrintService {
                 if (connectThread.isAlive) {
                     connectThread.interrupt()
                     runCatching { socket.close() }
-                    return Result.failure(Exception("Tiempo de espera agotado — verifica que la impresora esté encendida"))
+                    return Result.failure(Exception("Connection timeout — verify the printer is on"))
                 }
                 socket.outputStream.write(data.toByteArray(Charsets.UTF_8))
                 socket.outputStream.flush()

@@ -21,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_back"
-            app:title="Firma del cliente" />
+            app:title="@string/title_signature" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -47,7 +47,7 @@
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="4dp"
         android:gravity="center"
-        android:text="Firme dentro del recuadro"
+        android:text="@string/label_sign_in_box"
         android:textColor="@color/text_secondary"
         android:textSize="13sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -96,7 +96,7 @@
             android:layout_width="0dp"
             android:layout_height="52dp"
             android:layout_weight="1"
-            android:text="Limpiar" />
+            android:text="@string/btn_clear_signature" />
 
         <Space
             android:layout_width="12dp"
@@ -108,7 +108,7 @@
             android:layout_width="0dp"
             android:layout_height="52dp"
             android:layout_weight="2"
-            android:text="Confirmar firma" />
+            android:text="@string/btn_confirm_signature" />
 
     </LinearLayout>
 

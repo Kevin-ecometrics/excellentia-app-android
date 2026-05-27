@@ -16,6 +16,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -25,9 +26,11 @@ import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : BaseActivity() {
 
 
+    private lateinit var btnLangEn: com.google.android.material.button.MaterialButton
+    private lateinit var btnLangEs: com.google.android.material.button.MaterialButton
     private lateinit var etBackendUrl: EditText
     private lateinit var tvPrinterName: TextView
     private lateinit var switchOffline: SwitchCompat
@@ -45,7 +48,7 @@ class SettingsActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) showBluetoothDevicePicker()
-        else Snackbar.make(findViewById(android.R.id.content), "Permiso Bluetooth requerido", Snackbar.LENGTH_SHORT).show()
+        else Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_bluetooth_required), Snackbar.LENGTH_SHORT).show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,6 +63,8 @@ class SettingsActivity : AppCompatActivity() {
 
         securePrefs = SecurePreferences(this)
 
+        btnLangEn = findViewById(R.id.btnLangEn)
+        btnLangEs = findViewById(R.id.btnLangEs)
         etBackendUrl   = findViewById(R.id.etBackendUrl)
         tvPrinterName  = findViewById(R.id.tvPrinterName)
         switchOffline  = findViewById(R.id.switchOffline)
@@ -83,6 +88,9 @@ class SettingsActivity : AppCompatActivity() {
         btnSelectPrinter.setOnClickListener { requestBluetoothAndPick() }
         btnTestPrinter.setOnClickListener { testPrinter() }
 
+        btnLangEn.setOnClickListener { applyLanguage("en") }
+        btnLangEs.setOnClickListener { applyLanguage("es") }
+
         loadSettings()
     }
 
@@ -94,14 +102,16 @@ class SettingsActivity : AppCompatActivity() {
         val userRole  = securePrefs.getUserRole() ?: "operator"
         val displayName = userName ?: userEmail
         tvAccountAvatar.text = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-        tvAccountName.text   = if (!userName.isNullOrBlank()) userName else "Sin nombre"
+        tvAccountName.text   = if (!userName.isNullOrBlank()) userName else getString(R.string.label_no_name)
         tvAccountEmail.text  = userEmail
-        tvAccountRole.text   = if (userRole == "admin") "ADMIN" else "OPERADOR"
+        tvAccountRole.text   = if (userRole == "admin") "ADMIN" else "OPERATOR"
+
+        updateLanguageButtons(securePrefs.getLanguage())
 
         etBackendUrl.setText(securePrefs.getBackendUrl())
 
         val savedName = securePrefs.getPrinterName()
-        tvPrinterName.text = savedName ?: "Sin impresora seleccionada"
+        tvPrinterName.text = savedName ?: getString(R.string.label_no_printer_selected)
         tvPrinterName.setTextColor(
             if (savedName != null) getColor(R.color.text_primary)
             else getColor(R.color.text_secondary)
@@ -133,7 +143,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun saveSettings() {
         securePrefs.saveBackendUrl(etBackendUrl.text.toString().trim())
         securePrefs.saveOfflineMode(switchOffline.isChecked)
-        Snackbar.make(findViewById(android.R.id.content), "Ajustes guardados", Snackbar.LENGTH_SHORT).show()
+        Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_settings_saved), Snackbar.LENGTH_SHORT).show()
     }
 
     private fun requestBluetoothAndPick() {
@@ -150,50 +160,78 @@ class SettingsActivity : AppCompatActivity() {
     private fun showBluetoothDevicePicker() {
         val adapter = getSystemService(BluetoothManager::class.java)?.adapter
         if (adapter == null || !adapter.isEnabled) {
-            Snackbar.make(findViewById(android.R.id.content), "Activa el Bluetooth del dispositivo", Snackbar.LENGTH_SHORT).show()
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_enable_bluetooth), Snackbar.LENGTH_SHORT).show()
             return
         }
 
         val paired = adapter.bondedDevices.toList()
         if (paired.isEmpty()) {
-            Snackbar.make(findViewById(android.R.id.content), "No hay dispositivos emparejados. Empareja la ZQ630 en Ajustes → Bluetooth.", Snackbar.LENGTH_LONG).show()
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_no_paired_devices), Snackbar.LENGTH_LONG).show()
             return
         }
 
-        val names = paired.map { "${it.name ?: "Desconocido"}  (${it.address})" }.toTypedArray()
+        val names = paired.map { "${it.name ?: getString(R.string.label_unknown_device)}  (${it.address})" }.toTypedArray()
 
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Seleccionar impresora")
+            .setTitle(getString(R.string.title_select_printer))
             .setItems(names) { _, index ->
                 val device = paired[index]
                 securePrefs.savePrinterAddress(device.address)
                 securePrefs.savePrinterName(device.name ?: device.address)
                 tvPrinterName.text = device.name ?: device.address
                 tvPrinterName.setTextColor(getColor(R.color.text_primary))
-                Snackbar.make(findViewById(android.R.id.content), "Impresora: ${device.name}", Snackbar.LENGTH_SHORT).show()
+                Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_printer_selected, device.name), Snackbar.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
     private fun testPrinter() {
         val address = securePrefs.getPrinterAddress()
         if (address.isNullOrBlank()) {
-            Snackbar.make(findViewById(android.R.id.content), "Selecciona una impresora primero", Snackbar.LENGTH_SHORT).show()
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_select_printer_first), Snackbar.LENGTH_SHORT).show()
             return
         }
         btnTestPrinter.isEnabled = false
-        btnTestPrinter.text = "Enviando…"
+        btnTestPrinter.text = getString(R.string.btn_sending_ellipsis)
 
         lifecycleScope.launch {
             val result = PrintService.printTest(this@SettingsActivity, address)
             result.onSuccess {
-                Snackbar.make(findViewById(android.R.id.content), "✓ Página de prueba enviada", Snackbar.LENGTH_SHORT).show()
+                Snackbar.make(findViewById(android.R.id.content), getString(R.string.success_test_page_sent), Snackbar.LENGTH_SHORT).show()
             }.onFailure { e ->
-                Snackbar.make(findViewById(android.R.id.content), "Error: ${e.localizedMessage ?: "No se pudo conectar"}", Snackbar.LENGTH_LONG).show()
+                Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_print_test, e.localizedMessage ?: getString(R.string.error_no_connection)), Snackbar.LENGTH_LONG).show()
             }
             btnTestPrinter.isEnabled = true
-            btnTestPrinter.text = "Imprimir página de prueba"
+            btnTestPrinter.text = getString(R.string.btn_test_printer)
+        }
+    }
+
+    private fun applyLanguage(lang: String) {
+        if (securePrefs.getLanguage() == lang) return
+        securePrefs.saveLanguage(lang)
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+    }
+
+    private fun updateLanguageButtons(activeLang: String) {
+        val colorPrimary = ContextCompat.getColor(this, R.color.primary)
+        val colorSurface = ContextCompat.getColor(this, R.color.surface)
+        val colorWhite   = ContextCompat.getColor(this, R.color.white)
+        val colorPrimaryText = ContextCompat.getColor(this, R.color.text_primary)
+
+        if (activeLang == "en") {
+            btnLangEn.setBackgroundColor(colorPrimary)
+            btnLangEn.setTextColor(colorWhite)
+            btnLangEs.setBackgroundColor(colorSurface)
+            btnLangEs.setTextColor(colorPrimaryText)
+        } else {
+            btnLangEs.setBackgroundColor(colorPrimary)
+            btnLangEs.setTextColor(colorWhite)
+            btnLangEn.setBackgroundColor(colorSurface)
+            btnLangEn.setTextColor(colorPrimaryText)
         }
     }
 
@@ -207,32 +245,9 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun showPrinterHelp() {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("¿Cómo agregar la impresora?")
-            .setMessage(
-                "Sigue estos pasos para conectar la Zebra ZQ630 Plus:\n\n" +
-                "1️⃣  Enciende la impresora ZQ630 Plus.\n\n" +
-                "2️⃣  Encuentra la dirección Bluetooth\n" +
-                "     de la impresora. Hay dos formas:\n\n" +
-                "     • En la parte trasera (donde va la\n" +
-                "       batería) hay una etiqueta con un\n" +
-                "       código de barras — la dirección\n" +
-                "       está impresa ahí.\n\n" +
-                "     • O accede al menú Bluetooth de la\n" +
-                "       impresora para verla en pantalla.\n\n" +
-                "     Ejemplo: 8C:D5:4A:1C:0C:85\n\n" +
-                "3️⃣  En esta pantalla toca\n" +
-                "     \"Seleccionar impresora\".\n\n" +
-                "4️⃣  Aparecerá la lista de impresoras\n" +
-                "     disponibles con su dirección Bluetooth.\n" +
-                "     Selecciona la que coincide con la\n" +
-                "     dirección del paso 2.\n\n" +
-                "5️⃣  Toca \"Imprimir página de prueba\"\n" +
-                "     para confirmar que funciona.\n\n" +
-                "💡  Si no aparece tu impresora en la lista,\n" +
-                "     verifica que esté encendida y cerca\n" +
-                "     del dispositivo."
-            )
-            .setPositiveButton("Entendido", null)
+            .setTitle(getString(R.string.title_printer_help))
+            .setMessage(getString(R.string.msg_printer_help))
+            .setPositiveButton(getString(R.string.printer_help_understood), null)
             .show()
     }
 }

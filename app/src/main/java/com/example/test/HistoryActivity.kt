@@ -8,7 +8,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -32,7 +32,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
-class HistoryActivity : AppCompatActivity() {
+class HistoryActivity : BaseActivity() {
 
     private lateinit var chipGroupDate: ChipGroup
     private lateinit var chipGroup: ChipGroup
@@ -177,10 +177,10 @@ class HistoryActivity : AppCompatActivity() {
                     btnLoadMore.visibility   = View.GONE
                     val tvEmpty = layoutEmpty.findViewById<android.widget.TextView>(R.id.tvEmptyMessage)
                     tvEmpty?.text = when (currentFilter) {
-                        "SENT"    -> "Sin pedidos enviados"
-                        "PENDING" -> "Sin pedidos pendientes"
-                        "FAILED"  -> "Sin pedidos fallidos"
-                        else      -> "Sin pedidos registrados"
+                        "SENT"    -> getString(R.string.empty_sent)
+                        "PENDING" -> getString(R.string.empty_pending)
+                        "FAILED"  -> getString(R.string.empty_failed)
+                        else      -> getString(R.string.empty_all)
                     }
                 } else {
                     layoutEntries.visibility = View.VISIBLE
@@ -220,17 +220,17 @@ class HistoryActivity : AppCompatActivity() {
         val tvStatus = view.findViewById<TextView>(R.id.tvEntryStatus)
         when (entry.status) {
             SyncStatus.SENT -> {
-                tvStatus.text = "ENVIADO"
+                tvStatus.text = getString(R.string.status_sent)
                 tvStatus.setBackgroundResource(R.drawable.bg_chip_sent)
                 tvStatus.setTextColor(ContextCompat.getColor(this, R.color.success))
             }
             SyncStatus.PENDING -> {
-                tvStatus.text = "PENDIENTE"
+                tvStatus.text = getString(R.string.status_pending)
                 tvStatus.setBackgroundResource(R.drawable.bg_chip_pending)
                 tvStatus.setTextColor(ContextCompat.getColor(this, R.color.warning))
             }
             SyncStatus.FAILED -> {
-                tvStatus.text = "FALLIDO"
+                tvStatus.text = getString(R.string.status_failed)
                 tvStatus.setBackgroundResource(R.drawable.bg_chip_failed)
                 tvStatus.setTextColor(ContextCompat.getColor(this, R.color.red))
             }
@@ -240,10 +240,10 @@ class HistoryActivity : AppCompatActivity() {
     private fun bindRetry(view: View, order: PendingOrderEntity) {
         val btn = view.findViewById<MaterialButton>(R.id.btnRetryEntry)
         btn.visibility = View.VISIBLE
-        btn.text = if (order.retryCount == -1) "Reintentar envío" else "Enviar ahora"
+        btn.text = if (order.retryCount == -1) getString(R.string.btn_retry_send) else getString(R.string.btn_send_now)
         btn.setOnClickListener {
             btn.isEnabled = false
-            btn.text = "Enviando..."
+            btn.text = getString(R.string.btn_sending)
             lifecycleScope.launch {
                 val item = BatchItem(
                     barcode = order.barcode,
@@ -263,10 +263,10 @@ class HistoryActivity : AppCompatActivity() {
                 }
                 result.onFailure { e ->
                     btn.isEnabled = true
-                    btn.text = if (order.retryCount == -1) "Reintentar envío" else "Enviar ahora"
+                    btn.text = if (order.retryCount == -1) getString(R.string.btn_retry_send) else getString(R.string.btn_send_now)
                     Snackbar.make(
                         findViewById(android.R.id.content),
-                        e.localizedMessage ?: "Error de conexión",
+                        e.localizedMessage ?: getString(R.string.error_connection),
                         Snackbar.LENGTH_SHORT
                     ).show()
                 }
@@ -276,7 +276,7 @@ class HistoryActivity : AppCompatActivity() {
 
     private fun bindBatchHeader(view: View, batchId: String, orders: List<OrderDto>, invoiceId: String?) {
         view.findViewById<TextView>(R.id.tvBatchId).text =
-            "Pedido #${batchId.takeLast(6)}  ·  ${orders.size} producto(s)"
+            getString(R.string.batch_summary, batchId.takeLast(6), orders.size)
 
         val dateStr = orders.firstOrNull()?.createdAt?.let {
             try {
@@ -303,7 +303,7 @@ class HistoryActivity : AppCompatActivity() {
 
         val allSent = orders.all { it.status == "SENT" }
         view.findViewById<TextView>(R.id.tvBatchStatus).apply {
-            text = if (allSent) "COMPLETADO" else "PENDIENTE"
+            text = if (allSent) getString(R.string.label_completed) else getString(R.string.label_pending_status)
             setBackgroundResource(if (allSent) R.drawable.bg_chip_sent else R.drawable.bg_chip_pending)
             setTextColor(ContextCompat.getColor(this@HistoryActivity, if (allSent) R.color.success else R.color.warning))
         }

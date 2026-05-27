@@ -19,7 +19,7 @@
             app:navigationIcon="@drawable/ic_back"
             app:navigationIconTint="#FFFFFF"
             app:titleTextColor="#FFFFFF"
-            app:title="Historial del cliente" />
+            app:title="@string/title_client_history" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -103,7 +103,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Sin pedidos registrados"
+                            android:text="@string/label_no_orders"
                             android:textColor="@color/text_secondary"
                             android:textSize="15sp" />
 
@@ -112,7 +112,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
                             android:gravity="center"
-                            android:text="Los pedidos enviados a QuickBooks\naparecerán aquí"
+                            android:text="@string/label_orders_will_appear"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -124,7 +124,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
                         android:layout_marginTop="8dp"
-                        android:text="Cargar más"
+                        android:text="@string/btn_load_more"
                         android:visibility="gone"
                         app:cornerRadius="22dp" />
 

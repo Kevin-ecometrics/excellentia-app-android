@@ -123,6 +123,9 @@ class SecurePreferences(context: Context) {
     fun getLastScanName(): String? = prefs.getString(KEY_LAST_SCAN_NAME, null)
     fun getLastScanTime(): Long = prefs.getLong(KEY_LAST_SCAN_TIME, 0L)
 
+    fun saveLanguage(lang: String) = prefs.edit().putString(KEY_LANGUAGE, lang).apply()
+    fun getLanguage(): String = prefs.getString(KEY_LANGUAGE, "en") ?: "en"
+
     fun getCompanyName(): String = prefs.getString(KEY_COMPANY_NAME, "EXCELLENTIA") ?: "EXCELLENTIA"
     fun getCompanySubtitle(): String = prefs.getString(KEY_COMPANY_SUBTITLE, "Ticket de Venta") ?: "Ticket de Venta"
     fun getCompanyAddress(): String? = prefs.getString(KEY_COMPANY_ADDRESS, null)?.takeIf { it.isNotBlank() }
@@ -146,6 +149,7 @@ class SecurePreferences(context: Context) {
         private const val KEY_LAST_SCAN_BARCODE = "last_scan_barcode"
         private const val KEY_LAST_SCAN_NAME = "last_scan_name"
         private const val KEY_LAST_SCAN_TIME = "last_scan_time"
+        private const val KEY_LANGUAGE = "app_language"
         private const val KEY_COMPANY_NAME = "company_name"
         private const val KEY_COMPANY_SUBTITLE = "company_subtitle"
         private const val KEY_COMPANY_ADDRESS = "company_address"

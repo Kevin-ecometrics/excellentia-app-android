@@ -18,7 +18,7 @@
             android:background="@color/primary"
             app:navigationIcon="@drawable/ic_back"
             app:navigationIconTint="#FFFFFF"
-            app:title="Pre-órdenes"
+            app:title="@string/title_pre_orders"
             app:titleTextColor="#FFFFFF" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -50,28 +50,28 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    android:text="Pendientes" />
+                    android:text="@string/chip_pending_pre_orders" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipConverted"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Convertidas" />
+                    android:text="@string/chip_converted" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipCancelled"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Canceladas" />
+                    android:text="@string/chip_cancelled" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipAll"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Todas" />
+                    android:text="@string/chip_all_pre_orders" />
             </com.google.android.material.chip.ChipGroup>
         </HorizontalScrollView>
 
@@ -113,7 +113,7 @@
                             android:id="@+id/tvEmptyLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Sin pre-órdenes activas"
+                            android:text="@string/empty_pre_orders_pending"
                             android:textColor="@color/text_secondary"
                             android:textSize="15sp" />
 
@@ -122,7 +122,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
                             android:gravity="center"
-                            android:text="Crea una pre-orden con el botón +"
+                            android:text="@string/btn_new_pre_order"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -139,7 +139,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:text="Nueva pre-orden"
+        android:text="@string/btn_new_pre_order"
         android:textColor="#FFFFFF"
         app:icon="@drawable/ic_add"
         app:iconTint="#FFFFFF"

@@ -77,7 +77,9 @@
       "Bash(Select-String -Pattern \"\\\\.env\")",
       "Bash(del *)",
       "Bash(bun -e *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug)"
     ]
   }
 }

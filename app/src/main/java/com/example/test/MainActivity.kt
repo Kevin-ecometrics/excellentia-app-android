@@ -17,7 +17,7 @@ import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.content.ContextCompat
@@ -36,7 +36,7 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
     companion object {
         private const val DW_RESULT_ACTION = "com.symbol.datawedge.datawedge.ACTION_RESULT"
@@ -252,7 +252,7 @@ class MainActivity : AppCompatActivity() {
         btnHoldScan.alpha = if (enabled) 1f else 0.4f
         btnManualEntry.isEnabled = enabled
         btnManualEntry.alpha = if (enabled) 1f else 0.4f
-        tvScanPrompt.text = if (enabled) "Listo para escanear" else "Selecciona un cliente primero"
+        tvScanPrompt.text = if (enabled) getString(R.string.label_ready_to_scan) else getString(R.string.label_select_customer_first)
     }
 
     private fun initViews() {
@@ -283,7 +283,7 @@ class MainActivity : AppCompatActivity() {
 
         // Búsqueda por nombre (long press en manual entry)
         btnManualEntry.setOnLongClickListener {
-            Snackbar.make(findViewById(android.R.id.content), "Buscando por nombre…", Snackbar.LENGTH_SHORT).show()
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_searching_by_name), Snackbar.LENGTH_SHORT).show()
             showProductSearchDialog()
             true
         }
@@ -300,9 +300,9 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putBoolean("shown_longpress_tips", true).apply()
             com.google.android.material.snackbar.Snackbar.make(
                 findViewById(android.R.id.content),
-                "Tip: Mantén presionado \"Ingresar código\" para buscar por nombre, o el último escaneo para el resumen del día",
+                getString(R.string.tip_longpress),
                 com.google.android.material.snackbar.Snackbar.LENGTH_INDEFINITE
-            ).setAction("Entendido") {}.show()
+            ).setAction(getString(R.string.btn_understood)) {}.show()
         }
 
         btnSelectCustomer.setOnClickListener {
@@ -403,9 +403,9 @@ class MainActivity : AppCompatActivity() {
                     }
                 ))
             })
-            setStatus(true, "ONLINE")
+            setStatus(true, getString(R.string.status_online))
         } else {
-            setStatus(false, "NO DW")
+            setStatus(false, getString(R.string.status_offline_dw))
         }
     }
 
@@ -475,17 +475,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun showGuide() {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Configurar escáner DataWedge")
-            .setMessage(
-                "Para usar el escáner físico del Zebra:\n\n" +
-                "1. Abre la app DataWedge\n" +
-                "2. Crea un perfil \"$DW_PROFILE\"\n" +
-                "3. Asocia la app y activa Intent output\n" +
-                "   Acción: $DW_RESULT_ACTION\n" +
-                "   Delivery: Broadcast\n\n" +
-                "O usa el botón 'Ingresar código' para entrada manual."
-            )
-            .setPositiveButton("Entendido", null)
+            .setTitle(getString(R.string.title_configure_datawedge))
+            .setMessage(getString(R.string.msg_configure_datawedge, DW_PROFILE, DW_RESULT_ACTION))
+            .setPositiveButton(getString(R.string.btn_understood), null)
             .show()
     }
 
@@ -523,16 +515,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun showProductNotFound(barcode: String) {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Producto no encontrado")
-            .setMessage("El código \"$barcode\" no existe en el catálogo.\n\nVerifica que el producto esté registrado en el sistema.")
-            .setPositiveButton("Reintentar") { _, _ -> showManualEntryDialog() }
-            .setNegativeButton("Cerrar", null)
+            .setTitle(getString(R.string.title_product_not_found))
+            .setMessage(getString(R.string.msg_product_not_found, barcode))
+            .setPositiveButton(getString(R.string.btn_retry)) { _, _ -> showManualEntryDialog() }
+            .setNegativeButton(getString(R.string.btn_close), null)
             .show()
     }
 
     private fun onDwResult(result: String) {
         runOnUiThread {
-            setStatus(result == "TRUE", if (result == "TRUE") "ONLINE" else "ERROR")
+            setStatus(result == "TRUE", if (result == "TRUE") getString(R.string.status_online) else getString(R.string.status_dw_error))
         }
     }
 
@@ -540,13 +532,13 @@ class MainActivity : AppCompatActivity() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_manual_entry, null)
         val etBarcode = dialogView.findViewById<android.widget.EditText>(R.id.etBarcode)
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Ingresar código de barras")
+            .setTitle(getString(R.string.title_manual_entry))
             .setView(dialogView)
-            .setPositiveButton("Buscar") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_search)) { _, _ ->
                 val barcode = etBarcode.text.toString().trim()
                 if (barcode.isNotEmpty()) openDetail(barcode)
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -557,14 +549,14 @@ class MainActivity : AppCompatActivity() {
             setPadding(48, 16, 48, 0)
         }
         val etSearch = android.widget.EditText(ctx).apply {
-            hint = "Nombre del producto…"
+            hint = getString(R.string.hint_product_name_search)
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
         val tvResults = android.widget.TextView(ctx).apply {
             textSize = 13f
             setPadding(0, 12, 0, 0)
             setTextColor(getColor(R.color.text_secondary))
-            text = "Escribe para buscar"
+            text = getString(R.string.label_type_to_search)
         }
         layout.addView(etSearch)
         layout.addView(tvResults)
@@ -572,9 +564,9 @@ class MainActivity : AppCompatActivity() {
         var foundProducts: List<com.example.test.data.ProductDto> = emptyList()
 
         val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-            .setTitle("Buscar producto por nombre")
+            .setTitle(getString(R.string.title_search_product_by_name))
             .setView(layout)
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .create()
 
         etSearch.addTextChangedListener(object : android.text.TextWatcher {
@@ -582,23 +574,23 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
                 val query = s?.toString()?.trim() ?: return
-                if (query.length < 2) { tvResults.text = "Escribe al menos 2 caracteres"; return }
-                tvResults.text = "Buscando…"
+                if (query.length < 2) { tvResults.text = getString(R.string.label_type_at_least_2); return }
+                tvResults.text = getString(R.string.label_searching)
                 lifecycleScope.launch {
                     try {
                         val resp = RetrofitClient.getApi().searchProducts(query)
                         if (resp.isSuccessful) {
                             foundProducts = resp.body()?.data ?: emptyList()
                             if (foundProducts.isEmpty()) {
-                                tvResults.text = "Sin resultados para \"$query\""
+                                tvResults.text = getString(R.string.label_no_results, query)
                             } else {
                                 tvResults.text = foundProducts.joinToString("\n\n") { p ->
-                                    "▸ ${p.name}\n   ${"$"}${String.format(java.util.Locale.US, "%.2f", p.price)}/lb   ${p.barcode ?: "sin barcode"}"
+                                    "▸ ${p.name}\n   ${"$"}${String.format(java.util.Locale.US, "%.2f", p.price)}/lb   ${p.barcode ?: getString(R.string.no_barcode_label)}"
                                 }
                             }
                         }
                     } catch (_: Exception) {
-                        tvResults.text = "Error al buscar"
+                        tvResults.text = getString(R.string.label_search_error)
                     }
                 }
             }
@@ -613,7 +605,7 @@ class MainActivity : AppCompatActivity() {
             } else if (foundProducts.isNotEmpty()) {
                 val names = foundProducts.map { "${it.name}  ($${String.format(java.util.Locale.US,"%.2f",it.price)}/lb)" }.toTypedArray()
                 com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                    .setTitle("Seleccionar producto")
+                    .setTitle(getString(R.string.title_select_product))
                     .setItems(names) { _, i ->
                         dialog.dismiss()
                         foundProducts[i].barcode?.let { barcode -> openDetail(barcode) }
@@ -641,18 +633,19 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (_: Exception) {}
 
-            val msg = buildString {
-                append("📅 $today\n\n")
-                append("Pedidos enviados hoy: $sentToday\n")
-                append("Ingresos hoy: \$${String.format(java.util.Locale.US, "%.2f", revenueToday)}\n\n")
-                append("En cola (pendientes): $pendingCount")
-            }
+            val msg = getString(
+                R.string.msg_daily_summary,
+                today,
+                sentToday,
+                String.format(java.util.Locale.US, "%.2f", revenueToday),
+                pendingCount
+            )
 
             runOnUiThread {
                 com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MainActivity)
-                    .setTitle("Resumen del día")
+                    .setTitle(getString(R.string.title_daily_summary))
                     .setMessage(msg)
-                    .setPositiveButton("Cerrar", null)
+                    .setPositiveButton(getString(R.string.btn_close), null)
                     .show()
             }
         }

@@ -11,7 +11,7 @@
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Peso"
+        android:hint="@string/hint_weight"
         app:suffixText="lb">
 
         <com.google.android.material.textfield.TextInputEditText

@@ -12,7 +12,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -35,7 +35,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-class PreOrderDetailActivity : AppCompatActivity() {
+class PreOrderDetailActivity : BaseActivity() {
 
     private lateinit var tvDetailCustomer: TextView
     private lateinit var tvDetailStatus: TextView
@@ -131,10 +131,10 @@ class PreOrderDetailActivity : AppCompatActivity() {
         tvDetailCustomer.text = po.customerName
 
         val statusLabel = when (po.status) {
-            "DRAFT"     -> "BORRADOR"
-            "CONFIRMED" -> "CONFIRMADA"
-            "CONVERTED" -> "CONVERTIDA"
-            "CANCELLED" -> "CANCELADA"
+            "DRAFT"     -> getString(R.string.status_draft)
+            "CONFIRMED" -> getString(R.string.status_confirmed)
+            "CONVERTED" -> getString(R.string.status_converted)
+            "CANCELLED" -> getString(R.string.status_cancelled)
             else        -> po.status
         }
         val statusColor = when (po.status) {
@@ -149,18 +149,18 @@ class PreOrderDetailActivity : AppCompatActivity() {
         val dateStr = buildString {
             po.scheduledDate?.let { raw ->
                 val formatted = formatDate(raw, "dd MMM yyyy")
-                append("Entrega programada: $formatted")
+                append(getString(R.string.label_scheduled_delivery, formatted))
             }
             po.createdAt?.let { raw ->
                 val formatted = formatDate(raw, "dd MMM yyyy  HH:mm")
                 if (isNotEmpty()) append("\n")
-                append("Creada: $formatted")
+                append(getString(R.string.label_created_on, formatted))
             }
         }
         tvDetailDate.text = dateStr
 
         if (!po.notes.isNullOrBlank()) {
-            tvDetailNotes.text = "Notas: ${po.notes}"
+            tvDetailNotes.text = getString(R.string.label_notes_prefix, po.notes)
             tvDetailNotes.visibility = View.VISIBLE
         } else {
             tvDetailNotes.visibility = View.GONE
@@ -239,7 +239,7 @@ class PreOrderDetailActivity : AppCompatActivity() {
             setPadding((20 * density).toInt(), (4 * density).toInt(), (20 * density).toInt(), (8 * density).toInt())
         }
         container.addView(TextView(this).apply {
-            text = "Indica las unidades dañadas (0 = ninguna)."
+            text = getString(R.string.msg_damaged_items_hint)
             textSize = 13f
             setTextColor(getColor(R.color.text_secondary))
             layoutParams = LinearLayout.LayoutParams(
@@ -297,9 +297,9 @@ class PreOrderDetailActivity : AppCompatActivity() {
         ))
 
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("¿Artículos dañados o vencidos?")
+            .setTitle(getString(R.string.title_damaged_items))
             .setView(wrapper)
-            .setPositiveButton("Continuar") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
                 pendingDamageItems = inputs.mapNotNull { (item, et) ->
                     val qty = et.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
                     if (qty > 0) DamageItem(barcode = item.barcode, productName = item.productName, qty = qty)
@@ -307,7 +307,7 @@ class PreOrderDetailActivity : AppCompatActivity() {
                 }
                 askPaymentMethod()
             }
-            .setNegativeButton("Ninguno") { _, _ ->
+            .setNegativeButton(getString(R.string.btn_none)) { _, _ ->
                 pendingDamageItems = emptyList()
                 askPaymentMethod()
             }
@@ -316,34 +316,34 @@ class PreOrderDetailActivity : AppCompatActivity() {
 
     private fun askPaymentMethod() {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Método de pago")
-            .setMessage("¿Cómo paga el cliente?")
-            .setPositiveButton("Cash")   { _, _ -> pendingPaymentMethod = "Cash";  checkPrinterThenConvert() }
-            .setNeutralButton("Check")   { _, _ -> pendingPaymentMethod = "Check"; checkPrinterThenConvert() }
-            .setNegativeButton("Omitir") { _, _ -> pendingPaymentMethod = null;    checkPrinterThenConvert() }
+            .setTitle(getString(R.string.title_payment_method))
+            .setMessage(getString(R.string.msg_payment_method))
+            .setPositiveButton(getString(R.string.btn_cash))   { _, _ -> pendingPaymentMethod = "Cash";  checkPrinterThenConvert() }
+            .setNeutralButton(getString(R.string.btn_check))   { _, _ -> pendingPaymentMethod = "Check"; checkPrinterThenConvert() }
+            .setNegativeButton(getString(R.string.btn_skip)) { _, _ -> pendingPaymentMethod = null;    checkPrinterThenConvert() }
             .show()
     }
 
     private fun checkPrinterThenConvert() {
         val printerAddress = securePrefs.getPrinterAddress()
-        val printerName    = securePrefs.getPrinterName() ?: "Impresora"
+        val printerName    = securePrefs.getPrinterName() ?: getString(R.string.btn_select_printer)
 
         if (printerAddress.isNullOrBlank()) {
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("Sin impresora configurada")
+                .setTitle(getString(R.string.title_no_printer))
                 .setIcon(android.R.drawable.ic_dialog_alert)
-                .setMessage("No hay ninguna impresora asignada en Ajustes. No se generará ticket físico.\n\n¿Deseas continuar sin imprimir o ir a Ajustes para configurarla?")
-                .setPositiveButton("Continuar sin imprimir") { _, _ -> doConvert(skipPrint = true) }
-                .setNeutralButton("Ir a Ajustes") { _, _ -> startActivity(Intent(this, SettingsActivity::class.java)) }
-                .setNegativeButton("Cancelar", null)
+                .setMessage(getString(R.string.msg_no_printer))
+                .setPositiveButton(getString(R.string.btn_continue_no_print)) { _, _ -> doConvert(skipPrint = true) }
+                .setNeutralButton(getString(R.string.btn_go_to_settings)) { _, _ -> startActivity(Intent(this, SettingsActivity::class.java)) }
+                .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
         } else {
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("Confirmar impresión")
-                .setMessage("Se imprimirá el ticket en:\n\n$printerName\n\nAsegúrate de que la impresora esté encendida y cerca antes de continuar.")
-                .setPositiveButton("Finalizar e imprimir")    { _, _ -> doConvert(skipPrint = false) }
-                .setNeutralButton("Finalizar sin imprimir")   { _, _ -> doConvert(skipPrint = true) }
-                .setNegativeButton("Cancelar", null)
+                .setTitle(getString(R.string.title_confirm_print))
+                .setMessage(getString(R.string.msg_confirm_print, printerName))
+                .setPositiveButton(getString(R.string.btn_finalize_and_print))    { _, _ -> doConvert(skipPrint = false) }
+                .setNeutralButton(getString(R.string.btn_finalize_no_print))   { _, _ -> doConvert(skipPrint = true) }
+                .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
         }
     }
@@ -352,8 +352,8 @@ class PreOrderDetailActivity : AppCompatActivity() {
         val po = currentPreOrder ?: return
 
         layoutLoading.visibility = View.VISIBLE
-        tvLoadingTitle.text    = "Convirtiendo pre-orden..."
-        tvLoadingSubtitle.text = "Cliente: ${po.customerName}"
+        tvLoadingTitle.text    = getString(R.string.loading_converting_pre_order)
+        tvLoadingSubtitle.text = getString(R.string.loading_client, po.customerName)
         btnConvert.isEnabled   = false
         btnCancel.isEnabled    = false
 
@@ -375,8 +375,8 @@ class PreOrderDetailActivity : AppCompatActivity() {
                 if (resp.isSuccessful) {
                     val body = resp.body()!!
 
-                    tvLoadingTitle.text    = "Generando factura..."
-                    tvLoadingSubtitle.text = "Factura QB: ${body.invoiceId ?: "—"}"
+                    tvLoadingTitle.text    = getString(R.string.loading_generating_invoice)
+                    tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, body.invoiceId ?: "—")
 
                     pendingSignature     = null
                     pendingDamageItems   = emptyList()
@@ -394,8 +394,8 @@ class PreOrderDetailActivity : AppCompatActivity() {
 
                     val printerAddress = securePrefs.getPrinterAddress()
                     if (!skipPrint && !printerAddress.isNullOrBlank()) {
-                        tvLoadingTitle.text    = "Imprimiendo ticket..."
-                        tvLoadingSubtitle.text = "Conectando con impresora"
+                        tvLoadingTitle.text    = getString(R.string.loading_printing_ticket)
+                        tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
                         val printResult = PrintService.printTicket(
                             context         = this@PreOrderDetailActivity,
                             deviceAddress   = printerAddress,
@@ -411,7 +411,7 @@ class PreOrderDetailActivity : AppCompatActivity() {
                         printResult.onFailure { e ->
                             Snackbar.make(
                                 findViewById(android.R.id.content),
-                                "Pedido enviado · Error al imprimir: ${e.localizedMessage ?: "sin conexión"}",
+                                getString(R.string.error_print_after_send, e.localizedMessage ?: getString(R.string.error_no_connection)),
                                 Snackbar.LENGTH_LONG
                             ).show()
                         }
@@ -466,10 +466,10 @@ class PreOrderDetailActivity : AppCompatActivity() {
 
     private fun confirmCancel() {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Cancelar pre-orden")
-            .setMessage("¿Deseas cancelar esta pre-orden? Esta acción no se puede deshacer.")
-            .setPositiveButton("Sí, cancelar") { _, _ -> cancelPreOrder() }
-            .setNegativeButton("No", null)
+            .setTitle(getString(R.string.title_cancel_pre_order))
+            .setMessage(getString(R.string.msg_cancel_pre_order))
+            .setPositiveButton(getString(R.string.btn_yes_cancel)) { _, _ -> cancelPreOrder() }
+            .setNegativeButton(getString(R.string.btn_no), null)
             .show()
     }
 
@@ -488,11 +488,11 @@ class PreOrderDetailActivity : AppCompatActivity() {
     private fun reusePreOrder() {
         val po = currentPreOrder ?: return
         if (po.items.isEmpty()) {
-            showError("Esta pre-orden no tiene ítems para reusar")
+            showError(getString(R.string.error_no_items_reuse))
             return
         }
         btnReuse.isEnabled = false
-        btnReuse.text = "Creando..."
+        btnReuse.text = getString(R.string.btn_creating)
 
         lifecycleScope.launch {
             try {
@@ -508,7 +508,7 @@ class PreOrderDetailActivity : AppCompatActivity() {
                     val newId = resp.body()?.id ?: 0
                     Snackbar.make(
                         findViewById(android.R.id.content),
-                        "Nueva pre-orden creada",
+                        getString(R.string.success_new_pre_order_created),
                         Snackbar.LENGTH_SHORT
                     ).show()
                     // Abrir el detalle de la nueva pre-orden
@@ -523,7 +523,7 @@ class PreOrderDetailActivity : AppCompatActivity() {
                 showError(e.localizedMessage ?: "Error de conexión")
             } finally {
                 btnReuse.isEnabled = true
-                btnReuse.text = "Reusar pre-orden"
+                btnReuse.text = getString(R.string.btn_reuse_pre_order)
             }
         }
     }

@@ -21,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_back"
-            app:title="Detalles del producto" />
+            app:title="@string/title_product" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Scrollable content -->
@@ -143,7 +143,7 @@
                                     android:id="@+id/tvUnits"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="1"
+                                    android:text="@string/default_unit_count"
                                     android:textColor="@color/text_primary"
                                     android:textSize="20sp"
                                     android:textStyle="bold" />
@@ -151,7 +151,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="unid."
+                                    android:text="@string/label_units_abbr"
                                     android:textColor="@color/text_secondary"
                                     android:textSize="10sp" />
                             </LinearLayout>
@@ -198,7 +198,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="10dp"
                         android:letterSpacing="0.06"
-                        android:text="HISTORIAL DE PRECIOS"
+                        android:text="@string/label_price_history"
                         android:textAllCaps="true"
                         android:textColor="@color/text_secondary"
                         android:textSize="11sp" />
@@ -242,7 +242,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="10dp"
                         android:letterSpacing="0.06"
-                        android:text="PESOS POR UNIDAD"
+                        android:text="@string/label_weights_per_unit"
                         android:textAllCaps="true"
                         android:textColor="@color/text_secondary"
                         android:textSize="11sp" />
@@ -269,7 +269,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Peso total"
+                            android:text="@string/label_total_weight"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp" />
 
@@ -312,7 +312,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="TOTAL DEL ÍTEM"
+                            android:text="@string/label_item_total"
                             android:textAllCaps="true"
                             android:textColor="#B3FFFFFF"
                             android:textSize="10sp" />
@@ -357,7 +357,7 @@
             android:id="@+id/btnAddOrder"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:text="AGREGAR AL PEDIDO"
+            android:text="@string/btn_add_to_order"
             android:textColor="@color/primary"
             android:textSize="14sp"
             android:textStyle="bold"
@@ -374,7 +374,7 @@
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:layout_marginTop="4dp"
-            android:text="Cancelar"
+            android:text="@string/btn_cancel"
             android:textColor="@color/text_secondary"
             android:textSize="13sp" />
     </LinearLayout>

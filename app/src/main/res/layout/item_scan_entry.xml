@@ -93,7 +93,7 @@
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:layout_marginTop="12dp"
-            android:text="Reintentar envío"
+            android:text="@string/btn_retry_send"
             android:textSize="13sp"
             android:visibility="gone" />
     </LinearLayout>

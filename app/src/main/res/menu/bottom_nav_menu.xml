@@ -3,17 +3,17 @@
     <item
         android:id="@+id/nav_scanner"
         android:icon="@drawable/ic_scan_display"
-        android:title="Escáner" />
+        android:title="@string/bottom_nav_scanner" />
     <item
         android:id="@+id/nav_order"
         android:icon="@drawable/ic_add_cart"
-        android:title="Pedido" />
+        android:title="@string/bottom_nav_order" />
     <item
         android:id="@+id/nav_history"
         android:icon="@drawable/ic_history"
-        android:title="Historial" />
+        android:title="@string/bottom_nav_history" />
     <item
         android:id="@+id/nav_settings"
         android:icon="@drawable/ic_settings"
-        android:title="Ajustes" />
+        android:title="@string/bottom_nav_settings" />
 </menu>

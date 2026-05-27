@@ -9,7 +9,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -27,7 +27,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-class PreOrderListActivity : AppCompatActivity() {
+class PreOrderListActivity : BaseActivity() {
 
     private lateinit var chipGroup: ChipGroup
     private lateinit var layoutEntries: LinearLayout
@@ -115,12 +115,12 @@ class PreOrderListActivity : AppCompatActivity() {
                     }
                     renderList(list)
                 } else {
-                    Snackbar.make(findViewById(android.R.id.content), "Error ${resp.code()}", Snackbar.LENGTH_SHORT).show()
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Snackbar.make(
                     findViewById(android.R.id.content),
-                    e.localizedMessage ?: "Error de conexión",
+                    e.localizedMessage ?: getString(R.string.error_connection),
                     Snackbar.LENGTH_SHORT
                 ).show()
             } finally {
@@ -134,10 +134,10 @@ class PreOrderListActivity : AppCompatActivity() {
             layoutEntries.visibility = View.GONE
             layoutEmpty.visibility   = View.VISIBLE
             layoutEmpty.findViewById<TextView>(R.id.tvEmptyLabel)?.text = when (currentFilter) {
-                "CONVERTED"  -> "Sin pre-órdenes convertidas"
-                "CANCELLED"  -> "Sin pre-órdenes canceladas"
-                "ALL"        -> "Sin pre-órdenes"
-                else         -> "Sin pre-órdenes pendientes"
+                "CONVERTED"  -> getString(R.string.empty_pre_orders_converted)
+                "CANCELLED"  -> getString(R.string.empty_pre_orders_cancelled)
+                "ALL"        -> getString(R.string.empty_pre_orders_all)
+                else         -> getString(R.string.empty_pre_orders_pending)
             }
             return
         }
@@ -157,10 +157,10 @@ class PreOrderListActivity : AppCompatActivity() {
         view.findViewById<TextView>(R.id.tvPreOrderCustomer).text = po.customerName
 
         val statusLabel = when (po.status) {
-            "DRAFT"     -> "BORRADOR"
-            "CONFIRMED" -> "CONFIRMADA"
-            "CONVERTED" -> "CONVERTIDA"
-            "CANCELLED" -> "CANCELADA"
+            "DRAFT"     -> getString(R.string.status_draft)
+            "CONFIRMED" -> getString(R.string.status_confirmed)
+            "CONVERTED" -> getString(R.string.status_converted)
+            "CANCELLED" -> getString(R.string.status_cancelled)
             else        -> po.status
         }
         val statusColor = when (po.status) {
@@ -180,11 +180,11 @@ class PreOrderListActivity : AppCompatActivity() {
             setTextColor(ContextCompat.getColor(this@PreOrderListActivity, statusColor))
         }
 
-        val dateStr = po.scheduledDate?.let { "Entrega: ${formatDate(it, "dd MMM yyyy")}" }
-            ?: po.createdAt?.let { "Creado: ${formatDate(it, "dd MMM yyyy")}" }
+        val dateStr = po.scheduledDate?.let { getString(R.string.label_delivery_prefix, formatDate(it, "dd MMM yyyy")) }
+            ?: po.createdAt?.let { getString(R.string.label_created_prefix, formatDate(it, "dd MMM yyyy")) }
             ?: ""
         view.findViewById<TextView>(R.id.tvPreOrderDate).text = dateStr
-        view.findViewById<TextView>(R.id.tvPreOrderItems).text = "${po.itemCount} producto(s)"
+        view.findViewById<TextView>(R.id.tvPreOrderItems).text = getString(R.string.label_products_count, po.itemCount)
 
         val tvNotes = view.findViewById<TextView>(R.id.tvPreOrderNotes)
         if (!po.notes.isNullOrBlank()) {

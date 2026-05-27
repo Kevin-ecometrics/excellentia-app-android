@@ -1,0 +1,397 @@
+<resources>
+    <string name="app_name">Excellentia Scanner</string>
+    <string name="btn_scan">Guía de configuración</string>
+    <string name="btn_history">Historial</string>
+    <string name="btn_settings">Ajustes</string>
+    <string name="btn_add_order">Agregar al pedido</string>
+    <string name="btn_view_history">Ver historial</string>
+    <string name="btn_save">Guardar ajustes</string>
+    <string name="scan_placeholder">Presiona el gatillo del Zebra para escanear</string>
+    <string name="label_last_scan">Último escaneo</string>
+    <string name="label_quantity">Cantidad</string>
+    <string name="label_backend_url">URL del servidor</string>
+    <string name="label_jwt">Token JWT</string>
+    <string name="label_scanner_mode">Modo de escáner</string>
+    <string name="label_datawedge">DataWedge (Recomendado)</string>
+    <string name="label_emdk">EMDK (Avanzado)</string>
+    <string name="label_offline">Modo sin conexión</string>
+    <string name="label_offline_desc">Guardar pedidos localmente hasta tener conexión</string>
+    <string name="hint_jwt">Ingresa tu JWT token</string>
+    <string name="title_history">Historial de escaneos</string>
+    <string name="title_settings">Ajustes</string>
+    <string name="title_product">Detalle del producto</string>
+    <string name="filter_all">Todos</string>
+    <string name="filter_sent">Enviados</string>
+    <string name="filter_pending">Pendientes</string>
+    <string name="empty_history">Sin escaneos en el historial</string>
+    <string name="status_online">ONLINE</string>
+    <string name="status_offline">OFFLINE</string>
+    <string name="manual_entry">Ingresar código manualmente</string>
+    <string name="hint_barcode">Código de barras</string>
+    <string name="btn_scan_inactive">Activar escáner</string>
+    <string name="btn_scan_active">Desactivar escáner</string>
+    <string name="section_connection">Conexión al servidor</string>
+    <string name="section_scanner">Configuración del escáner</string>
+    <string name="section_network">Red</string>
+    <string name="btn_logout">Cerrar sesión</string>
+    <!-- Language settings -->
+    <string name="section_language">Idioma</string>
+    <string name="lang_english">Inglés</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_restart_notice">La app se reiniciará para aplicar el idioma.</string>
+
+    <!-- ChangePasswordActivity -->
+    <string name="title_change_password">Cambiar contraseña</string>
+    <string name="hint_current_password">Contraseña actual</string>
+    <string name="hint_new_password">Nueva contraseña</string>
+    <string name="hint_confirm_password">Confirmar nueva contraseña</string>
+    <string name="btn_save_password">Guardar contraseña</string>
+    <string name="btn_saving">Guardando…</string>
+    <string name="error_enter_current_password">Ingresa tu contraseña actual</string>
+    <string name="error_password_too_short">La nueva contraseña debe tener al menos 6 caracteres</string>
+    <string name="error_passwords_dont_match">Las contraseñas no coinciden</string>
+    <string name="error_wrong_current_password">Contraseña actual incorrecta</string>
+    <string name="error_server_code">Error del servidor (%1$d)</string>
+    <string name="error_no_connection">Sin conexión — verifica el servidor</string>
+    <string name="success_password_changed">Contraseña actualizada correctamente</string>
+
+    <!-- LoginActivity -->
+    <string name="label_sign_in">Iniciar sesión</string>
+    <string name="hint_server_url">URL del servidor</string>
+    <string name="configure_server">⚙  Configurar servidor</string>
+    <string name="hide_server_config">▲  Ocultar configuración</string>
+    <string name="btn_login">LOGIN</string>
+    <string name="btn_logging_in">INGRESANDO…</string>
+    <string name="btn_retry_connection">REINTENTAR CONEXIÓN</string>
+    <string name="label_server_status">Estado del servidor</string>
+    <string name="status_checking">COMPROBANDO</string>
+    <string name="error_cannot_connect">No se puede conectar al servidor\nVerifica tu conexión o la URL del servidor.</string>
+    <string name="error_enter_email">Ingresa tu email</string>
+    <string name="error_enter_password">Ingresa tu contraseña</string>
+    <string name="error_email_required">Email requerido</string>
+    <string name="error_password_required">Contraseña requerida</string>
+    <string name="error_check_credentials">Verifica tu email y contraseña</string>
+    <string name="error_unknown">Error desconocido</string>
+    <string name="label_verifying">Verificando credenciales…</string>
+    <string name="error_invalid_credentials">Credenciales inválidas</string>
+
+    <!-- MainActivity -->
+    <string name="label_hello_operator">Hola, Operador</string>
+    <string name="label_ready_to_scan">Listo para escanear</string>
+    <string name="label_select_customer_first">Selecciona un cliente primero</string>
+    <string name="label_active_customer">CLIENTE ACTIVO</string>
+    <string name="btn_change_customer">Cambiar</string>
+    <string name="btn_customer_history">Historial</string>
+    <string name="label_select_customer">Seleccionar cliente</string>
+    <string name="label_select_customer_desc">Elige un cliente antes de empezar a escanear</string>
+    <string name="btn_select_customer">Seleccionar cliente</string>
+    <string name="label_tap_to_scan">TAP TO SCAN</string>
+    <string name="label_tap_circle_or_trigger">Presiona el círculo o el gatillo físico</string>
+    <string name="label_scanning">● ESCANEANDO…</string>
+    <string name="btn_manual_entry">Ingresar código manualmente</string>
+    <string name="btn_pre_orders">Pre-órdenes</string>
+    <string name="btn_how_to_configure_scanner">¿Cómo configurar el escáner?</string>
+    <string name="label_last_scan_title">ÚLTIMO ESCANEO</string>
+    <string name="label_offline_banner">Modo offline — los pedidos se guardan localmente</string>
+    <string name="tip_longpress">Tip: Mantén presionado \"Ingresar código\" para buscar por nombre, o el último escaneo para el resumen del día</string>
+    <string name="btn_understood">Entendido</string>
+    <string name="title_product_not_found">Producto no encontrado</string>
+    <string name="msg_product_not_found">El código \"%1$s\" no existe en el catálogo.\n\nVerifica que el producto esté registrado en el sistema.</string>
+    <string name="btn_retry">Reintentar</string>
+    <string name="btn_close">Cerrar</string>
+    <string name="title_manual_entry">Ingresar código de barras</string>
+    <string name="btn_search">Buscar</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="hint_product_name_search">Nombre del producto…</string>
+    <string name="label_type_to_search">Escribe para buscar</string>
+    <string name="label_type_at_least_2">Escribe al menos 2 caracteres</string>
+    <string name="label_searching">Buscando…</string>
+    <string name="label_no_results">Sin resultados para \"%1$s\"</string>
+    <string name="label_search_error">Error al buscar</string>
+    <string name="title_search_product_by_name">Buscar producto por nombre</string>
+    <string name="title_select_product">Seleccionar producto</string>
+    <string name="title_daily_summary">Resumen del día</string>
+    <string name="msg_daily_summary">📅 %1$s\n\nPedidos enviados hoy: %2$d\nIngresos hoy: $%3$s\n\nEn cola (pendientes): %4$d</string>
+    <string name="title_configure_datawedge">Configurar escáner DataWedge</string>
+    <string name="msg_configure_datawedge">Para usar el escáner físico del Zebra:\n\n1. Abre la app DataWedge\n2. Crea un perfil \"%1$s\"\n3. Asocia la app y activa Intent output\n   Acción: %2$s\n   Delivery: Broadcast\n\nO usa el botón \'Ingresar código\' para entrada manual.</string>
+    <string name="label_searching_by_name">Buscando por nombre…</string>
+
+    <!-- CustomerPickerActivity -->
+    <string name="title_select_customer">Seleccionar cliente</string>
+    <string name="hint_search_customer">Buscar cliente…</string>
+    <string name="label_no_customers_qb">No hay clientes en QuickBooks</string>
+    <string name="label_no_customers_found">No se encontraron clientes</string>
+    <string name="msg_server_error">Error del servidor (%1$s)</string>
+    <string name="msg_no_connection_showing_cached">Sin conexión — mostrando clientes guardados</string>
+    <string name="error_no_connection_no_cache">Sin conexión y sin clientes guardados.\nConéctate al servidor al menos una vez.</string>
+    <string name="option_assign_active_customer">Asignar como cliente activo</string>
+    <string name="option_view_order_history">Ver historial de pedidos</string>
+    <string name="title_confirm_customer">Confirmar cliente</string>
+    <string name="msg_assign_customer">¿Asignar este pedido a:\n\n%1$s%2$s?</string>
+    <string name="btn_yes_assign">Sí, asignar</string>
+
+    <!-- ClientHistoryActivity -->
+    <string name="title_client_history">Historial del cliente</string>
+    <string name="summary_orders_total">%1$d pedido(s)  ·  $%2$s total</string>
+    <string name="label_no_orders">Sin pedidos registrados</string>
+    <string name="label_orders_will_appear">Los pedidos enviados a QuickBooks\naparecerán aquí</string>
+    <string name="btn_load_more">Cargar más</string>
+    <string name="error_load_batch_detail">No se pudo cargar el detalle del pedido</string>
+    <string name="label_completed">COMPLETADO</string>
+    <string name="label_pending_status">PENDIENTE</string>
+    <string name="batch_summary">Pedido #%1$s  ·  %2$d producto(s)</string>
+
+    <!-- CurrentOrderActivity -->
+    <string name="label_customer_tap_change">Cliente: %1$s  ·  Toca para cambiar</string>
+    <string name="label_products_count">%1$d producto(s)</string>
+    <string name="title_delete_product">Eliminar producto</string>
+    <string name="msg_delete_product">¿Eliminar \"%1$s\" del pedido?</string>
+    <string name="btn_delete">Eliminar</string>
+    <string name="btn_save_dialog">Guardar</string>
+    <string name="error_min_price">Mínimo: $%1$s</string>
+    <string name="error_invalid_values">Valores inválidos</string>
+    <string name="title_damaged_items">¿Artículos dañados o vencidos?</string>
+    <string name="msg_damaged_items_hint">Indica las unidades dañadas (0 = ninguna).</string>
+    <string name="btn_continue">Continuar</string>
+    <string name="btn_none">Ninguno</string>
+    <string name="title_payment_method">Método de pago</string>
+    <string name="msg_payment_method">¿Cómo paga el cliente?</string>
+    <string name="btn_cash">Cash</string>
+    <string name="btn_check">Check</string>
+    <string name="btn_skip">Omitir</string>
+    <string name="title_no_printer">Sin impresora configurada</string>
+    <string name="msg_no_printer">No hay ninguna impresora asignada en Ajustes. No se generará ticket físico.\n\n¿Deseas continuar sin imprimir o ir a Ajustes para configurarla?</string>
+    <string name="btn_continue_no_print">Continuar sin imprimir</string>
+    <string name="btn_go_to_settings">Ir a Ajustes</string>
+    <string name="title_confirm_print">Confirmar impresión</string>
+    <string name="msg_confirm_print">Se imprimirá el ticket en:\n\n%1$s\n\nAsegúrate de que la impresora esté encendida y cerca antes de continuar.</string>
+    <string name="btn_finalize_and_print">Finalizar e imprimir</string>
+    <string name="btn_finalize_no_print">Finalizar sin imprimir</string>
+    <string name="loading_sending_order">Enviando pedido…</string>
+    <string name="loading_customer">Cliente: %1$s</string>
+    <string name="loading_connecting_qb">Conectando con QuickBooks</string>
+    <string name="loading_generating_invoice">Generando factura…</string>
+    <string name="loading_invoice_qb">Factura QB: %1$s</string>
+    <string name="loading_printing_ticket">Imprimiendo ticket…</string>
+    <string name="loading_connecting_printer">Conectando con impresora</string>
+    <string name="error_order_sent_print_fail">Pedido enviado · Error al imprimir: %1$s</string>
+    <string name="error_send_order">Error al enviar: %1$s</string>
+
+    <!-- HistoryActivity -->
+    <string name="chip_today">Hoy</string>
+    <string name="chip_all_dates">Todos</string>
+    <string name="chip_failed">Fallidos</string>
+    <string name="btn_load_more_orders">Cargar más pedidos</string>
+    <string name="empty_sent">Sin pedidos enviados</string>
+    <string name="empty_pending">Sin pedidos pendientes</string>
+    <string name="empty_failed">Sin pedidos fallidos</string>
+    <string name="empty_all">Sin pedidos registrados</string>
+    <string name="orders_will_appear_here">Los pedidos enviados aparecerán aquí</string>
+    <string name="status_sent">ENVIADO</string>
+    <string name="status_pending">PENDIENTE</string>
+    <string name="status_failed">FALLIDO</string>
+    <string name="btn_retry_send">Reintentar envío</string>
+    <string name="btn_send_now">Enviar ahora</string>
+    <string name="btn_sending">Enviando…</string>
+
+    <!-- CreatePreOrderActivity -->
+    <string name="title_create_pre_order">Nueva pre-orden</string>
+    <string name="label_delivery_date">Entrega: %1$s</string>
+    <string name="hint_barcode_or_code">Barcode o código</string>
+    <string name="hint_quantity_lb">Cantidad (lb)</string>
+    <string name="hint_price_per_lb">Precio / lb</string>
+    <string name="title_add_product">Agregar producto</string>
+    <string name="btn_add">Agregar</string>
+    <string name="error_valid_barcode_qty_price">Ingresa barcode, cantidad y precio válidos</string>
+    <string name="error_product_not_found_barcode">Producto no encontrado: %1$s</string>
+    <string name="error_searching_product">Error al buscar producto</string>
+    <string name="error_select_customer_first">Selecciona un cliente primero</string>
+    <string name="error_add_at_least_one_product">Agrega al menos un producto</string>
+    <string name="btn_saving_ellipsis">Guardando…</string>
+    <string name="btn_save_pre_order">Guardar pre-orden</string>
+    <string name="label_customer_selected">Cliente seleccionado</string>
+
+    <!-- PreOrderListActivity -->
+    <string name="title_pre_orders">Pre-órdenes</string>
+    <string name="chip_pending_pre_orders">Pendientes</string>
+    <string name="chip_converted">Convertidas</string>
+    <string name="chip_cancelled">Canceladas</string>
+    <string name="chip_all_pre_orders">Todas</string>
+    <string name="empty_pre_orders_converted">Sin pre-órdenes convertidas</string>
+    <string name="empty_pre_orders_cancelled">Sin pre-órdenes canceladas</string>
+    <string name="empty_pre_orders_all">Sin pre-órdenes</string>
+    <string name="empty_pre_orders_pending">Sin pre-órdenes pendientes</string>
+    <string name="btn_new_pre_order">Nueva pre-orden</string>
+    <string name="label_delivery_prefix">Entrega: %1$s</string>
+    <string name="label_created_prefix">Creado: %1$s</string>
+    <string name="status_draft">BORRADOR</string>
+    <string name="status_confirmed">CONFIRMADA</string>
+    <string name="status_converted">CONVERTIDA</string>
+    <string name="status_cancelled">CANCELADA</string>
+
+    <!-- PreOrderDetailActivity -->
+    <string name="title_pre_order_detail">Detalle de pre-orden</string>
+    <string name="label_scheduled_delivery">Entrega programada: %1$s</string>
+    <string name="label_created_on">Creada: %1$s</string>
+    <string name="label_notes_prefix">Notas: %1$s</string>
+    <string name="loading_converting_pre_order">Convirtiendo pre-orden…</string>
+    <string name="loading_client">Cliente: %1$s</string>
+    <string name="title_cancel_pre_order">Cancelar pre-orden</string>
+    <string name="msg_cancel_pre_order">¿Deseas cancelar esta pre-orden? Esta acción no se puede deshacer.</string>
+    <string name="btn_yes_cancel">Sí, cancelar</string>
+    <string name="btn_no">No</string>
+    <string name="error_no_items_reuse">Esta pre-orden no tiene ítems para reusar</string>
+    <string name="btn_creating">Creando…</string>
+    <string name="btn_reuse_pre_order">Reusar pre-orden</string>
+    <string name="success_new_pre_order_created">Nueva pre-orden creada</string>
+    <string name="error_converting_pre_order">Error al convertir: %1$d</string>
+    <string name="error_print_after_send">Pedido enviado · Error al imprimir: %1$s</string>
+
+    <!-- ProductDetailActivity -->
+    <string name="label_unknown_product">Producto Desconocido</string>
+    <string name="label_no_stock">Sin stock disponible</string>
+    <string name="label_stock_available">Stock disponible: %1$d unidad(es)</string>
+    <string name="btn_no_stock">PRODUCTO SIN STOCK</string>
+    <string name="label_unit_number">Unidad %1$d:</string>
+    <string name="title_unit_weight">Peso unidad %1$d</string>
+    <string name="title_edit_price">Editar precio total</string>
+    <string name="label_min_price">Mínimo: $%1$s</string>
+    <string name="label_min_price_display">Precio mínimo: $%1$s</string>
+    <string name="btn_apply">Aplicar</string>
+    <string name="error_invalid_price">Precio inválido</string>
+    <string name="error_load_price_history">No se pudo cargar historial de precios</string>
+    <string name="label_weight_display">Peso: %.2f lb</string>
+
+    <!-- SettingsActivity -->
+    <string name="label_no_name">Sin nombre</string>
+    <string name="label_no_printer_selected">Sin impresora seleccionada</string>
+    <string name="label_paired_device">DISPOSITIVO EMPAREJADO</string>
+    <string name="label_printer_pairing_tip">Empareja la ZQ630 en Ajustes → Bluetooth antes de seleccionarla.</string>
+    <string name="btn_select_printer">Seleccionar impresora</string>
+    <string name="btn_test_printer">Imprimir página de prueba</string>
+    <string name="btn_change_password">Cambiar contraseña</string>
+    <string name="label_printer_section">Impresora Zebra ZQ630</string>
+    <string name="label_scanner_datawedge">DataWedge — Zebra TC22</string>
+    <string name="label_scanner_auto_config">Perfil configurado automáticamente al iniciar</string>
+    <string name="label_device_section">Dispositivo</string>
+    <string name="label_model">Modelo</string>
+    <string name="label_android">Android</string>
+    <string name="label_serial">Serie</string>
+    <string name="label_about_app">Acerca de la app</string>
+    <string name="label_version">Versión</string>
+    <string name="label_developed_by">Desarrollado por</string>
+    <string name="error_bluetooth_required">Permiso Bluetooth requerido</string>
+    <string name="error_enable_bluetooth">Activa el Bluetooth del dispositivo</string>
+    <string name="error_no_paired_devices">No hay dispositivos emparejados. Empareja la ZQ630 en Ajustes → Bluetooth.</string>
+    <string name="label_unknown_device">Desconocido</string>
+    <string name="title_select_printer">Seleccionar impresora</string>
+    <string name="msg_printer_selected">Impresora: %1$s</string>
+    <string name="error_select_printer_first">Selecciona una impresora primero</string>
+    <string name="btn_sending_ellipsis">Enviando…</string>
+    <string name="success_test_page_sent">✓ Página de prueba enviada</string>
+    <string name="error_print_test">Error: %1$s</string>
+    <string name="msg_settings_saved">Ajustes guardados</string>
+    <string name="title_printer_help">¿Cómo agregar la impresora?</string>
+    <string name="msg_printer_help">Sigue estos pasos para conectar la Zebra ZQ630 Plus:\n\n1. Enciende la impresora ZQ630 Plus.\n\n2. Encuentra la dirección Bluetooth de la impresora. Hay dos formas:\n\n   • En la parte trasera (donde va la batería) hay una etiqueta con un código de barras — la dirección está impresa ahí.\n\n   • O accede al menú Bluetooth de la impresora para verla en pantalla.\n\n   Ejemplo: 8C:D5:4A:1C:0C:85\n\n3. En esta pantalla toca \"Seleccionar impresora\".\n\n4. Aparecerá la lista de impresoras disponibles con su dirección Bluetooth. Selecciona la que coincide con la dirección del paso 2.\n\n5. Toca \"Imprimir página de prueba\" para confirmar que funciona.\n\nSi no aparece tu impresora en la lista, verifica que esté encendida y cerca del dispositivo.</string>
+    <string name="printer_help_understood">Entendido</string>
+
+    <!-- SignatureActivity -->
+    <string name="error_draw_signature">Dibuja la firma antes de confirmar</string>
+
+    <!-- OrderSuccessActivity -->
+    <string name="label_one_product">1 producto</string>
+    <string name="label_n_products">%1$d productos</string>
+
+    <!-- Settings layout strings -->
+    <string name="label_printer_help_content_description">Ayuda impresora</string>
+
+    <!-- CreatePreOrderActivity layout -->
+    <string name="btn_pick_date">Seleccionar fecha de entrega (opcional)</string>
+    <string name="hint_notes_optional">Notas (opcional)</string>
+    <string name="label_products_section">PRODUCTOS</string>
+    <string name="btn_add_item">+ Agregar</string>
+    <string name="label_no_items_scan">Sin productos. Toca \'+ Agregar\' o escanea un barcode.</string>
+    <string name="label_estimated_total">TOTAL ESTIMADO</string>
+
+    <!-- CurrentOrderActivity layout -->
+    <string name="title_current_order">Pedido actual</string>
+    <string name="label_no_products_in_order">No hay productos en el pedido</string>
+    <string name="label_scan_to_start">Escanea un producto para comenzar</string>
+    <string name="label_order_total">TOTAL DEL PEDIDO</string>
+    <string name="btn_view_ticket">Ver ticket</string>
+    <string name="btn_finalize_order">Finalizar pedido</string>
+    <string name="label_step_sending_qb">Enviando a QuickBooks</string>
+    <string name="label_step_generating_invoice">Generando factura</string>
+    <string name="label_step_printing">Imprimiendo ticket</string>
+
+    <!-- OrderSuccessActivity layout -->
+    <string name="label_order_completed">¡Pedido completado!</string>
+    <string name="label_order_sent_successfully">El pedido fue enviado exitosamente\na QuickBooks</string>
+    <string name="label_order">Pedido</string>
+    <string name="label_invoice_qb">Factura QB</string>
+    <string name="label_customer_field">Cliente</string>
+    <string name="label_products_field">Productos</string>
+    <string name="label_total_field">Total</string>
+    <string name="btn_new_order">NUEVO PEDIDO</string>
+
+    <!-- ProductDetailActivity layout -->
+    <string name="label_item_total">TOTAL DEL ÍTEM</string>
+    <string name="label_units_abbr">unid.</string>
+    <string name="label_price_history">HISTORIAL DE PRECIOS</string>
+    <string name="label_weights_per_unit">PESOS POR UNIDAD</string>
+    <string name="label_total_weight">Peso total</string>
+    <string name="btn_add_to_order">AGREGAR AL PEDIDO</string>
+
+    <!-- PreOrderDetailActivity layout -->
+    <string name="label_processing">Procesando…</string>
+    <string name="btn_convert_to_order">Convertir a pedido</string>
+    <string name="btn_view_in_history">Ver en historial</string>
+
+    <!-- SignatureActivity layout -->
+    <string name="label_sign_in_box">Firme dentro del recuadro</string>
+    <string name="btn_clear_signature">Limpiar</string>
+    <string name="btn_confirm_signature">Confirmar firma</string>
+
+    <!-- SettingsActivity layout -->
+    <string name="label_user_placeholder">Usuario</string>
+
+    <!-- i18n additions -->
+    <string name="title_ticket_detail">Sale Ticket</string>
+    <string name="btn_reprint">Reimprimir ticket</string>
+    <string name="app_title">EXCELLENTIA</string>
+    <string name="hint_email">Email</string>
+    <string name="app_version_label">v1.2.0</string>
+    <string name="default_unit_count">1</string>
+    <string name="step_1">1</string>
+    <string name="step_2">2</string>
+    <string name="step_3">3</string>
+    <string name="avatar_placeholder">?</string>
+    <string name="label_developed_by_value">Excellentia</string>
+    <string name="subtitle_qb">QuickBooks</string>
+    <string name="title_signature">Firma del cliente</string>
+    <string name="default_total_zero">$0.00</string>
+    <string name="default_qty_zero">0.00 lb</string>
+    <string name="default_count_zero">0</string>
+    <string name="error_connection">Error de conexión</string>
+    <string name="default_customer_name">Cliente</string>
+    <string name="no_barcode_label">sin barcode</string>
+    <string name="checkmark_icon">✓</string>
+    <string name="status_offline_dw">NO DW</string>
+    <string name="status_dw_error">ERROR</string>
+    <string name="btn_printing">Printing…</string>
+    <string name="msg_ticket_sent">Ticket sent to printer</string>
+    <string name="error_print_generic">Print error: %1$s</string>
+    <string name="btn_print_test_page">Imprimir página de prueba</string>
+    <string name="notification_channel_name">Sincronización de pedidos</string>
+    <string name="notification_channel_desc">Notificaciones cuando un pedido se sincroniza con QuickBooks</string>
+    <string name="notification_sync_title">✅ Pedido sincronizado</string>
+    <string name="notification_sync_content">%1$s (%2$.1f lb) — $%3$.2f enviado a QuickBooks</string>
+    <string name="notification_sync_bigtext">Pedido #%1$s\n%2$s — %3$.1f lb\nTotal: $%4$.2f\nEstado: Enviado a QuickBooks</string>
+    <string name="hint_qty_total_lb">Cantidad total (lb)</string>
+    <string name="hint_total_price">Precio total</string>
+    <string name="hint_weight">Peso</string>
+    <string name="bottom_nav_scanner">Escáner</string>
+    <string name="bottom_nav_order">Pedido</string>
+    <string name="bottom_nav_history">Historial</string>
+    <string name="bottom_nav_settings">Ajustes</string>
+</resources>

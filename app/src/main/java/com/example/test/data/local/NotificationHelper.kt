@@ -19,10 +19,10 @@ object NotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Sincronización de pedidos",
+                context.getString(R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Notificaciones cuando un pedido se sincroniza con QuickBooks"
+                description = context.getString(R.string.notification_channel_desc)
             }
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(channel)
@@ -42,10 +42,10 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("✅ Pedido sincronizado")
-            .setContentText("$productName (${"%.1f".format(quantity)} lb) — $${"%.2f".format(total)} enviado a QuickBooks")
+            .setContentTitle(context.getString(R.string.notification_sync_title))
+            .setContentText(context.getString(R.string.notification_sync_content, productName, quantity, total))
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText("Pedido #$orderId\n$productName — ${"%.1f".format(quantity)} lb\nTotal: $${"%.2f".format(total)}\nEstado: Enviado a QuickBooks"))
+                .bigText(context.getString(R.string.notification_sync_bigtext, orderId.toString(), productName, quantity, total)))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

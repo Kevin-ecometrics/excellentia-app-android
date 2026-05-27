@@ -7,7 +7,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -19,7 +19,7 @@ import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-class ProductDetailActivity : AppCompatActivity() {
+class ProductDetailActivity : BaseActivity() {
 
     companion object {
         private const val KEY_BARCODE = "BARCODE"
@@ -70,7 +70,7 @@ class ProductDetailActivity : AppCompatActivity() {
         }
 
         barcode = intent.getStringExtra(KEY_BARCODE) ?: ""
-        productName = intent.getStringExtra(KEY_NAME) ?: "Producto Desconocido"
+        productName = intent.getStringExtra(KEY_NAME) ?: getString(R.string.label_unknown_product)
         productPrice = intent.getDoubleExtra(KEY_PRICE, 0.0)
         defaultWeight = intent.getDoubleExtra(KEY_QUANTITY, 1.0).coerceAtLeast(0.1)
         customerId = intent.getStringExtra(KEY_CUSTOMER_ID)
@@ -89,9 +89,9 @@ class ProductDetailActivity : AppCompatActivity() {
         if (stock >= 0) {
             tvStock.visibility = View.VISIBLE
             if (stock == 0) {
-                tvStock.text = "Sin stock disponible"
+                tvStock.text = getString(R.string.label_no_stock)
                 tvStock.setTextColor(resources.getColor(R.color.red, theme))
-                btnAddOrder.text = "PRODUCTO SIN STOCK"
+                btnAddOrder.text = getString(R.string.btn_no_stock)
                 btnAddOrder.isEnabled = false
                 btnAddOrder.backgroundTintList =
                     android.content.res.ColorStateList.valueOf(resources.getColor(R.color.red, theme))
@@ -99,7 +99,7 @@ class ProductDetailActivity : AppCompatActivity() {
                 btnUnitMinus.isEnabled = false
                 btnUnitPlus.isEnabled = false
             } else {
-                tvStock.text = "Stock disponible: $stock unidad(es)"
+                tvStock.text = getString(R.string.label_stock_available, stock)
                 tvStock.setTextColor(resources.getColor(R.color.success, theme))
             }
         }
@@ -183,7 +183,7 @@ class ProductDetailActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
                 )
-                text = "Unidad ${i + 1}:"
+                text = getString(R.string.label_unit_number, i + 1)
                 textSize = 14f
                 setTextColor(resources.getColor(R.color.text_primary, theme))
             }
@@ -252,7 +252,7 @@ class ProductDetailActivity : AppCompatActivity() {
         input.setText(String.format(Locale.US, "%.2f", weights[index]))
         input.selectAll()
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Peso unidad ${index + 1}")
+            .setTitle(getString(R.string.title_unit_weight, index + 1))
             .setView(dialogView)
             .setPositiveButton("OK") { _, _ ->
                 val qty = input.text.toString().toDoubleOrNull()
@@ -262,7 +262,7 @@ class ProductDetailActivity : AppCompatActivity() {
                     recalcTotal()
                 }
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -284,7 +284,7 @@ class ProductDetailActivity : AppCompatActivity() {
             val parts = weights.joinToString(" + ") { String.format(Locale.US, "%.2f", it) }
             "$parts = ${String.format(Locale.US, "%.2f", totalWeight)} lb"
         } else {
-            String.format(Locale.US, "Peso: %.2f lb", totalWeight)
+            String.format(Locale.US, getString(R.string.label_weight_display), totalWeight)
         }
         tvTotal.text = String.format(Locale.US, "$%.2f", total)
     }
@@ -295,16 +295,16 @@ class ProductDetailActivity : AppCompatActivity() {
         etPrice.setText(String.format(Locale.US, "%.2f", baseTotal))
         etPrice.selectAll()
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Editar precio total")
-            .setMessage(if (minTotal != null) "Mínimo: $${String.format(Locale.US, "%.2f", minTotal)}" else "")
+            .setTitle(getString(R.string.title_edit_price))
+            .setMessage(if (minTotal != null) getString(R.string.error_min_price, String.format(Locale.US, "%.2f", minTotal)) else "")
             .setView(dialogView)
-            .setPositiveButton("Aplicar") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_apply)) { _, _ ->
                 val newTotal = etPrice.text.toString().toDoubleOrNull()
                 if (newTotal != null && newTotal > 0) {
                     if (minTotal != null && Math.round(newTotal * 100) < Math.round(minTotal!! * 100)) {
                         Snackbar.make(
                             findViewById(android.R.id.content),
-                            "Mínimo: $${String.format(Locale.US, "%.2f", minTotal)}",
+                            getString(R.string.error_min_price, String.format(Locale.US, "%.2f", minTotal)),
                             Snackbar.LENGTH_LONG
                         ).show()
                         return@setPositiveButton
@@ -314,10 +314,10 @@ class ProductDetailActivity : AppCompatActivity() {
                     tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
                     recalcTotal()
                 } else {
-                    Snackbar.make(findViewById(android.R.id.content), "Precio inválido", Snackbar.LENGTH_SHORT).show()
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_invalid_price), Snackbar.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -328,7 +328,7 @@ class ProductDetailActivity : AppCompatActivity() {
                 val rawMin = response.product?.minPrice
                 if (rawMin != null) {
                     minTotal = rawMin
-                    tvMinPrice.text = "Precio mínimo: $${String.format(Locale.US, "%.2f", minTotal)}"
+                    tvMinPrice.text = getString(R.string.label_min_price_display, String.format(Locale.US, "%.2f", minTotal))
                     tvMinPrice.visibility = View.VISIBLE
                 }
 
@@ -384,7 +384,7 @@ class ProductDetailActivity : AppCompatActivity() {
             result.onFailure {
                 Snackbar.make(
                     findViewById(android.R.id.content),
-                    "No se pudo cargar historial de precios",
+                    getString(R.string.error_load_price_history),
                     Snackbar.LENGTH_SHORT
                 ).show()
             }

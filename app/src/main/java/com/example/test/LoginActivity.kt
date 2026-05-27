@@ -6,7 +6,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
@@ -25,7 +25,7 @@ import android.provider.Settings as AndroidSettings
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-class LoginActivity : AppCompatActivity() {
+class LoginActivity : BaseActivity() {
 
     private lateinit var etBackendUrl: EditText
     private lateinit var etEmail: EditText
@@ -73,7 +73,7 @@ class LoginActivity : AppCompatActivity() {
         tvServerToggle.setOnClickListener {
             val visible = layoutServer.visibility == View.VISIBLE
             layoutServer.visibility = if (visible) View.GONE else View.VISIBLE
-            tvServerToggle.text = if (visible) "⚙  Configurar servidor" else "▲  Ocultar configuración"
+            tvServerToggle.text = if (visible) getString(R.string.configure_server) else getString(R.string.hide_server_config)
         }
 
         pingServer()
@@ -101,7 +101,7 @@ class LoginActivity : AppCompatActivity() {
     // ── Server ping ───────────────────────────────────────────────────────────
 
     private fun pingServer() {
-        setStatus("COMPROBANDO", false, isChecking = true)
+        setStatus(getString(R.string.status_checking), false, isChecking = true)
         val url = etBackendUrl.text.toString().trim().ifEmpty { securePrefs.getBackendUrl() }
         val baseUrl = if (url.endsWith("/")) url else "$url/"
 
@@ -118,11 +118,11 @@ class LoginActivity : AppCompatActivity() {
             }
             serverOk = ok
             if (ok) {
-                setStatus("ONLINE", online = true)
+                setStatus(getString(R.string.status_online), online = true)
                 hideWarning()
             } else {
-                setStatus("OFFLINE", online = false)
-                showWarning("No se puede conectar al servidor\nVerifica tu conexión o la URL del servidor.", isError = true)
+                setStatus(getString(R.string.status_offline), online = false)
+                showWarning(getString(R.string.error_cannot_connect), isError = true)
                 btnRetry.visibility = View.VISIBLE
             }
         }
@@ -156,8 +156,8 @@ class LoginActivity : AppCompatActivity() {
         val email    = etEmail.text.toString().trim()
         val password = etPassword.text.toString()
 
-        if (email.isEmpty()) { showFieldError("Ingresa tu email", "Email requerido"); return }
-        if (password.isEmpty()) { showFieldError("Ingresa tu contraseña", "Contraseña requerida"); return }
+        if (email.isEmpty()) { showFieldError(getString(R.string.error_enter_email), getString(R.string.error_email_required)); return }
+        if (password.isEmpty()) { showFieldError(getString(R.string.error_enter_password), getString(R.string.error_password_required)); return }
 
         clearError()
         setLoading(true)
@@ -224,20 +224,20 @@ class LoginActivity : AppCompatActivity() {
                         gson.fromJson(responseBody, ErrorResponse::class.java).error
                     } catch (_: Exception) { null }
                     showFieldError(
-                        msg ?: "Error del servidor (${response.code})",
-                        "Verifica tu email y contraseña"
+                        msg ?: getString(R.string.msg_server_error, response.code.toString()),
+                        getString(R.string.error_check_credentials)
                     )
                     markEmailError()
                 }
             } catch (_: IOException) {
                 showWarning(
-                    "No se puede conectar al servidor\nVerifica tu conexión o la URL del servidor.",
+                    getString(R.string.error_cannot_connect),
                     isError = true
                 )
                 btnRetry.visibility = View.VISIBLE
-                setStatus("OFFLINE", online = false)
+                setStatus(getString(R.string.status_offline), online = false)
             } catch (e: Exception) {
-                showFieldError(e.localizedMessage ?: "Error desconocido", "Intenta de nuevo")
+                showFieldError(e.localizedMessage ?: getString(R.string.error_unknown), getString(R.string.btn_retry))
             } finally {
                 setLoading(false)
             }
@@ -248,7 +248,7 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setLoading(loading: Boolean) {
         btnLogin.isEnabled = !loading
-        btnLogin.text      = if (loading) "INGRESANDO..." else "LOGIN"
+        btnLogin.text      = if (loading) getString(R.string.btn_logging_in) else getString(R.string.btn_login)
         btnLogin.alpha     = if (loading) 0.6f else 1f
         layoutLoading.visibility = if (loading) View.VISIBLE else View.GONE
     }

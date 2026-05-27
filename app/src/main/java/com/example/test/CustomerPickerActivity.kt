@@ -13,7 +13,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -26,7 +26,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.launch
 
-class CustomerPickerActivity : AppCompatActivity() {
+class CustomerPickerActivity : BaseActivity() {
 
     private lateinit var etSearch: EditText
     private lateinit var progressBar: ProgressBar
@@ -112,10 +112,10 @@ class CustomerPickerActivity : AppCompatActivity() {
                     scrollCustomers.visibility = View.VISIBLE
                     filterAndShow(etSearch.text.toString())
                 } else {
-                    loadFromCache("Error del servidor (${response.code()})")
+                    loadFromCache(getString(R.string.msg_server_error, response.code().toString()))
                 }
             } catch (e: Exception) {
-                loadFromCache("Sin conexión — mostrando clientes guardados")
+                loadFromCache(getString(R.string.msg_no_connection_showing_cached))
             }
         }
     }
@@ -139,7 +139,7 @@ class CustomerPickerActivity : AppCompatActivity() {
             tvOfflineBanner.text = reason
             filterAndShow(etSearch.text.toString())
         } else {
-            showError("Sin conexión y sin clientes guardados.\nConéctate al servidor al menos una vez.")
+            showError(getString(R.string.error_no_connection_no_cache))
         }
     }
 
@@ -161,8 +161,8 @@ class CustomerPickerActivity : AppCompatActivity() {
 
         if (customers.isEmpty()) {
             val empty = TextView(this).apply {
-                text = if (allCustomers.isEmpty()) "No hay clientes en QuickBooks"
-                       else "No se encontraron clientes"
+                text = if (allCustomers.isEmpty()) getString(R.string.label_no_customers_qb)
+                       else getString(R.string.label_no_customers_found)
                 textSize = 14f
                 setTextColor(resources.getColor(R.color.text_secondary, theme))
                 setPadding(0, 32.dp, 0, 0)
@@ -249,7 +249,7 @@ class CustomerPickerActivity : AppCompatActivity() {
     }
 
     private fun showCustomerOptions(customer: QbCustomer) {
-        val options = arrayOf("Asignar como cliente activo", "Ver historial de pedidos")
+        val options = arrayOf(getString(R.string.option_assign_active_customer), getString(R.string.option_view_order_history))
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(customer.displayName)
             .setItems(options) { _, i ->
@@ -271,9 +271,9 @@ class CustomerPickerActivity : AppCompatActivity() {
     private fun confirmSelection(customer: QbCustomer) {
         val addressLine = customer.fullAddress?.let { "\n$it" } ?: ""
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Confirmar cliente")
-            .setMessage("¿Asignar este pedido a:\n\n${customer.displayName}$addressLine?")
-            .setPositiveButton("Sí, asignar") { _, _ ->
+            .setTitle(getString(R.string.title_confirm_customer))
+            .setMessage(getString(R.string.msg_assign_customer, customer.displayName, addressLine))
+            .setPositiveButton(getString(R.string.btn_yes_assign)) { _, _ ->
                 setResult(Activity.RESULT_OK, Intent().apply {
                     putExtra("customer_id", customer.id)
                     putExtra("customer_name", customer.displayName)
@@ -281,7 +281,7 @@ class CustomerPickerActivity : AppCompatActivity() {
                 })
                 finish()
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 

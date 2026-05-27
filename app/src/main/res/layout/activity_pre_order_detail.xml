@@ -18,7 +18,7 @@
             android:background="@color/primary"
             app:navigationIcon="@drawable/ic_back"
             app:navigationIconTint="#FFFFFF"
-            app:title="Detalle de pre-orden"
+            app:title="@string/title_pre_order_detail"
             app:titleTextColor="#FFFFFF" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -54,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:gravity="center"
-                android:text="Procesando..."
+                android:text="@string/label_processing"
                 android:textColor="@color/text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -116,7 +116,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:letterSpacing="0.06"
-                                android:text="CLIENTE"
+                                android:text="@string/label_active_customer"
                                 android:textAllCaps="true"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="10sp" />
@@ -189,7 +189,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.06"
-                        android:text="PRODUCTOS"
+                        android:text="@string/label_products_section"
                         android:textAllCaps="true"
                         android:textColor="@color/text_secondary"
                         android:textSize="10sp" />
@@ -218,7 +218,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="TOTAL"
+                            android:text="@string/label_total_field"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -249,7 +249,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="8dp"
-                android:text="Convertir a pedido"
+                android:text="@string/btn_convert_to_order"
                 android:textStyle="bold"
                 android:visibility="gone"
                 app:backgroundTint="@color/primary"
@@ -264,7 +264,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginTop="8dp"
-                android:text="Cancelar pre-orden"
+                android:text="@string/title_cancel_pre_order"
                 android:textColor="@color/red"
                 android:visibility="gone"
                 app:cornerRadius="24dp"
@@ -276,7 +276,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="8dp"
-                android:text="Reusar pre-orden"
+                android:text="@string/btn_reuse_pre_order"
                 android:textStyle="bold"
                 android:visibility="gone"
                 app:backgroundTint="@color/primary"
@@ -291,7 +291,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginTop="8dp"
-                android:text="Ver en historial"
+                android:text="@string/btn_view_in_history"
                 android:visibility="gone"
                 app:cornerRadius="24dp"
                 app:icon="@drawable/ic_history"
