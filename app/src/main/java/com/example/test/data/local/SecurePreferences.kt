@@ -155,6 +155,6 @@ class SecurePreferences(context: Context) {
         private const val KEY_COMPANY_ADDRESS = "company_address"
         private const val KEY_COMPANY_PHONE = "company_phone"
         private const val KEY_COMPANY_CITY = "company_city"
-        private const val DEFAULT_BACKEND_URL = "http://192.168.0.131:3000"
+        private const val DEFAULT_BACKEND_URL = "http://192.168.0.104:3000"
     }
 }
