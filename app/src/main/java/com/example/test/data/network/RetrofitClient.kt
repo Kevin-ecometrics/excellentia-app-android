@@ -111,6 +111,7 @@ object RetrofitClient {
                     securePrefs.saveRefreshToken(result.refreshToken)
                     return response.request.newBuilder()
                         .removeHeader("Authorization")
+                        .addHeader("Authorization", "Bearer ${result.token}")
                         .build()
                 } else {
                     notifySessionExpired()
