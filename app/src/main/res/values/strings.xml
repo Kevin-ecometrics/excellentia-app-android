@@ -394,4 +394,12 @@
     <string name="bottom_nav_order">Order</string>
     <string name="bottom_nav_history">History</string>
     <string name="bottom_nav_settings">Settings</string>
+
+    <!-- Offline batch -->
+    <string name="msg_order_saved_offline">No connection — order saved. It will be sent automatically when the connection is restored.</string>
+    <string name="msg_connection_restored">Connection restored — syncing orders…</string>
+    <string name="msg_prefetching_data">Caching products and customers for offline use…</string>
+    <string name="loading_saving_offline">Saving order locally…</string>
+    <string name="label_order_saved_offline">Order saved (offline)</string>
+    <string name="label_will_sync_when_online">Will be sent automatically when online</string>
 </resources>

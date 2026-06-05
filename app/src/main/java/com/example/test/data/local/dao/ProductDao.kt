@@ -50,6 +50,19 @@ class ProductDao(private val db: AppDatabase) {
         }
     }
 
+    fun searchByQuery(query: String): List<CachedProductEntity> {
+        val like = "%$query%"
+        val cursor = db.readableDatabase.rawQuery(
+            "SELECT * FROM cached_products WHERE barcode LIKE ? OR name LIKE ? ORDER BY name ASC LIMIT 30",
+            arrayOf(like, like)
+        )
+        return cursor.use {
+            val list = mutableListOf<CachedProductEntity>()
+            while (it.moveToNext()) list.add(cursorToEntity(it))
+            list
+        }
+    }
+
     fun deleteOldCache(before: Long) {
         db.writableDatabase.delete(
             "cached_products",

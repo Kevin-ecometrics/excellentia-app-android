@@ -8,6 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -77,6 +81,32 @@ class MainActivity : BaseActivity() {
     private var isScanning = false
     private val scanHandler = Handler(Looper.getMainLooper())
     private val scanTimeout = Runnable { forceStopScan() }
+
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            securePrefs.saveOfflineMode(false)
+            runOnUiThread {
+                bannerOffline.visibility = View.GONE
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    getString(R.string.msg_connection_restored),
+                    Snackbar.LENGTH_SHORT
+                ).show()
+            }
+            lifecycleScope.launch {
+                SyncWorker.enqueueOneTime(applicationContext)
+                orderRepository.prefetchAllProducts()
+                orderRepository.prefetchAllCustomers()
+            }
+        }
+
+        override fun onLost(network: Network) {
+            securePrefs.saveOfflineMode(true)
+            runOnUiThread {
+                bannerOffline.visibility = View.VISIBLE
+            }
+        }
+    }
 
     private lateinit var securePrefs: SecurePreferences
     private lateinit var productRepository: ProductRepository
@@ -155,7 +185,7 @@ class MainActivity : BaseActivity() {
         }
 
         val db = AppDatabase.getInstance(this)
-        productRepository = ProductRepository(db)
+        productRepository = ProductRepository(db, securePrefs)
         RetrofitClient.initialize(securePrefs.getBackendUrl(), securePrefs, this)
         orderRepository = OrderRepository(db, securePrefs)
         // Limpiar cache de productos con más de 7 días
@@ -167,11 +197,21 @@ class MainActivity : BaseActivity() {
         requestBluetoothPermission()
 
         registerSessionExpiredReceiver()
+        registerNetworkCallback()
         initViews()
         registerReceiver()
         setupDataWedge()
         updateLastScan()
         updateCustomerUi()
+
+        // Pre-caché inicial si hay conexión al abrir la app
+        if (isNetworkAvailable()) {
+            securePrefs.saveOfflineMode(false)
+            lifecycleScope.launch {
+                orderRepository.prefetchAllProducts()
+                orderRepository.prefetchAllCustomers()
+            }
+        }
     }
 
     override fun onResume() {
@@ -187,8 +227,28 @@ class MainActivity : BaseActivity() {
         resetScanState()
         updateCustomerUi()
         bottomNav.selectedItemId = R.id.nav_scanner
+        // Sincronizar flag con el estado real de red
+        val online = isNetworkAvailable()
+        if (online) securePrefs.saveOfflineMode(false) else securePrefs.saveOfflineMode(true)
         bannerOffline.visibility = if (securePrefs.isOfflineMode()) View.VISIBLE else View.GONE
         refreshCompanySettings()
+    }
+
+    private fun registerNetworkCallback() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        cm.registerNetworkCallback(request, networkCallback)
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        // NET_CAPABILITY_VALIDATED = la red fue confirmada con acceso real a internet
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) &&
+               caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun refreshCompanySettings() {
@@ -209,6 +269,10 @@ class MainActivity : BaseActivity() {
         scanHandler.removeCallbacks(scanTimeout)
         try { unregisterReceiver(dwReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(sessionExpiredReceiver) } catch (_: Exception) {}
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.unregisterNetworkCallback(networkCallback)
+        } catch (_: Exception) {}
     }
 
     private fun registerSessionExpiredReceiver() {
@@ -531,12 +595,38 @@ class MainActivity : BaseActivity() {
     private fun showManualEntryDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_manual_entry, null)
         val etBarcode = dialogView.findViewById<android.widget.EditText>(R.id.etBarcode)
+
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_manual_entry))
             .setView(dialogView)
             .setPositiveButton(getString(R.string.btn_search)) { _, _ ->
-                val barcode = etBarcode.text.toString().trim()
-                if (barcode.isNotEmpty()) openDetail(barcode)
+                val query = etBarcode.text.toString().trim()
+                if (query.isEmpty()) return@setPositiveButton
+
+                if (securePrefs.isOfflineMode()) {
+                    // Modo offline: buscar en el cache SQLite por barcode o nombre
+                    lifecycleScope.launch {
+                        val results = productRepository.searchOffline(query)
+                        when {
+                            results.isEmpty() -> runOnUiThread { showProductNotFound(query) }
+                            results.size == 1 -> {
+                                val p = results[0]
+                                openDetail(p.barcode)
+                            }
+                            else -> runOnUiThread {
+                                // Múltiples resultados — mostrar lista para seleccionar
+                                val names = results.map { "${it.name}  ·  ${it.barcode}" }.toTypedArray()
+                                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MainActivity)
+                                    .setTitle(getString(R.string.title_select_product))
+                                    .setItems(names) { _, idx -> openDetail(results[idx].barcode) }
+                                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                                    .show()
+                            }
+                        }
+                    }
+                } else {
+                    openDetail(query)
+                }
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()

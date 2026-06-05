@@ -46,6 +46,13 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 customer_name TEXT
             )
         """)
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS pending_batches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -79,6 +86,15 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_id TEXT")
             db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_name TEXT")
         }
+        if (oldVersion < 7) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS pending_batches (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_json TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                )
+            """)
+        }
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE pending_orders RENAME TO pending_orders_old")
             db.execSQL("""
@@ -100,7 +116,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 6
+        private const val DATABASE_VERSION = 7
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

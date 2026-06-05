@@ -2,6 +2,7 @@ package com.example.test.data.repository
 
 import com.example.test.data.Product
 import com.example.test.data.local.AppDatabase
+import com.example.test.data.local.SecurePreferences
 import com.example.test.data.local.dao.ProductDao
 import com.example.test.data.local.entities.CachedProductEntity
 import com.example.test.data.network.RetrofitClient
@@ -9,18 +10,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class ProductRepository(
-    private val db: AppDatabase
+    private val db: AppDatabase,
+    private val securePrefs: SecurePreferences
 ) {
     private val productDao = ProductDao(db)
 
     suspend fun findByBarcode(barcode: String): Product? = withContext(Dispatchers.IO) {
+        // Offline mode: ir directo al cache sin intentar el API
+        if (securePrefs.isOfflineMode()) {
+            return@withContext fromCache(barcode)
+        }
+
         try {
-            // 1. Try API
             val response = RetrofitClient.getApi().getProductByBarcode(barcode)
             if (response.isSuccessful) {
                 val dto = response.body()?.data
                 if (dto != null) {
-                    // Cache in SQLite
                     productDao.upsert(
                         CachedProductEntity(
                             barcode = dto.barcode ?: barcode,
@@ -35,18 +40,21 @@ class ProductRepository(
                     return@withContext dto.toProduct()
                 }
             }
-            // 2. Fallback to cache
-            val cached = productDao.findByBarcode(barcode)
-            if (cached != null) {
-                return@withContext Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit, cached.stock)
-            }
-            null
+            // API respondió pero sin datos — intentar cache
+            fromCache(barcode)
         } catch (_: Exception) {
-            // Offline: try cache
-            val cached = productDao.findByBarcode(barcode)
-            return@withContext if (cached != null) {
-                Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit, cached.stock)
-            } else null
+            // Sin red — fallback al cache
+            fromCache(barcode)
         }
+    }
+
+    fun searchOffline(query: String): List<CachedProductEntity> =
+        productDao.searchByQuery(query)
+
+    private fun fromCache(barcode: String): Product? {
+        val cached = productDao.findByBarcode(barcode)
+        return if (cached != null) {
+            Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit, cached.stock)
+        } else null
     }
 }

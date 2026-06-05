@@ -573,6 +573,66 @@ class CurrentOrderActivity : BaseActivity() {
             pendingDamageItems  = emptyList()
             pendingPaymentMethod = null
             result.onSuccess { response ->
+                val isOfflinePending = response.batchId == "OFFLINE_PENDING"
+
+                if (isOfflinePending) {
+                    // Flujo offline: no hay factura, solo imprimir y navegar
+                    tvLoadingTitle.text = getString(R.string.loading_saving_offline)
+                    tvLoadingSubtitle.text = ""
+                    orderRepository.clearPending()
+                    securePrefs.clearActiveCustomer()
+
+                    val printerAddress = securePrefs.getPrinterAddress()
+                    if (!skipPrint && !printerAddress.isNullOrBlank()) {
+                        setStep(3)
+                        tvLoadingTitle.text = getString(R.string.loading_printing_ticket)
+                        tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
+                        PrintService.printTicket(
+                            context       = this@CurrentOrderActivity,
+                            deviceAddress = printerAddress,
+                            items         = items,
+                            customerName  = customerName,
+                            batchId       = "",
+                            invoiceId     = null,
+                            customerAddress = customerAddress,
+                            damageItems   = damageForPrinting,
+                            paymentMethod = paymentForPrinting,
+                            signature     = sigForPrinting
+                        )
+                    }
+
+                    layoutLoading.visibility = View.GONE
+                    val grandTotal = items.sumOf { it.total }
+                    startActivity(
+                        Intent(this@CurrentOrderActivity, OrderSuccessActivity::class.java).apply {
+                            putExtra("batch_id", "")
+                            putExtra("invoice_id", "")
+                            putExtra("offline_pending", true)
+                            putExtra("customer_name", customerName)
+                            putExtra("customer_address", customerAddress)
+                            putExtra("signature", sigForPrinting)
+                            putExtra("damage_items_json", Gson().toJson(damageForPrinting))
+                            putExtra("total", grandTotal)
+                            putExtra("item_count", items.size)
+                            putExtra("orders_json", Gson().toJson(
+                                items.map { bi ->
+                                    OrderDto(
+                                        id = 0, barcode = bi.barcode,
+                                        productName = bi.productName, price = bi.price,
+                                        quantity = bi.quantity, total = bi.total,
+                                        status = "PENDING", customerId = customerId,
+                                        customerName = customerName
+                                    )
+                                }
+                            ))
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                    )
+                    finish()
+                    return@onSuccess
+                }
+
+                // Flujo online normal
                 setStep(2)
                 tvLoadingTitle.text = getString(R.string.loading_generating_invoice)
                 tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, response.invoiceId ?: "—")

@@ -52,6 +52,11 @@ interface ApiService {
         @Query("limit") limit: Int = 20
     ): Response<ApiResponse<List<ProductDto>>>
 
+    @GET("api/products")
+    suspend fun getAllProducts(
+        @Query("limit") limit: Int = 500
+    ): Response<ApiResponse<List<ProductDto>>>
+
     @GET("api/stats")
     suspend fun getStats(): Response<StatsResponse>
 

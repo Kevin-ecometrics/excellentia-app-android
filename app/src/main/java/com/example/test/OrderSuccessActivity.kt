@@ -27,6 +27,7 @@ class OrderSuccessActivity : BaseActivity() {
 
         val batchId         = intent.getStringExtra("batch_id") ?: ""
         val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
+        val isOfflinePending = intent.getBooleanExtra("offline_pending", false)
         val customerName    = intent.getStringExtra("customer_name")
         val customerAddress = intent.getStringExtra("customer_address")
         val signature          = intent.getStringExtra("signature")
@@ -34,6 +35,14 @@ class OrderSuccessActivity : BaseActivity() {
         val total      = intent.getDoubleExtra("total", 0.0)
         val itemCount  = intent.getIntExtra("item_count", 0)
         val ordersJson = intent.getStringExtra("orders_json") ?: "[]"
+
+        if (isOfflinePending) {
+            com.google.android.material.snackbar.Snackbar.make(
+                findViewById(R.id.main),
+                getString(R.string.msg_order_saved_offline),
+                com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+            ).show()
+        }
 
         findViewById<TextView>(R.id.tvSuccessBatch).text =
             if (batchId.isNotBlank()) "#$batchId" else "—"

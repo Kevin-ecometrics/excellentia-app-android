@@ -3,9 +3,15 @@ package com.example.test.data.repository
 import com.example.test.data.*
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
+import com.example.test.data.local.dao.CustomerDao
 import com.example.test.data.local.dao.OrderDao
-import com.example.test.data.local.entities.PendingOrderEntity
+import com.example.test.data.local.dao.PendingBatchDao
+import com.example.test.data.local.dao.ProductDao
+import com.example.test.data.local.entities.CachedCustomerEntity
+import com.example.test.data.local.entities.CachedProductEntity
+import com.example.test.data.local.entities.PendingBatchEntity
 import com.example.test.data.network.RetrofitClient
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,6 +20,7 @@ class OrderRepository(
     private val securePrefs: SecurePreferences
 ) {
     private val orderDao = OrderDao(db)
+    private val gson = Gson()
 
     suspend fun createOrder(
         barcode: String,
@@ -49,8 +56,6 @@ class OrderRepository(
         } else {
             savePendingOrder(barcode, productName, price, quantity, deviceId)
             return@withContext Result.success(OrderResponse(id = 0, barcode = barcode, status = "PENDING"))
-
-
         }
     }
 
@@ -62,7 +67,7 @@ class OrderRepository(
         deviceId: Int? = null
     ) {
         orderDao.insert(
-            PendingOrderEntity(
+            com.example.test.data.local.entities.PendingOrderEntity(
                 barcode = barcode,
                 productName = productName,
                 price = price,
@@ -74,7 +79,7 @@ class OrderRepository(
         )
     }
 
-    suspend fun getPendingOrders(): List<PendingOrderEntity> = withContext(Dispatchers.IO) {
+    suspend fun getPendingOrders(): List<com.example.test.data.local.entities.PendingOrderEntity> = withContext(Dispatchers.IO) {
         orderDao.getAllForHistory()
     }
 
@@ -88,7 +93,7 @@ class OrderRepository(
         orderDao.update(id, price, quantity)
     }
 
-    suspend fun getById(id: Int): PendingOrderEntity? = withContext(Dispatchers.IO) {
+    suspend fun getById(id: Int): com.example.test.data.local.entities.PendingOrderEntity? = withContext(Dispatchers.IO) {
         orderDao.getById(id)
     }
 
@@ -101,27 +106,43 @@ class OrderRepository(
         customerId: String? = null,
         customerName: String? = null,
         signature: String? = null,
-        damageItems: List<com.example.test.data.DamageItem> = emptyList(),
+        damageItems: List<DamageItem> = emptyList(),
         paymentMethod: String? = null
     ): Result<BatchResponse> = withContext(Dispatchers.IO) {
+        val request = BatchRequest(
+            items = items,
+            customerId = customerId,
+            customerName = customerName,
+            signature = signature,
+            damageItems = damageItems.ifEmpty { null },
+            paymentMethod = paymentMethod
+        )
+
+        // Si ya estamos en modo offline, guardar directamente sin intentar el API
+        if (securePrefs.isOfflineMode()) {
+            return@withContext saveOfflineBatch(request)
+        }
+
         try {
-            val response = RetrofitClient.getApi().createBatch(
-                BatchRequest(
-                    items = items,
-                    customerId = customerId,
-                    customerName = customerName,
-                    signature = signature,
-                    damageItems = damageItems.ifEmpty { null },
-                    paymentMethod = paymentMethod
-                )
-            )
+            val response = RetrofitClient.getApi().createBatch(request)
             if (response.isSuccessful && response.body() != null) {
-                return@withContext Result.success(response.body()!!)
+                Result.success(response.body()!!)
             } else {
-                return@withContext Result.failure(Exception("Error del servidor: ${response.code()}"))
+                Result.failure(Exception("Error del servidor: ${response.code()}"))
             }
         } catch (e: Exception) {
-            return@withContext Result.failure(e)
+            // Sin red — guardar localmente para sincronizar cuando haya conexión
+            saveOfflineBatch(request)
+        }
+    }
+
+    private fun saveOfflineBatch(request: BatchRequest): Result<BatchResponse> {
+        return try {
+            val json = gson.toJson(request)
+            PendingBatchDao(db).insert(PendingBatchEntity(batchJson = json))
+            Result.success(BatchResponse(batchId = "OFFLINE_PENDING", invoiceId = null, orders = emptyList()))
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -129,12 +150,12 @@ class OrderRepository(
         try {
             val response = RetrofitClient.getApi().listOrders(page = page, limit = limit)
             if (response.isSuccessful && response.body() != null) {
-                return@withContext Result.success(response.body()!!)
+                Result.success(response.body()!!)
             } else {
-                return@withContext Result.failure(Exception("Error: ${response.code()}"))
+                Result.failure(Exception("Error: ${response.code()}"))
             }
         } catch (e: Exception) {
-            return@withContext Result.failure(e)
+            Result.failure(e)
         }
     }
 
@@ -142,12 +163,59 @@ class OrderRepository(
         try {
             val response = RetrofitClient.getApi().getProductPriceHistory(barcode, customerId)
             if (response.isSuccessful && response.body() != null) {
-                return@withContext Result.success(response.body()!!)
+                Result.success(response.body()!!)
             } else {
-                return@withContext Result.failure(Exception("Error: ${response.code()}"))
+                Result.failure(Exception("Error: ${response.code()}"))
             }
         } catch (e: Exception) {
-            return@withContext Result.failure(e)
+            Result.failure(e)
         }
+    }
+
+    // ── Pre-caché masivo al conectar ──
+
+    suspend fun prefetchAllProducts() = withContext(Dispatchers.IO) {
+        try {
+            val response = RetrofitClient.getApi().getAllProducts(limit = 500)
+            if (response.isSuccessful) {
+                val products = response.body()?.data ?: return@withContext
+                val dao = ProductDao(db)
+                for (dto in products) {
+                    dao.upsert(
+                        CachedProductEntity(
+                            barcode = dto.barcode ?: "QBO-${dto.id}",
+                            name = dto.name,
+                            price = dto.price,
+                            category = dto.category,
+                            brand = dto.brand,
+                            stock = dto.stock,
+                            weightPerUnit = dto.weightPerUnit
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    suspend fun prefetchAllCustomers() = withContext(Dispatchers.IO) {
+        try {
+            val response = RetrofitClient.getApi().getCustomers()
+            if (response.isSuccessful) {
+                val customers = response.body()
+                    ?.queryResponse?.customers
+                    ?.filter { it.active }
+                    ?: return@withContext
+                CustomerDao(db).insertAll(customers.map { c ->
+                    CachedCustomerEntity(
+                        id           = c.id,
+                        displayName  = c.displayName,
+                        addressLine1 = c.addressLine1,
+                        city         = c.city,
+                        stateCode    = c.stateCode,
+                        postalCode   = c.postalCode
+                    )
+                })
+            }
+        } catch (_: Exception) {}
     }
 }
