@@ -73,7 +73,7 @@ class CurrentOrderActivity : BaseActivity() {
             updateCustomerLabel()
             if (launchSignatureAfterCustomer) {
                 launchSignatureAfterCustomer = false
-                launchSignature()
+                askDamagedItems()
             }
         }
     }
@@ -83,7 +83,7 @@ class CurrentOrderActivity : BaseActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             pendingSignature = result.data?.getStringExtra("signature")
-            askDamagedItems()
+            checkPrinterThenFinalize()
         }
     }
 
@@ -128,7 +128,7 @@ class CurrentOrderActivity : BaseActivity() {
         btnViewTicket.setOnClickListener { openTicket() }
         btnFinalize.setOnClickListener {
             if (customerId != null && customerName != null) {
-                launchSignature()
+                askDamagedItems()
             } else {
                 launchSignatureAfterCustomer = true
                 customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
@@ -490,15 +490,15 @@ class CurrentOrderActivity : BaseActivity() {
             .setMessage(getString(R.string.msg_payment_method))
             .setPositiveButton(getString(R.string.btn_cash)) { _, _ ->
                 pendingPaymentMethod = getString(R.string.btn_cash)
-                checkPrinterThenFinalize()
+                launchSignature()
             }
             .setNeutralButton(getString(R.string.btn_check)) { _, _ ->
                 pendingPaymentMethod = getString(R.string.btn_check)
-                checkPrinterThenFinalize()
+                launchSignature()
             }
             .setNegativeButton(getString(R.string.btn_skip)) { _, _ ->
                 pendingPaymentMethod = null
-                checkPrinterThenFinalize()
+                launchSignature()
             }
             .show()
     }
