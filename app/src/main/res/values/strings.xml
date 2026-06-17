@@ -28,6 +28,7 @@
     <string name="status_offline">OFFLINE</string>
     <string name="manual_entry">Enter code manually</string>
     <string name="hint_barcode">Barcode</string>
+    <string name="hint_barcode_or_name">Barcode or product name</string>
     <string name="btn_scan_inactive">Enable scanner</string>
     <string name="btn_scan_active">Disable scanner</string>
     <string name="section_connection">Server connection</string>

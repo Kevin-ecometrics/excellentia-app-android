@@ -595,8 +595,13 @@ class MainActivity : BaseActivity() {
     private fun showManualEntryDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_manual_entry, null)
         val etBarcode = dialogView.findViewById<android.widget.EditText>(R.id.etBarcode)
+        val lvSuggestions = dialogView.findViewById<android.widget.ListView>(R.id.lvSuggestions)
 
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+        val adapter = android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, mutableListOf())
+        lvSuggestions.adapter = adapter
+        var suggestionBarcodes: List<String> = emptyList()
+
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_manual_entry))
             .setView(dialogView)
             .setPositiveButton(getString(R.string.btn_search)) { _, _ ->
@@ -604,17 +609,12 @@ class MainActivity : BaseActivity() {
                 if (query.isEmpty()) return@setPositiveButton
 
                 if (securePrefs.isOfflineMode()) {
-                    // Modo offline: buscar en el cache SQLite por barcode o nombre
                     lifecycleScope.launch {
                         val results = productRepository.searchOffline(query)
                         when {
                             results.isEmpty() -> runOnUiThread { showProductNotFound(query) }
-                            results.size == 1 -> {
-                                val p = results[0]
-                                openDetail(p.barcode)
-                            }
+                            results.size == 1 -> openDetail(results[0].barcode)
                             else -> runOnUiThread {
-                                // Múltiples resultados — mostrar lista para seleccionar
                                 val names = results.map { "${it.name}  ·  ${it.barcode}" }.toTypedArray()
                                 com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MainActivity)
                                     .setTitle(getString(R.string.title_select_product))
@@ -629,7 +629,62 @@ class MainActivity : BaseActivity() {
                 }
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
+            .create()
+
+        lvSuggestions.setOnItemClickListener { _, _, idx, _ ->
+            suggestionBarcodes.getOrNull(idx)?.let {
+                dialog.dismiss()
+                openDetail(it)
+            }
+        }
+
+        etBarcode.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val query = s?.toString()?.trim() ?: return
+                if (query.length < 2) {
+                    suggestionBarcodes = emptyList()
+                    adapter.clear()
+                    lvSuggestions.visibility = android.view.View.GONE
+                    return
+                }
+                if (securePrefs.isOfflineMode()) {
+                    lifecycleScope.launch {
+                        val results = productRepository.searchOffline(query)
+                        runOnUiThread {
+                            suggestionBarcodes = results.map { it.barcode }
+                            adapter.clear()
+                            results.forEach { p ->
+                                adapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/lb")
+                            }
+                            lvSuggestions.visibility =
+                                if (results.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+                        }
+                    }
+                } else {
+                    lifecycleScope.launch {
+                        try {
+                            val resp = RetrofitClient.getApi().searchProducts(query)
+                            if (resp.isSuccessful) {
+                                val products = resp.body()?.data ?: emptyList()
+                                runOnUiThread {
+                                    suggestionBarcodes = products.mapNotNull { it.barcode }
+                                    adapter.clear()
+                                    products.forEach { p ->
+                                        adapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/lb")
+                                    }
+                                    lvSuggestions.visibility =
+                                        if (products.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+                                }
+                            }
+                        } catch (_: Exception) { /* búsqueda silenciosa */ }
+                    }
+                }
+            }
+        })
+
+        dialog.show()
     }
 
     fun showProductSearchDialog() {
