@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test.data.BatchItem
 import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
+import com.example.test.data.groupedForTicket
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.print.PrintService
@@ -235,13 +236,14 @@ class TicketDetailActivity : AppCompatActivity() {
             }
         }
 
-        // ── Ítems ───────────────────────────────────────
+        // ── Ítems (agrupados por producto) ───────────────
         addSep(heavy = true)
-        for (order in orders) {
-            addLine(order.productName, sizeSp = 12f)
+        for (g in orders.groupedForTicket()) {
+            val avgPrice = if (g.quantity != 0.0) g.total / g.quantity else 0.0
+            addLine(g.productName, sizeSp = 12f)
             addTwoCol(
-                left  = String.format(Locale.US, "%.2f lb x \$%.2f/lb", order.quantity, order.price),
-                right = String.format(Locale.US, "\$%.2f", order.total),
+                left  = String.format(Locale.US, "%.2f lb x \$%.2f/lb", g.quantity, avgPrice),
+                right = String.format(Locale.US, "\$%.2f", g.total),
                 sizeSp = 12f
             )
             addBlank(4)

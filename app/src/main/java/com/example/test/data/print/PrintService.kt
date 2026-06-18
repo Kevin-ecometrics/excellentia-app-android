@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.Base64
 import com.example.test.data.BatchItem
+import com.example.test.data.groupedForTicket
 import com.example.test.data.local.SecurePreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -197,16 +198,17 @@ object PrintService {
             }
         }
 
-        // ── Ítems ──────────────────────────────────────
+        // ── Ítems (agrupados por producto) ──────────────
         // Línea 1+: nombre del producto (con salto de línea si es largo)
         // Última línea: "X.XX lb x $X.XX/lb      $XX.XX"  (twoCol)
         y += 4
         body.t(F4, 0, y, SEP);                                     y += F4H + 8
-        for (item in items) {
-            val totalStr  = String.format(Locale.US, "\$%.2f", item.total)
+        for (g in items.groupedForTicket()) {
+            val avgPrice  = if (g.quantity != 0.0) g.total / g.quantity else 0.0
+            val totalStr  = String.format(Locale.US, "\$%.2f", g.total)
             val detailStr = String.format(Locale.US, "%.2f lb x \$%.2f/lb",
-                                          item.quantity, item.price)
-            for (line in wrapText(item.productName, 28)) {
+                                          g.quantity, avgPrice)
+            for (line in wrapText(g.productName, 28)) {
                 body.t(F4, 0, y, line);                            y += F4H + 3
             }
             body.t(F4, 0, y, twoCol(detailStr, totalStr, 28));     y += F4H + 4

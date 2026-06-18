@@ -141,6 +141,45 @@ data class BatchItem(
     val total: Double
 )
 
+// ── Ticket grouping (consolida líneas repetidas del mismo producto) ──
+
+data class GroupedTicketItem(
+    val barcode: String,
+    val productName: String,
+    val quantity: Double,
+    val total: Double
+)
+
+@JvmName("groupedOrdersForTicket")
+fun List<OrderDto>.groupedForTicket(): List<GroupedTicketItem> {
+    val groups = LinkedHashMap<String, GroupedTicketItem>()
+    for (o in this) {
+        val key = o.barcode.ifBlank { o.productName }
+        val existing = groups[key]
+        groups[key] = if (existing == null) {
+            GroupedTicketItem(o.barcode, o.productName, o.quantity, o.total)
+        } else {
+            existing.copy(quantity = existing.quantity + o.quantity, total = existing.total + o.total)
+        }
+    }
+    return groups.values.toList()
+}
+
+@JvmName("groupedBatchItemsForTicket")
+fun List<BatchItem>.groupedForTicket(): List<GroupedTicketItem> {
+    val groups = LinkedHashMap<String, GroupedTicketItem>()
+    for (i in this) {
+        val key = i.barcode.ifBlank { i.productName }
+        val existing = groups[key]
+        groups[key] = if (existing == null) {
+            GroupedTicketItem(i.barcode, i.productName, i.quantity, i.total)
+        } else {
+            existing.copy(quantity = existing.quantity + i.quantity, total = existing.total + i.total)
+        }
+    }
+    return groups.values.toList()
+}
+
 data class BatchRequest(
     val items: List<BatchItem>,
     @SerializedName("customer_id") val customerId: String? = null,
