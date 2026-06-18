@@ -267,7 +267,7 @@ class ProductDetailActivity : BaseActivity() {
     }
 
     private fun showProduct() {
-        pricePerLb = productPrice / defaultWeight
+        pricePerLb = productPrice
         tvBarcode.text = barcode
         tvProductName.text = productName
         tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
@@ -310,7 +310,7 @@ class ProductDetailActivity : BaseActivity() {
                         return@setPositiveButton
                     }
                     baseTotal = newTotal
-                    pricePerLb = baseTotal / defaultWeight
+                    pricePerLb = baseTotal
                     tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
                     recalcTotal()
                 } else {

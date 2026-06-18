@@ -79,7 +79,10 @@
       "Bash(bun -e *)",
       "Bash(node *)",
       "Bash(xargs -I{} basename {})",
-      "Bash(JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug)"
+      "Bash(JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug)",
+      "Bash(./gradlew assembleDebug -q)",
+      "PowerShell(.\\\\gradlew.bat assembleDebug -q 2>&1 | Select-Object -Last 80)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; .\\\\gradlew.bat assembleDebug -q 2>&1 | Select-Object -Last 100)"
     ]
   }
 }
