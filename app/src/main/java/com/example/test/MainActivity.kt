@@ -577,6 +577,35 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    private data class SuggestionItem(
+        val barcode: String?,
+        val name: String,
+        val price: Double,
+        val weightPerUnit: Double?,
+        val stock: Int
+    )
+
+    // Abre el detalle directo desde un resultado de búsqueda ya cargado (sin volver a
+    // consultar por barcode) — permite mostrar y abrir productos sin barcode asignado.
+    private fun openSuggestion(item: SuggestionItem) {
+        val barcode = item.barcode ?: "unknown"
+        if (item.barcode != null) {
+            securePrefs.saveLastScan(barcode, item.name)
+            updateLastScan()
+        }
+        startActivity(
+            Intent(this, ProductDetailActivity::class.java).apply {
+                putExtra("BARCODE", barcode)
+                putExtra("PRODUCT_NAME", item.name)
+                putExtra("PRODUCT_PRICE", item.price)
+                putExtra("QUANTITY", item.weightPerUnit?.takeIf { it > 0 } ?: 1.0)
+                putExtra("STOCK", item.stock)
+                putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
+                putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
+            }
+        )
+    }
+
     private fun showProductNotFound(barcode: String) {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_product_not_found))
@@ -599,7 +628,29 @@ class MainActivity : BaseActivity() {
 
         val adapter = android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, mutableListOf())
         lvSuggestions.adapter = adapter
-        var suggestionBarcodes: List<String> = emptyList()
+        // Única fuente de verdad para lo que se muestra y lo que se abre al hacer click —
+        // misma lista indexada para ambos, así nunca puede haber desalineación entre el
+        // texto visible y el producto real (y permite incluir productos sin barcode).
+        var suggestionItems: List<SuggestionItem> = emptyList()
+
+        fun labelFor(name: String, price: Double, barcode: String?): String {
+            val priceStr = "$${String.format(java.util.Locale.US, "%.2f", price)}/lb"
+            return if (barcode != null) "$name  ·  $priceStr" else "$name  ·  $priceStr  ·  ${getString(R.string.no_barcode_label)}"
+        }
+
+        fun showSuggestions(items: List<SuggestionItem>) {
+            suggestionItems = items
+            adapter.clear()
+            adapter.addAll(items.map { labelFor(it.name, it.price, it.barcode) })
+            lvSuggestions.visibility = if (items.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+            // Cada búsqueda reemplaza el dataset, pero el ListView conserva el scroll
+            // anterior — sin esto, una búsqueda nueva puede arrancar ya desplazada y
+            // los primeros resultados quedan ocultos arriba, fuera de la vista.
+            // post{} porque justo aquí la visibilidad puede estar pasando de GONE a
+            // VISIBLE y el ListView todavía no se midió — setSelection() sin post se
+            // pierde silenciosamente.
+            if (items.isNotEmpty()) lvSuggestions.post { lvSuggestions.setSelection(0) }
+        }
 
         val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_manual_entry))
@@ -613,14 +664,18 @@ class MainActivity : BaseActivity() {
                         val results = productRepository.searchOffline(query)
                         when {
                             results.isEmpty() -> runOnUiThread { showProductNotFound(query) }
-                            results.size == 1 -> openDetail(results[0].barcode)
+                            results.size == 1 -> runOnUiThread {
+                                openSuggestion(
+                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock)
+                                )
+                            }
+                            // Varios resultados: se listan en el mismo lvSuggestions (un solo
+                            // diálogo, click directo) en vez de abrir un segundo diálogo —
+                            // evita el bug de "primer click no abre, segundo abre el anterior".
                             else -> runOnUiThread {
-                                val names = results.map { "${it.name}  ·  ${it.barcode}" }.toTypedArray()
-                                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MainActivity)
-                                    .setTitle(getString(R.string.title_select_product))
-                                    .setItems(names) { _, idx -> openDetail(results[idx].barcode) }
-                                    .setNegativeButton(getString(R.string.btn_cancel), null)
-                                    .show()
+                                showSuggestions(results.map {
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock)
+                                })
                             }
                         }
                     }
@@ -632,9 +687,9 @@ class MainActivity : BaseActivity() {
             .create()
 
         lvSuggestions.setOnItemClickListener { _, _, idx, _ ->
-            suggestionBarcodes.getOrNull(idx)?.let {
+            suggestionItems.getOrNull(idx)?.let {
                 dialog.dismiss()
-                openDetail(it)
+                openSuggestion(it)
             }
         }
 
@@ -644,22 +699,16 @@ class MainActivity : BaseActivity() {
             override fun afterTextChanged(s: android.text.Editable?) {
                 val query = s?.toString()?.trim() ?: return
                 if (query.length < 2) {
-                    suggestionBarcodes = emptyList()
-                    adapter.clear()
-                    lvSuggestions.visibility = android.view.View.GONE
+                    showSuggestions(emptyList())
                     return
                 }
                 if (securePrefs.isOfflineMode()) {
                     lifecycleScope.launch {
                         val results = productRepository.searchOffline(query)
                         runOnUiThread {
-                            suggestionBarcodes = results.map { it.barcode }
-                            adapter.clear()
-                            results.forEach { p ->
-                                adapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/lb")
-                            }
-                            lvSuggestions.visibility =
-                                if (results.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+                            showSuggestions(results.map {
+                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock)
+                            })
                         }
                     }
                 } else {
@@ -669,13 +718,9 @@ class MainActivity : BaseActivity() {
                             if (resp.isSuccessful) {
                                 val products = resp.body()?.data ?: emptyList()
                                 runOnUiThread {
-                                    suggestionBarcodes = products.mapNotNull { it.barcode }
-                                    adapter.clear()
-                                    products.forEach { p ->
-                                        adapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/lb")
-                                    }
-                                    lvSuggestions.visibility =
-                                        if (products.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+                                    showSuggestions(products.map {
+                                        SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock)
+                                    })
                                 }
                             }
                         } catch (_: Exception) { /* búsqueda silenciosa */ }
@@ -685,6 +730,10 @@ class MainActivity : BaseActivity() {
         })
 
         dialog.show()
+        // El ListView de sugerencias puede quedar oculto detrás del teclado en pantallas
+        // pequeñas (TC22); forzar resize de la ventana del diálogo para mantenerlo siempre
+        // visible y táctil por encima del IME.
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
     }
 
     fun showProductSearchDialog() {
@@ -697,16 +746,30 @@ class MainActivity : BaseActivity() {
             hint = getString(R.string.hint_product_name_search)
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
-        val tvResults = android.widget.TextView(ctx).apply {
+        val tvStatus = android.widget.TextView(ctx).apply {
             textSize = 13f
             setPadding(0, 12, 0, 0)
             setTextColor(getColor(R.color.text_secondary))
             text = getString(R.string.label_type_to_search)
         }
+        val listHeightPx = (240 * resources.displayMetrics.density).toInt()
+        val lvResults = android.widget.ListView(ctx).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, listHeightPx
+            )
+            visibility = android.view.View.GONE
+            divider = android.graphics.drawable.ColorDrawable(getColor(R.color.text_secondary))
+            dividerHeight = 1
+            clipToPadding = false
+            setPadding(0, 0, 0, 24)
+        }
         layout.addView(etSearch)
-        layout.addView(tvResults)
+        layout.addView(tvStatus)
+        layout.addView(lvResults)
 
         var foundProducts: List<com.example.test.data.ProductDto> = emptyList()
+        val resultsAdapter = android.widget.ArrayAdapter<String>(ctx, android.R.layout.simple_list_item_1, mutableListOf())
+        lvResults.adapter = resultsAdapter
 
         val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
             .setTitle(getString(R.string.title_search_product_by_name))
@@ -714,51 +777,57 @@ class MainActivity : BaseActivity() {
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .create()
 
+        lvResults.setOnItemClickListener { _, _, idx, _ ->
+            foundProducts.getOrNull(idx)?.let { p ->
+                dialog.dismiss()
+                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock))
+            }
+        }
+
         etSearch.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
                 val query = s?.toString()?.trim() ?: return
-                if (query.length < 2) { tvResults.text = getString(R.string.label_type_at_least_2); return }
-                tvResults.text = getString(R.string.label_searching)
+                if (query.length < 2) {
+                    tvStatus.text = getString(R.string.label_type_at_least_2)
+                    lvResults.visibility = android.view.View.GONE
+                    return
+                }
+                tvStatus.text = getString(R.string.label_searching)
+                lvResults.visibility = android.view.View.GONE
                 lifecycleScope.launch {
                     try {
                         val resp = RetrofitClient.getApi().searchProducts(query)
                         if (resp.isSuccessful) {
                             foundProducts = resp.body()?.data ?: emptyList()
                             if (foundProducts.isEmpty()) {
-                                tvResults.text = getString(R.string.label_no_results, query)
+                                tvStatus.text = getString(R.string.label_no_results, query)
+                                lvResults.visibility = android.view.View.GONE
                             } else {
-                                tvResults.text = foundProducts.joinToString("\n\n") { p ->
-                                    "▸ ${p.name}\n   ${"$"}${String.format(java.util.Locale.US, "%.2f", p.price)}/lb   ${p.barcode ?: getString(R.string.no_barcode_label)}"
+                                tvStatus.text = ""
+                                resultsAdapter.clear()
+                                foundProducts.forEach { p ->
+                                    resultsAdapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/lb  ·  ${p.barcode ?: getString(R.string.no_barcode_label)}")
                                 }
+                                lvResults.visibility = android.view.View.VISIBLE
+                                // Resetear scroll al tope en cada búsqueda nueva — si no, queda
+                                // desplazado de la búsqueda anterior y se "pierden" resultados.
+                                // post{} para que corra después de que el ListView se mida.
+                                lvResults.post { lvResults.setSelection(0) }
                             }
                         }
                     } catch (_: Exception) {
-                        tvResults.text = getString(R.string.label_search_error)
+                        tvStatus.text = getString(R.string.label_search_error)
+                        lvResults.visibility = android.view.View.GONE
                     }
                 }
             }
         })
 
-        tvResults.setOnClickListener {
-            if (foundProducts.size == 1) {
-                foundProducts[0].barcode?.let { barcode ->
-                    dialog.dismiss()
-                    openDetail(barcode)
-                }
-            } else if (foundProducts.isNotEmpty()) {
-                val names = foundProducts.map { "${it.name}  ($${String.format(java.util.Locale.US,"%.2f",it.price)}/lb)" }.toTypedArray()
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                    .setTitle(getString(R.string.title_select_product))
-                    .setItems(names) { _, i ->
-                        dialog.dismiss()
-                        foundProducts[i].barcode?.let { barcode -> openDetail(barcode) }
-                    }
-                    .show()
-            }
-        }
         dialog.show()
+        // Evitar que el teclado tape la lista de resultados en pantallas pequeñas (TC22).
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
     }
 
     fun showDailySummary() {
