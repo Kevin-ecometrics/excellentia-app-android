@@ -27,7 +27,7 @@ data class ScanEntry(
         get() = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(timestamp))
 
     val formattedDate: String
-        get() = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(timestamp))
+        get() = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(Date(timestamp))
 }
 
 // ── API Response Models ──

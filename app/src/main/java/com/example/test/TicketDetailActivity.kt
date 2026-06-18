@@ -381,13 +381,13 @@ class TicketDetailActivity : AppCompatActivity() {
 
     private fun formatDate(rawDate: String?): String {
         if (rawDate.isNullOrBlank()) {
-            return SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(Date())
+            return SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
         }
         return try {
             val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
                 timeZone = TimeZone.getTimeZone("UTC")
             }
-            SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(parser.parse(rawDate)!!)
+            SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(parser.parse(rawDate)!!)
         } catch (_: Exception) { rawDate }
     }
 }

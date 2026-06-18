@@ -152,7 +152,7 @@ class ClientHistoryActivity : BaseActivity() {
             try {
                 val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
                     .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                val display = SimpleDateFormat("dd MMM yyyy  HH:mm", Locale.US)
+                val display = SimpleDateFormat("MMM dd, yyyy  HH:mm", Locale.US)
                 display.format(parser.parse(it)!!)
             } catch (_: Exception) { "" }
         } ?: ""

@@ -374,7 +374,7 @@ class CurrentOrderActivity : BaseActivity() {
     private fun askDamagedItems() {
         lifecycleScope.launch {
             val pending = orderRepository.getPendingOrders()
-            if (pending.isEmpty()) { askPaymentMethod(); return@launch }
+            if (pending.isEmpty()) { launchSignature(); return@launch }
 
             val ctx = this@CurrentOrderActivity
             val density = resources.displayMetrics.density
@@ -474,11 +474,11 @@ class CurrentOrderActivity : BaseActivity() {
                             qty         = qty
                         ) else null
                     }
-                    askPaymentMethod()
+                    launchSignature()
                 }
                 .setNegativeButton(getString(R.string.btn_none)) { _, _ ->
                     pendingDamageItems = emptyList()
-                    askPaymentMethod()
+                    launchSignature()
                 }
                 .show()
         }

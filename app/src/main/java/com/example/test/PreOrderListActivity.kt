@@ -180,8 +180,8 @@ class PreOrderListActivity : BaseActivity() {
             setTextColor(ContextCompat.getColor(this@PreOrderListActivity, statusColor))
         }
 
-        val dateStr = po.scheduledDate?.let { getString(R.string.label_delivery_prefix, formatDate(it, "dd MMM yyyy")) }
-            ?: po.createdAt?.let { getString(R.string.label_created_prefix, formatDate(it, "dd MMM yyyy")) }
+        val dateStr = po.scheduledDate?.let { getString(R.string.label_delivery_prefix, formatDate(it, "MMM dd, yyyy")) }
+            ?: po.createdAt?.let { getString(R.string.label_created_prefix, formatDate(it, "MMM dd, yyyy")) }
             ?: ""
         view.findViewById<TextView>(R.id.tvPreOrderDate).text = dateStr
         view.findViewById<TextView>(R.id.tvPreOrderItems).text = getString(R.string.label_products_count, po.itemCount)

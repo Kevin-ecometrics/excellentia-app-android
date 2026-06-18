@@ -366,7 +366,7 @@ class ProductDetailActivity : BaseActivity() {
                             try {
                                 val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
                                 val d = sdf.parse(it.substringBefore("."))
-                                java.text.SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()).format(d!!)
+                                java.text.SimpleDateFormat("MM/dd/yy HH:mm", Locale.getDefault()).format(d!!)
                             } catch (_: Exception) { it.substringBefore("T") }
                         } ?: ""
                         val tvDate = TextView(this@ProductDetailActivity).apply {

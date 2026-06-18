@@ -148,11 +148,11 @@ class PreOrderDetailActivity : BaseActivity() {
 
         val dateStr = buildString {
             po.scheduledDate?.let { raw ->
-                val formatted = formatDate(raw, "dd MMM yyyy")
+                val formatted = formatDate(raw, "MMM dd, yyyy")
                 append(getString(R.string.label_scheduled_delivery, formatted))
             }
             po.createdAt?.let { raw ->
-                val formatted = formatDate(raw, "dd MMM yyyy  HH:mm")
+                val formatted = formatDate(raw, "MMM dd, yyyy  HH:mm")
                 if (isNotEmpty()) append("\n")
                 append(getString(R.string.label_created_on, formatted))
             }
@@ -230,7 +230,7 @@ class PreOrderDetailActivity : BaseActivity() {
     private fun askDamagedItems() {
         val po = currentPreOrder ?: return
         val items = po.items
-        if (items.isEmpty()) { askPaymentMethod(); return }
+        if (items.isEmpty()) { checkPrinterThenConvert(); return }
 
         val density = resources.displayMetrics.density
         val scroll = ScrollView(this)
@@ -305,11 +305,11 @@ class PreOrderDetailActivity : BaseActivity() {
                     if (qty > 0) DamageItem(barcode = item.barcode, productName = item.productName, qty = qty)
                     else null
                 }
-                askPaymentMethod()
+                checkPrinterThenConvert()
             }
             .setNegativeButton(getString(R.string.btn_none)) { _, _ ->
                 pendingDamageItems = emptyList()
-                askPaymentMethod()
+                checkPrinterThenConvert()
             }
             .show()
     }

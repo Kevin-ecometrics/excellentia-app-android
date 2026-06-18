@@ -282,7 +282,7 @@ class HistoryActivity : BaseActivity() {
             try {
                 val parser = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
                     .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
-                val display = java.text.SimpleDateFormat("dd MMM yyyy  HH:mm", java.util.Locale.US)
+                val display = java.text.SimpleDateFormat("MMM dd, yyyy  HH:mm", java.util.Locale.US)
                 display.format(parser.parse(it)!!)
             } catch (_: Exception) { "" }
         } ?: ""

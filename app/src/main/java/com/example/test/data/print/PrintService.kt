@@ -136,7 +136,7 @@ object PrintService {
         paymentMethod: String? = null,
         signature: String? = null
     ): String {
-        val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(Date())
+        val date = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
         val grandTotal = items.sumOf { it.total }
         val totalQty   = items.sumOf { it.quantity }
         val SEP  = "================================"   // 32 chars — separador principal
@@ -267,7 +267,7 @@ object PrintService {
     }
 
     private fun buildTestCpcl(): String {
-        val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).format(Date())
+        val date = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
         val body = StringBuilder()
         var y = 20
 

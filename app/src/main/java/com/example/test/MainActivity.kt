@@ -831,7 +831,7 @@ class MainActivity : BaseActivity() {
     }
 
     fun showDailySummary() {
-        val today = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.US).format(java.util.Date())
+        val today = java.text.SimpleDateFormat("MM/dd/yyyy", java.util.Locale.US).format(java.util.Date())
         val pendingCount = orderRepository.getPendingCount()
 
         lifecycleScope.launch {
