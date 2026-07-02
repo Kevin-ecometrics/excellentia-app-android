@@ -84,7 +84,9 @@
       "PowerShell(.\\\\gradlew.bat assembleDebug -q 2>&1 | Select-Object -Last 80)",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; .\\\\gradlew.bat assembleDebug -q 2>&1 | Select-Object -Last 100)",
       "Bash(./gradlew.bat compileDebugKotlin --console=plain)",
-      "PowerShell(.\\\\gradlew.bat compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 60)"
+      "PowerShell(.\\\\gradlew.bat compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 60)",
+      "Bash(adb devices *)",
+      "Bash(./gradlew compileDebugKotlin -q)"
     ]
   }
 }

@@ -194,6 +194,7 @@ Sprinkler Pipes     $4.10 F4, LEFT — twoCol(nombre, total, 32)
 - **Leyenda legal** — `wrapText()` en PrintService divide el texto de términos en líneas de ≤ 30 chars. Siempre impresa antes de la firma ("Customer Signature").
 - **Company settings refresh** — `MainActivity.refreshCompanySettings()` hace fetch de `GET /api/settings` en cada `onResume()` en background (silencioso). Actualiza `SecurePreferences` sin re-login. El ticket siempre refleja los datos más recientes de la webapp.
 - **SecurePreferences** guarda: JWT, refreshToken, backend URL, offline mode, `printer_bt_address`, `printer_bt_name`, `active_customer_id`, `active_customer_name`, `active_customer_address`, user info, last scan, company settings.
+- **SecurePreferences — recuperación de EncryptedSharedPreferences corrupta** — `createEncryptedPrefs()` envuelve `EncryptedSharedPreferences.create()` en try/catch por `GeneralSecurityException`. Si la clave del Android Keystore quedó inválida (crash típico: `AEADBadTagException`/`KeyStoreException: VERIFICATION_FAILED` en `BaseActivity.attachBaseContext()` al arrancar), borra el archivo `secure_prefs` corrupto con `context.deleteSharedPreferences()` y lo recrea desde cero. Efecto secundario esperado: se pierde el JWT/config local guardados y el usuario debe volver a iniciar sesión.
 - **Offline mode** default true. LoginActivity lo pone false tras login exitoso.
 - **TokenAuthenticator** usa OkHttpClient independiente para el refresh (evita loops).
 - **registerReceiver con `RECEIVER_NOT_EXPORTED`** — obligatorio API 33+.
