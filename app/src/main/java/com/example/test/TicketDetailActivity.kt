@@ -169,7 +169,8 @@ class TicketDetailActivity : AppCompatActivity() {
                 btnReprint.text = getString(R.string.btn_printing)
                 val items = orders.map { o ->
                     BatchItem(barcode = o.barcode, productName = o.productName,
-                              price = o.price, quantity = o.quantity, total = o.total)
+                              price = o.price, quantity = o.quantity, total = o.total,
+                              unit = o.unit)
                 }
                 lifecycleScope.launch {
                     val result = PrintService.printTicket(
@@ -245,9 +246,10 @@ class TicketDetailActivity : AppCompatActivity() {
         addSep(heavy = true)
         for (g in orders.groupedForTicket()) {
             val avgPrice = if (g.quantity != 0.0) g.total / g.quantity else 0.0
+            val unitLabel = unitLabel(g.unit)
             addLine(g.productName, sizeSp = 12f)
             addTwoCol(
-                left  = String.format(Locale.US, "%.2f lb x \$%.2f/lb", g.quantity, avgPrice),
+                left  = String.format(Locale.US, "%.2f %s x \$%.2f/%s", g.quantity, unitLabel, avgPrice, unitLabel),
                 right = String.format(Locale.US, "\$%.2f", g.total),
                 sizeSp = 12f
             )
@@ -262,7 +264,8 @@ class TicketDetailActivity : AppCompatActivity() {
             bold   = true,
             sizeSp = 13f
         )
-        addLine(String.format(Locale.US, "%.2f lb total", totalQty), sizeSp = 12f)
+        val overallUnit = orders.firstOrNull()?.let { unitLabel(it.unit) } ?: "lb"
+        addLine(String.format(Locale.US, "%.2f %s total", totalQty, overallUnit), sizeSp = 12f)
         addLine(companyNameFooter, sizeSp = 12f)
 
         // ── Negative Sale Summary ────────────────────────
@@ -319,6 +322,9 @@ class TicketDetailActivity : AppCompatActivity() {
             addLine(status, bold = true, sizeSp = 12f, color = statusColor)
         }
     }
+
+    private fun unitLabel(unit: String?): String =
+        if (unit.isNullOrBlank() || unit == "Lbs") "lb" else unit
 
     // ── View helpers ──────────────────────────────────────────────────────────
 

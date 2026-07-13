@@ -28,6 +28,7 @@ class ProductDetailActivity : BaseActivity() {
         private const val KEY_QUANTITY = "QUANTITY"
         private const val KEY_CUSTOMER_ID = "CUSTOMER_ID"
         private const val KEY_CUSTOMER_NAME = "CUSTOMER_NAME"
+        private const val KEY_UNIT = "UNIT"
     }
 
     private lateinit var tvBarcode: TextView
@@ -57,7 +58,11 @@ class ProductDetailActivity : BaseActivity() {
     private var pricePerLb = 0.0
     private var minTotal: Double? = null
     private var customerId: String? = null
+    private var productUnit: String? = null
     private lateinit var orderRepository: OrderRepository
+
+    private val isWeightBased: Boolean
+        get() = productUnit == null || productUnit == "" || productUnit == "Lbs"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,6 +79,7 @@ class ProductDetailActivity : BaseActivity() {
         productPrice = intent.getDoubleExtra(KEY_PRICE, 0.0)
         defaultWeight = intent.getDoubleExtra(KEY_QUANTITY, 1.0).coerceAtLeast(0.1)
         customerId = intent.getStringExtra(KEY_CUSTOMER_ID)
+        productUnit = intent.getStringExtra(KEY_UNIT)
         baseTotal = productPrice
 
         val db = AppDatabase.getInstance(this)
@@ -81,7 +87,11 @@ class ProductDetailActivity : BaseActivity() {
         orderRepository = OrderRepository(db, securePrefs)
 
         initViews()
-        resetWeights()
+        if (isWeightBased) {
+            resetWeights()
+        } else {
+            resetCount()
+        }
         showProduct()
         if (customerId != null) loadPriceHistory()
 
@@ -128,8 +138,10 @@ class ProductDetailActivity : BaseActivity() {
         btnUnitMinus.setOnClickListener {
             if (units > 1) {
                 units--
-                weights.removeLastOrNull()
-                rebuildWeightRows()
+                if (isWeightBased) {
+                    weights.removeLastOrNull()
+                    rebuildWeightRows()
+                }
                 recalcTotal()
             }
         }
@@ -137,8 +149,10 @@ class ProductDetailActivity : BaseActivity() {
         btnUnitPlus.setOnClickListener {
             if (units < 50) {
                 units++
-                weights.add(defaultWeight)
-                rebuildWeightRows()
+                if (isWeightBased) {
+                    weights.add(defaultWeight)
+                    rebuildWeightRows()
+                }
                 recalcTotal()
             }
         }
@@ -157,6 +171,12 @@ class ProductDetailActivity : BaseActivity() {
         weights.clear()
         weights.add(defaultWeight)
         rebuildWeightRows()
+        recalcTotal()
+    }
+
+    private fun resetCount() {
+        units = defaultWeight.toInt().coerceAtLeast(1)
+        cardWeights.visibility = View.GONE
         recalcTotal()
     }
 
@@ -270,23 +290,38 @@ class ProductDetailActivity : BaseActivity() {
         pricePerLb = productPrice
         tvBarcode.text = barcode
         tvProductName.text = productName
-        tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
+        if (isWeightBased) {
+            tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
+        } else {
+            tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
+        }
         tvUnits.text = units.toString()
-        tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * defaultWeight)
+        if (isWeightBased) {
+            tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * defaultWeight)
+        } else {
+            tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * units)
+        }
         recalcTotal()
     }
 
     private fun recalcTotal() {
         tvUnits.text = units.toString()
-        val totalWeight = weights.sum()
-        val total = totalWeight * pricePerLb
-        tvTotalWeight.text = if (units > 1) {
-            val parts = weights.joinToString(" + ") { String.format(Locale.US, "%.2f", it) }
-            "$parts = ${String.format(Locale.US, "%.2f", totalWeight)} lb"
+        if (isWeightBased) {
+            val totalWeight = weights.sum()
+            val total = totalWeight * pricePerLb
+            tvTotalWeight.text = if (units > 1) {
+                val parts = weights.joinToString(" + ") { String.format(Locale.US, "%.2f", it) }
+                "$parts = ${String.format(Locale.US, "%.2f", totalWeight)} lb"
+            } else {
+                String.format(Locale.US, getString(R.string.label_weight_display), totalWeight)
+            }
+            tvTotal.text = String.format(Locale.US, "$%.2f", total)
         } else {
-            String.format(Locale.US, getString(R.string.label_weight_display), totalWeight)
+            val total = units * pricePerLb
+            val unitLabel = productUnit ?: "Unit"
+            tvTotalWeight.text = "$units $unitLabel"
+            tvTotal.text = String.format(Locale.US, "$%.2f", total)
         }
-        tvTotal.text = String.format(Locale.US, "$%.2f", total)
     }
 
     private fun showPriceEditDialog() {
@@ -311,7 +346,11 @@ class ProductDetailActivity : BaseActivity() {
                     }
                     baseTotal = newTotal
                     pricePerLb = baseTotal
-                    tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
+                    if (isWeightBased) {
+                        tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
+                    } else {
+                        tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
+                    }
                     recalcTotal()
                 } else {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_invalid_price), Snackbar.LENGTH_SHORT).show()
@@ -355,8 +394,9 @@ class ProductDetailActivity : BaseActivity() {
                             orientation = LinearLayout.VERTICAL
                         }
 
+                        val unitLabel = productUnit ?: "lb"
                         val tvPriceLine = TextView(this@ProductDetailActivity).apply {
-                            text = String.format(Locale.US, "%.2f lb  =  \$%.2f", item.quantity, item.price * item.quantity)
+                            text = String.format(Locale.US, "%.2f %s  =  \$%.2f", item.quantity, unitLabel, item.price * item.quantity)
                             textSize = 13f
                             setTextColor(resources.getColor(R.color.text_primary, theme))
                         }
@@ -393,12 +433,23 @@ class ProductDetailActivity : BaseActivity() {
 
     private fun saveOrder() {
         btnAddOrder.isEnabled = false
-        for (weight in weights) {
+        if (isWeightBased) {
+            for (weight in weights) {
+                orderRepository.savePendingOrder(
+                    barcode = barcode,
+                    productName = productName,
+                    price = pricePerLb,
+                    quantity = weight,
+                    unit = productUnit
+                )
+            }
+        } else {
             orderRepository.savePendingOrder(
                 barcode = barcode,
                 productName = productName,
                 price = pricePerLb,
-                quantity = weight
+                quantity = units.toDouble(),
+                unit = productUnit
             )
         }
         btnAddOrder.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)

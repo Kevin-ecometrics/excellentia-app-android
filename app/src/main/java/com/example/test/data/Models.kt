@@ -10,7 +10,9 @@ data class Product(
     val name: String,
     val price: Double,
     val weightPerUnit: Double? = null,
-    val stock: Int = 0
+    val stock: Int = 0,
+    val unit: String? = null,
+    val qty: Int = 0
 )
 
 enum class SyncStatus { PENDING, SENT, FAILED }
@@ -21,7 +23,8 @@ data class ScanEntry(
     val price: Double,
     val quantity: Double,
     val timestamp: Long = System.currentTimeMillis(),
-    val status: SyncStatus = SyncStatus.PENDING
+    val status: SyncStatus = SyncStatus.PENDING,
+    val unit: String? = null
 ) {
     val formattedTime: String
         get() = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(timestamp))
@@ -55,14 +58,18 @@ data class ProductDto(
     val category: String? = null,
     val brand: String? = null,
     val stock: Int = 0,
-    @SerializedName("weight_per_unit") val weightPerUnit: Double? = null
+    @SerializedName("weight_per_unit") val weightPerUnit: Double? = null,
+    val unit: String? = null,
+    val qty: Int = 0
 ) {
     fun toProduct(): Product = Product(
         barcode = barcode ?: "unknown",
         name = name,
         price = price,
         weightPerUnit = weightPerUnit,
-        stock = stock
+        stock = stock,
+        unit = unit,
+        qty = qty
     )
 }
 
@@ -95,7 +102,8 @@ data class OrderDto(
     @SerializedName("user_id") val userId: Int? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("customer_id") val customerId: String? = null,
-    @SerializedName("customer_name") val customerName: String? = null
+    @SerializedName("customer_name") val customerName: String? = null,
+    val unit: String? = null
 )
 
 data class DeviceRegisterRequest(
@@ -138,7 +146,8 @@ data class BatchItem(
     @SerializedName("product_name") val productName: String,
     val price: Double,
     val quantity: Double,
-    val total: Double
+    val total: Double,
+    val unit: String? = null
 )
 
 // ── Ticket grouping (consolida líneas repetidas del mismo producto) ──
@@ -147,7 +156,8 @@ data class GroupedTicketItem(
     val barcode: String,
     val productName: String,
     val quantity: Double,
-    val total: Double
+    val total: Double,
+    val unit: String? = null
 )
 
 @JvmName("groupedOrdersForTicket")
@@ -157,7 +167,7 @@ fun List<OrderDto>.groupedForTicket(): List<GroupedTicketItem> {
         val key = o.barcode.ifBlank { o.productName }
         val existing = groups[key]
         groups[key] = if (existing == null) {
-            GroupedTicketItem(o.barcode, o.productName, o.quantity, o.total)
+            GroupedTicketItem(o.barcode, o.productName, o.quantity, o.total, o.unit)
         } else {
             existing.copy(quantity = existing.quantity + o.quantity, total = existing.total + o.total)
         }
@@ -172,7 +182,7 @@ fun List<BatchItem>.groupedForTicket(): List<GroupedTicketItem> {
         val key = i.barcode.ifBlank { i.productName }
         val existing = groups[key]
         groups[key] = if (existing == null) {
-            GroupedTicketItem(i.barcode, i.productName, i.quantity, i.total)
+            GroupedTicketItem(i.barcode, i.productName, i.quantity, i.total, i.unit)
         } else {
             existing.copy(quantity = existing.quantity + i.quantity, total = existing.total + i.total)
         }
@@ -300,7 +310,8 @@ data class PreOrderItem(
     @SerializedName("product_name") val productName: String,
     val price: Double,
     val quantity: Double,
-    val total: Double
+    val total: Double,
+    val unit: String? = null
 )
 
 data class PreOrderRequest(

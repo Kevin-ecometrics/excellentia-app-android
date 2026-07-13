@@ -192,11 +192,12 @@ class CurrentOrderActivity : BaseActivity() {
             val inflater = LayoutInflater.from(this@CurrentOrderActivity)
             for (order in pending) {
                 val row = inflater.inflate(R.layout.item_pending_order, layoutOrderItems, false)
+                val unitLabel = if (order.unit.isNullOrBlank() || order.unit == "Lbs") "lb" else order.unit
                 row.findViewById<TextView>(R.id.tvPendingName).text = order.productName
                 row.findViewById<TextView>(R.id.tvPendingMeta).text =
                     "${order.barcode}  ·  ${String.format(Locale.US, "$%.2f total", order.price * order.quantity)}"
                 row.findViewById<TextView>(R.id.tvPendingQtyTotal).text =
-                    String.format(Locale.US, "%.2f lb  =  $%.2f", order.quantity, order.price * order.quantity)
+                    String.format(Locale.US, "%.2f %s  =  $%.2f", order.quantity, unitLabel, order.price * order.quantity)
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnEditItem)
                     .setOnClickListener { showEditDialog(order) }
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnDeleteItem)
@@ -206,8 +207,11 @@ class CurrentOrderActivity : BaseActivity() {
 
             val grandTotal = pending.sumOf { it.price * it.quantity }
             val totalQty = pending.sumOf { it.quantity }
+            val overallUnit = pending.firstOrNull()?.let {
+                if (it.unit.isNullOrBlank() || it.unit == "Lbs") "lb" else it.unit
+            } ?: "lb"
             tvGrandTotal.text = String.format(Locale.US, "$%.2f", grandTotal)
-            tvTotalQty.text = String.format(Locale.US, "%.2f lb", totalQty)
+            tvTotalQty.text = String.format(Locale.US, "%.2f %s", totalQty, overallUnit)
             tvTotalItems.text = getString(R.string.label_products_count, pending.size)
             tvOrderCount.text = pending.size.toString()
         }
@@ -232,6 +236,7 @@ class CurrentOrderActivity : BaseActivity() {
             val etPricePerLb = dialogView.findViewById<android.widget.EditText>(R.id.etPricePerLb)
             val tvTotal      = dialogView.findViewById<android.widget.TextView>(R.id.tvTotal)
             val tvMinWarning = dialogView.findViewById<android.widget.TextView>(R.id.tvMinWarning)
+            val unitLabel = if (order.unit.isNullOrBlank() || order.unit == "Lbs") "lb" else order.unit
 
             etQty.setText(String.format(Locale.US, "%.2f", order.quantity))
             etQty.selectAll()
@@ -241,7 +246,7 @@ class CurrentOrderActivity : BaseActivity() {
                 val q = etQty.text.toString().toDoubleOrNull() ?: 0.0
                 val r = etPricePerLb.text.toString().toDoubleOrNull() ?: 0.0
                 val total = q * r
-                tvTotal.text = String.format(Locale.US, "%.2f lb  =  \$%.2f", q, total)
+                tvTotal.text = String.format(Locale.US, "%.2f %s  =  \$%.2f", q, unitLabel, total)
                 if (minPrice != null && total > 0) {
                     if (Math.round(total * 100) < Math.round(minPrice * 100)) {
                         tvMinWarning.text = getString(R.string.error_min_price, String.format(Locale.US, "%.2f", minPrice))
@@ -317,7 +322,8 @@ class CurrentOrderActivity : BaseActivity() {
                     total = order.price * order.quantity,
                     status = "PENDING",
                     customerId = customerId,
-                    customerName = customerName
+                    customerName = customerName,
+                    unit = order.unit
                 )
             }
             startActivity(Intent(this@CurrentOrderActivity, TicketDetailActivity::class.java).apply {
@@ -428,8 +434,9 @@ class CurrentOrderActivity : BaseActivity() {
                     ).apply { topMargin = (4 * density).toInt() }
                 }
 
+                val unitLabel = if (order.unit.isNullOrBlank() || order.unit == "Lbs") "lb" else order.unit
                 val tvDetail = android.widget.TextView(ctx).apply {
-                    text = String.format(Locale.US, "%.2f lb · $%.2f/lb", order.quantity, order.price)
+                    text = String.format(Locale.US, "%.2f %s · \$%.2f/%s", order.quantity, unitLabel, order.price, unitLabel)
                     textSize = 12f
                     setTextColor(getColor(R.color.text_secondary))
                     layoutParams = android.widget.LinearLayout.LayoutParams(0,
@@ -560,7 +567,8 @@ class CurrentOrderActivity : BaseActivity() {
                     productName = order.productName,
                     price = order.price,
                     quantity = order.quantity,
-                    total = order.price * order.quantity
+                    total = order.price * order.quantity,
+                    unit = order.unit
                 )
             }
 
@@ -623,7 +631,8 @@ class CurrentOrderActivity : BaseActivity() {
                                         productName = bi.productName, price = bi.price,
                                         quantity = bi.quantity, total = bi.total,
                                         status = "PENDING", customerId = customerId,
-                                        customerName = customerName
+                                        customerName = customerName,
+                                        unit = bi.unit
                                     )
                                 }
                             ))
@@ -693,7 +702,8 @@ class CurrentOrderActivity : BaseActivity() {
                                     total = bi.total,
                                     status = "SENT",
                                     customerId = customerId,
-                                    customerName = customerName
+                                    customerName = customerName,
+                                    unit = bi.unit
                                 )
                             }
                         ))

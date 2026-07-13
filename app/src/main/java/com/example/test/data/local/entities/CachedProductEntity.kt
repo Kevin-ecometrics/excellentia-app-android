@@ -9,5 +9,7 @@ data class CachedProductEntity(
     val brand: String? = null,
     val stock: Int = 0,
     val weightPerUnit: Double? = null,
+    val unit: String? = null,
+    val qty: Int = 0,
     val cachedAt: Long = System.currentTimeMillis()
 )

@@ -64,7 +64,8 @@ class OrderRepository(
         productName: String,
         price: Double,
         quantity: Double,
-        deviceId: Int? = null
+        deviceId: Int? = null,
+        unit: String? = null
     ) {
         orderDao.insert(
             com.example.test.data.local.entities.PendingOrderEntity(
@@ -74,7 +75,8 @@ class OrderRepository(
                 quantity = quantity,
                 deviceId = deviceId,
                 customerId = securePrefs.getActiveCustomerId(),
-                customerName = securePrefs.getActiveCustomerName()
+                customerName = securePrefs.getActiveCustomerName(),
+                unit = unit
             )
         )
     }
@@ -189,7 +191,8 @@ class OrderRepository(
                             category = dto.category,
                             brand = dto.brand,
                             stock = dto.stock,
-                            weightPerUnit = dto.weightPerUnit
+                            weightPerUnit = dto.weightPerUnit,
+                            unit = dto.unit
                         )
                     )
                 }

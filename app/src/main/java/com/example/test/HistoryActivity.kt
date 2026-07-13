@@ -149,7 +149,8 @@ class HistoryActivity : BaseActivity() {
                             price = order.price,
                             quantity = order.quantity,
                             timestamp = order.createdAt,
-                            status = if (isFailed) SyncStatus.FAILED else SyncStatus.PENDING
+                            status = if (isFailed) SyncStatus.FAILED else SyncStatus.PENDING,
+                            unit = order.unit
                         ))
                         itemView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnRetryEntry)
                             ?.visibility = View.GONE
@@ -209,13 +210,14 @@ class HistoryActivity : BaseActivity() {
     }
 
     private fun bindEntry(view: View, entry: ScanEntry) {
+        val unitLabel = if (entry.unit.isNullOrBlank() || entry.unit == "Lbs") "lb" else entry.unit
         view.findViewById<TextView>(R.id.tvEntryName).text = entry.productName
         view.findViewById<TextView>(R.id.tvEntryBarcode).text = entry.barcode
         view.findViewById<TextView>(R.id.tvEntryDate).text =
             "${entry.formattedDate}  ${entry.formattedTime}"
         view.findViewById<TextView>(R.id.tvEntryTotal).text =
             String.format(Locale.US, "$%.2f", entry.price * entry.quantity)
-        view.findViewById<TextView>(R.id.tvEntryQty).text = "${entry.quantity} lb"
+        view.findViewById<TextView>(R.id.tvEntryQty).text = "${entry.quantity} $unitLabel"
 
         val tvStatus = view.findViewById<TextView>(R.id.tvEntryStatus)
         when (entry.status) {

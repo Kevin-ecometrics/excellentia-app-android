@@ -18,6 +18,7 @@ class OrderDao(private val db: AppDatabase) {
             put("retry_count", order.retryCount)
             put("customer_id", order.customerId)
             put("customer_name", order.customerName)
+            order.unit?.let { put("unit", it) }
         }
         return db.writableDatabase.insert("pending_orders", null, values)
     }
@@ -118,6 +119,8 @@ class OrderDao(private val db: AppDatabase) {
         customerId = c.getColumnIndex("customer_id").takeIf { it >= 0 }
             ?.let { if (c.isNull(it)) null else c.getString(it) },
         customerName = c.getColumnIndex("customer_name").takeIf { it >= 0 }
+            ?.let { if (c.isNull(it)) null else c.getString(it) },
+        unit = c.getColumnIndex("unit").takeIf { it >= 0 }
             ?.let { if (c.isNull(it)) null else c.getString(it) }
     )
 }

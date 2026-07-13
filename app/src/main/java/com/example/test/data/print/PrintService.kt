@@ -205,8 +205,9 @@ object PrintService {
         for (g in items.groupedForTicket()) {
             val avgPrice  = if (g.quantity != 0.0) g.total / g.quantity else 0.0
             val totalStr  = String.format(Locale.US, "\$%.2f", g.total)
-            val detailStr = String.format(Locale.US, "%.2f lb x \$%.2f/lb",
-                                          g.quantity, avgPrice)
+            val unitLabel = unitLabel(g.unit)
+            val detailStr = String.format(Locale.US, "%.2f %s x \$%.2f/%s",
+                                          g.quantity, unitLabel, avgPrice, unitLabel)
             for (line in wrapText(g.productName, 28)) {
                 body.t(F4, 0, y, line);                            y += F4H + 3
             }
@@ -230,8 +231,9 @@ object PrintService {
         // ── Total ──────────────────────────────────────
         body.t(F4, 0, y, SEP);                                     y += F4H + 10
         body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 8
+        val overallUnit = items.firstOrNull()?.let { unitLabel(it.unit) } ?: "lb"
         body.t(F4, 0, y,
-            String.format(Locale.US, "%.2f lb total", totalQty));    y += F4H + 6
+            String.format(Locale.US, "%.2f %s total", totalQty, overallUnit));    y += F4H + 6
         body.t(F4, 0, y, companyName.take(32));                    y += F4H + 16
 
         // ── Términos y condiciones ──────────────────────
@@ -356,4 +358,7 @@ object PrintService {
 
     private fun StringBuilder.left()   = append("LEFT\r\n")
     private fun StringBuilder.center() = append("CENTER\r\n")
+
+    private fun unitLabel(unit: String?): String =
+        if (unit.isNullOrBlank() || unit == "Lbs") "lb" else unit
 }

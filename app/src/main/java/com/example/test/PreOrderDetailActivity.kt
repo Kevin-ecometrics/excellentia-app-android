@@ -177,9 +177,10 @@ class PreOrderDetailActivity : BaseActivity() {
                 ).apply { bottomMargin = 6.dp }
                 gravity = Gravity.CENTER_VERTICAL
             }
+            val unitLabel = if (item.unit.isNullOrBlank() || item.unit == "Lbs") "lb" else item.unit
             val tvName = TextView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${item.productName}\n${String.format(Locale.US, "%.2f lb × $%.2f/lb", item.quantity, item.price)}"
+                text = "${item.productName}\n${String.format(Locale.US, "%.2f %s × \$%.2f/%s", item.quantity, unitLabel, item.price, unitLabel)}"
                 textSize = 13f
                 setTextColor(getColor(R.color.text_primary))
             }
@@ -269,8 +270,9 @@ class PreOrderDetailActivity : BaseActivity() {
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = (4 * density).toInt() }
             }
+            val unitLabel = if (item.unit.isNullOrBlank() || item.unit == "Lbs") "lb" else item.unit
             val tvDetail = TextView(this).apply {
-                text = String.format(Locale.US, "%.2f lb · $%.2f/lb", item.quantity, item.price)
+                text = String.format(Locale.US, "%.2f %s · \$%.2f/%s", item.quantity, unitLabel, item.price, unitLabel)
                 textSize = 12f
                 setTextColor(getColor(R.color.text_secondary))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -390,7 +392,8 @@ class PreOrderDetailActivity : BaseActivity() {
                             productName = item.productName,
                             price       = item.price,
                             quantity    = item.quantity,
-                            total       = item.total
+                            total       = item.total,
+                            unit        = item.unit
                         )
                     }
 
@@ -444,7 +447,8 @@ class PreOrderDetailActivity : BaseActivity() {
                                         total        = bi.total,
                                         status       = "SENT",
                                         customerId   = po.customerId,
-                                        customerName = po.customerName
+                                        customerName = po.customerName,
+                                        unit         = bi.unit
                                     )
                                 }
                             ))

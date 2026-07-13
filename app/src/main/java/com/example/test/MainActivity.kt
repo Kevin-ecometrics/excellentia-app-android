@@ -560,7 +560,8 @@ class MainActivity : BaseActivity() {
                 runOnUiThread { showProductNotFound(barcode) }
                 return@launch
             }
-            val initialQty = product.weightPerUnit?.takeIf { it > 0 } ?: quantity
+            val initialQty = if (product.qty > 0) product.qty.toDouble()
+                             else product.weightPerUnit?.takeIf { it > 0 } ?: quantity
             securePrefs.saveLastScan(barcode, product.name)
             updateLastScan()
             startActivity(
@@ -572,6 +573,7 @@ class MainActivity : BaseActivity() {
                     putExtra("STOCK", product.stock)
                     putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
                     putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
+                    putExtra("UNIT", product.unit)
                 }
             )
         }
@@ -582,7 +584,9 @@ class MainActivity : BaseActivity() {
         val name: String,
         val price: Double,
         val weightPerUnit: Double?,
-        val stock: Int
+        val stock: Int,
+        val unit: String? = null,
+        val qty: Int = 0
     )
 
     // Abre el detalle directo desde un resultado de búsqueda ya cargado (sin volver a
@@ -593,17 +597,18 @@ class MainActivity : BaseActivity() {
             securePrefs.saveLastScan(barcode, item.name)
             updateLastScan()
         }
-        startActivity(
-            Intent(this, ProductDetailActivity::class.java).apply {
-                putExtra("BARCODE", barcode)
-                putExtra("PRODUCT_NAME", item.name)
-                putExtra("PRODUCT_PRICE", item.price)
-                putExtra("QUANTITY", item.weightPerUnit?.takeIf { it > 0 } ?: 1.0)
-                putExtra("STOCK", item.stock)
-                putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
-                putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
-            }
-        )
+            startActivity(
+                Intent(this, ProductDetailActivity::class.java).apply {
+                    putExtra("BARCODE", barcode)
+                    putExtra("PRODUCT_NAME", item.name)
+                    putExtra("PRODUCT_PRICE", item.price)
+                    putExtra("QUANTITY", if (item.qty > 0) item.qty.toDouble() else item.weightPerUnit?.takeIf { it > 0 } ?: 1.0)
+                    putExtra("STOCK", item.stock)
+                    putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
+                    putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
+                    putExtra("UNIT", item.unit)
+                }
+            )
     }
 
     private fun showProductNotFound(barcode: String) {
@@ -633,15 +638,16 @@ class MainActivity : BaseActivity() {
         // texto visible y el producto real (y permite incluir productos sin barcode).
         var suggestionItems: List<SuggestionItem> = emptyList()
 
-        fun labelFor(name: String, price: Double, barcode: String?): String {
-            val priceStr = "$${String.format(java.util.Locale.US, "%.2f", price)}/lb"
-            return if (barcode != null) "$name  ·  $priceStr" else "$name  ·  $priceStr  ·  ${getString(R.string.no_barcode_label)}"
+        fun labelFor(item: SuggestionItem): String {
+            val unitLabel = if (item.unit.isNullOrBlank() || item.unit == "Lbs") "lb" else item.unit
+            val priceStr = "$${String.format(java.util.Locale.US, "%.2f", item.price)}/$unitLabel"
+            return if (item.barcode != null) "${item.name}  ·  $priceStr" else "${item.name}  ·  $priceStr  ·  ${getString(R.string.no_barcode_label)}"
         }
 
         fun showSuggestions(items: List<SuggestionItem>) {
             suggestionItems = items
             adapter.clear()
-            adapter.addAll(items.map { labelFor(it.name, it.price, it.barcode) })
+            adapter.addAll(items.map { labelFor(it) })
             lvSuggestions.visibility = if (items.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
             // Cada búsqueda reemplaza el dataset, pero el ListView conserva el scroll
             // anterior — sin esto, una búsqueda nueva puede arrancar ya desplazada y
@@ -666,7 +672,7 @@ class MainActivity : BaseActivity() {
                             results.isEmpty() -> runOnUiThread { showProductNotFound(query) }
                             results.size == 1 -> runOnUiThread {
                                 openSuggestion(
-                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock)
+                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty)
                                 )
                             }
                             // Varios resultados: se listan en el mismo lvSuggestions (un solo
@@ -674,7 +680,7 @@ class MainActivity : BaseActivity() {
                             // evita el bug de "primer click no abre, segundo abre el anterior".
                             else -> runOnUiThread {
                                 showSuggestions(results.map {
-                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock)
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty)
                                 })
                             }
                         }
@@ -707,7 +713,7 @@ class MainActivity : BaseActivity() {
                         val results = productRepository.searchOffline(query)
                         runOnUiThread {
                             showSuggestions(results.map {
-                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock)
+                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty)
                             })
                         }
                     }
@@ -719,7 +725,7 @@ class MainActivity : BaseActivity() {
                                 val products = resp.body()?.data ?: emptyList()
                                 runOnUiThread {
                                     showSuggestions(products.map {
-                                        SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock)
+                                        SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty)
                                     })
                                 }
                             }
@@ -780,7 +786,7 @@ class MainActivity : BaseActivity() {
         lvResults.setOnItemClickListener { _, _, idx, _ ->
             foundProducts.getOrNull(idx)?.let { p ->
                 dialog.dismiss()
-                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock))
+                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty))
             }
         }
 

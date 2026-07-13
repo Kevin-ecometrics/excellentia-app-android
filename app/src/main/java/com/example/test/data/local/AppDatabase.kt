@@ -18,6 +18,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 brand TEXT,
                 stock INTEGER DEFAULT 0,
                 weight_per_unit REAL,
+                unit TEXT,
+                qty INTEGER DEFAULT 0,
                 cached_at INTEGER NOT NULL
             )
         """)
@@ -43,7 +45,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 created_at INTEGER NOT NULL,
                 retry_count INTEGER DEFAULT 0,
                 customer_id TEXT,
-                customer_name TEXT
+                customer_name TEXT,
+                unit TEXT
             )
         """)
         db.execSQL("""
@@ -95,6 +98,13 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 )
             """)
         }
+        if (oldVersion < 8) {
+            try { db.execSQL("ALTER TABLE cached_products ADD COLUMN unit TEXT") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN unit TEXT") } catch (_: Exception) {}
+        }
+        if (oldVersion < 9) {
+            try { db.execSQL("ALTER TABLE cached_products ADD COLUMN qty INTEGER DEFAULT 0") } catch (_: Exception) {}
+        }
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE pending_orders RENAME TO pending_orders_old")
             db.execSQL("""
@@ -116,7 +126,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 7
+        private const val DATABASE_VERSION = 9
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
