@@ -378,6 +378,8 @@ class PreOrderDetailActivity : BaseActivity() {
                     tvLoadingTitle.text    = getString(R.string.loading_generating_invoice)
                     tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, body.invoiceId ?: "—")
 
+                    val invNumber = body.invoiceNumber
+
                     pendingSignature     = null
                     pendingDamageItems   = emptyList()
                     pendingPaymentMethod = null
@@ -403,6 +405,7 @@ class PreOrderDetailActivity : BaseActivity() {
                             customerName    = po.customerName,
                             batchId         = body.batchId,
                             invoiceId       = body.invoiceId,
+                            invoiceNumber   = invNumber,
                             customerAddress = null,
                             damageItems     = damageForPrinting,
                             paymentMethod   = paymentForPrinting,
@@ -423,6 +426,7 @@ class PreOrderDetailActivity : BaseActivity() {
                         Intent(this@PreOrderDetailActivity, OrderSuccessActivity::class.java).apply {
                             putExtra("batch_id",          body.batchId)
                             putExtra("invoice_id",        body.invoiceId ?: "")
+                            putExtra("invoice_number",    invNumber ?: 0)
                             putExtra("customer_name",     po.customerName)
                             putExtra("customer_address",  "")
                             putExtra("signature",         sigForPrinting)

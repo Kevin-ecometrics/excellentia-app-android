@@ -25,8 +25,9 @@ class OrderSuccessActivity : BaseActivity() {
             insets
         }
 
-        val batchId         = intent.getStringExtra("batch_id") ?: ""
-        val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
+        val batchId          = intent.getStringExtra("batch_id") ?: ""
+        val invoiceId        = intent.getStringExtra("invoice_id") ?: ""
+        val invoiceNumber    = intent.getIntExtra("invoice_number", 0).takeIf { it > 0 }
         val isOfflinePending = intent.getBooleanExtra("offline_pending", false)
         val customerName    = intent.getStringExtra("customer_name")
         val customerAddress = intent.getStringExtra("customer_address")
@@ -47,8 +48,9 @@ class OrderSuccessActivity : BaseActivity() {
         findViewById<TextView>(R.id.tvSuccessBatch).text =
             if (batchId.isNotBlank()) "#$batchId" else "—"
 
+        val invoiceDisplay = invoiceNumber?.toString() ?: invoiceId.takeIf { it.isNotBlank() }
         findViewById<TextView>(R.id.tvSuccessInvoice).text =
-            if (invoiceId.isNotBlank()) invoiceId else "—"
+            if (invoiceDisplay != null) "#$invoiceDisplay" else "—"
 
         val rowCustomer  = findViewById<View>(R.id.rowCustomer)
         val divCustomer  = findViewById<View>(R.id.dividerCustomer)
@@ -69,6 +71,7 @@ class OrderSuccessActivity : BaseActivity() {
             val intent = Intent(this, TicketDetailActivity::class.java).apply {
                 putExtra("batch_id", batchId)
                 putExtra("invoice_id", invoiceId)
+                putExtra("invoice_number", invoiceNumber ?: 0)
                 putExtra("orders_json", ordersJson)
                 putExtra("customer_name", customerName)
                 putExtra("customer_address", customerAddress)

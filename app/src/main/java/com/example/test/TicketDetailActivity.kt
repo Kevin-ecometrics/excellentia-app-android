@@ -60,6 +60,7 @@ class TicketDetailActivity : AppCompatActivity() {
         val orders: List<OrderDto> = Gson().fromJson(ordersJson, Array<OrderDto>::class.java).toList()
         val batchId         = intent.getStringExtra("batch_id") ?: ""
         val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
+        val invoiceNumber   = intent.getIntExtra("invoice_number", 0).takeIf { it > 0 }
         val customerName    = intent.getStringExtra("customer_name") ?: orders.firstOrNull()?.customerName
         val customerAddress = intent.getStringExtra("customer_address")
         val rawDate         = orders.firstOrNull()?.createdAt
@@ -95,6 +96,7 @@ class TicketDetailActivity : AppCompatActivity() {
             date              = formatDate(rawDate),
             batchId           = batchId,
             invoiceId         = invoiceId,
+            invoiceNumber     = invoiceNumber,
             customerName      = customerName,
             customerAddress   = customerAddress,
             orders            = orders,
@@ -135,6 +137,7 @@ class TicketDetailActivity : AppCompatActivity() {
                                 date              = formatDate(rawDate),
                                 batchId           = batchId,
                                 invoiceId         = invoiceId,
+                                invoiceNumber     = invoiceNumber,
                                 customerName      = customerName,
                                 customerAddress   = customerAddress,
                                 orders            = orders,
@@ -176,6 +179,7 @@ class TicketDetailActivity : AppCompatActivity() {
                         customerName    = customerName,
                         batchId         = batchId,
                         invoiceId       = invoiceId,
+                        invoiceNumber   = invoiceNumber,
                         customerAddress = customerAddress,
                         damageItems     = damageItemsForReprint,
                         signature       = signatureForReprint
@@ -200,6 +204,7 @@ class TicketDetailActivity : AppCompatActivity() {
         companyName: String, subtitle: String,
         city: String?, address: String?, phone: String?,
         date: String, batchId: String, invoiceId: String,
+        invoiceNumber: Int? = null,
         customerName: String?, customerAddress: String?,
         orders: List<OrderDto>,
         grandTotal: Double, totalQty: Double,
@@ -211,15 +216,15 @@ class TicketDetailActivity : AppCompatActivity() {
         // ── Cabecera empresa ────────────────────────────
         addLine(companyName, bold = true, sizeSp = 13f)
         addLine(subtitle, sizeSp = 12f)
-        if (!city.isNullOrBlank())    addLine(city,    sizeSp = 12f)
         if (!address.isNullOrBlank()) addLine(address, sizeSp = 12f)
+        if (!city.isNullOrBlank())    addLine(city,    sizeSp = 12f)
         if (!phone.isNullOrBlank())   addLine(phone,   sizeSp = 12f)
 
         // ── Info del pedido ─────────────────────────────
         addSep(heavy = true)
         addLine(date, sizeSp = 12f)
-        if (batchId.isNotBlank())    addLine("Order   #${batchId.takeLast(8)}", sizeSp = 12f)
-        if (invoiceId.isNotBlank())  addLine("Invoice #$invoiceId", sizeSp = 12f)
+        val displayInvoice = invoiceNumber?.toString() ?: invoiceId.takeIf { it.isNotBlank() }
+        if (displayInvoice != null) addLine("Invoice #$displayInvoice", sizeSp = 12f)
 
         // ── Cliente ─────────────────────────────────────
         if (!customerName.isNullOrBlank()) {

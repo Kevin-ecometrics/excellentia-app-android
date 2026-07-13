@@ -230,6 +230,7 @@ data class QbCustomer(
 data class BatchResponse(
     @SerializedName("batchId") val batchId: String,
     @SerializedName("invoiceId") val invoiceId: String? = null,
+    @SerializedName("invoiceNumber") val invoiceNumber: Int? = null,
     val orders: List<OrderResponse>
 )
 
@@ -337,6 +338,7 @@ data class ConvertPreOrderRequest(
 data class ConvertPreOrderResponse(
     @SerializedName("batchId") val batchId: String,
     @SerializedName("invoiceId") val invoiceId: String? = null,
+    @SerializedName("invoiceNumber") val invoiceNumber: Int? = null,
     @SerializedName("preOrderId") val preOrderId: String
 )
 

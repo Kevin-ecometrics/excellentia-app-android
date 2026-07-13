@@ -36,6 +36,7 @@ object PrintService {
         customerName: String?,
         batchId: String,
         invoiceId: String?,
+        invoiceNumber: Int? = null,
         customerAddress: String? = null,
         damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null,
@@ -50,6 +51,7 @@ object PrintService {
             customerAddress = customerAddress,
             batchId         = batchId,
             invoiceId       = invoiceId,
+            invoiceNumber   = invoiceNumber,
             companyName     = prefs.getCompanyName(),
             subtitle        = prefs.getCompanySubtitle(),
             address         = prefs.getCompanyAddress(),
@@ -127,6 +129,7 @@ object PrintService {
         customerAddress: String? = null,
         batchId: String,
         invoiceId: String?,
+        invoiceNumber: Int? = null,
         companyName: String = "EXCELLENTIA",
         subtitle: String = "Ticket de Venta",
         address: String? = null,
@@ -146,16 +149,14 @@ object PrintService {
         var y = 20
 
         // ── Cabecera empresa ────────────────────────────
-        // Nombre: F4 LEFT (hasta 33 chars sin truncar). Subtítulo: CENTER.
-        // ── Cabecera empresa ────────────────────────────
         // Todo LEFT — nombre y subtítulo sin truncar
         body.left()
         body.t(F4, 0, y, companyName.take(33));                    y += F4H + 4
         body.t(F4, 0, y, subtitle.take(32));                       y += F4H + 4
-        if (!city.isNullOrBlank())
-            { body.t(F4, 0, y, city.take(32));                     y += F4H + 2 }
         if (!address.isNullOrBlank())
             { body.t(F4, 0, y, address.take(32));                  y += F4H + 2 }
+        if (!city.isNullOrBlank())
+            { body.t(F4, 0, y, city.take(32));                     y += F4H + 2 }
         if (!phone.isNullOrBlank())
             { body.t(F4, 0, y, phone.take(32));                    y += F4H + 2 }
 
@@ -163,11 +164,9 @@ object PrintService {
         y += 6
         body.t(F4, 0, y, SEP);                                     y += F4H + 6
         body.t(F4, 0, y, date);                                    y += F4H + 4
-        if (batchId.isNotBlank()) {
-            body.t(F4, 0, y, "Order   #${batchId.takeLast(8)}");   y += F4H + 4
-        }
-        if (!invoiceId.isNullOrBlank()) {
-            body.t(F4, 0, y, "Invoice #${invoiceId.take(20)}");    y += F4H + 4
+        val displayInvoice = invoiceNumber ?: invoiceId?.take(20)
+        if (displayInvoice != null) {
+            body.t(F4, 0, y, "Invoice #$displayInvoice");          y += F4H + 4
         }
 
         // ── Cliente ─────────────────────────────────────

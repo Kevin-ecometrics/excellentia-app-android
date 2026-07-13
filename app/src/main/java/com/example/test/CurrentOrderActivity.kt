@@ -594,6 +594,7 @@ class CurrentOrderActivity : BaseActivity() {
                             customerName  = customerName,
                             batchId       = "",
                             invoiceId     = null,
+                            invoiceNumber = null,
                             customerAddress = customerAddress,
                             damageItems   = damageForPrinting,
                             paymentMethod = paymentForPrinting,
@@ -607,6 +608,7 @@ class CurrentOrderActivity : BaseActivity() {
                         Intent(this@CurrentOrderActivity, OrderSuccessActivity::class.java).apply {
                             putExtra("batch_id", "")
                             putExtra("invoice_id", "")
+                            putExtra("invoice_number", 0)
                             putExtra("offline_pending", true)
                             putExtra("customer_name", customerName)
                             putExtra("customer_address", customerAddress)
@@ -652,6 +654,7 @@ class CurrentOrderActivity : BaseActivity() {
                         customerName = customerName,
                         batchId = response.batchId,
                         invoiceId = response.invoiceId,
+                        invoiceNumber = response.invoiceNumber,
                         customerAddress = customerAddress,
                         damageItems = damageForPrinting,
                         paymentMethod = paymentForPrinting,
@@ -672,6 +675,7 @@ class CurrentOrderActivity : BaseActivity() {
                     Intent(this@CurrentOrderActivity, OrderSuccessActivity::class.java).apply {
                         putExtra("batch_id", response.batchId ?: "")
                         putExtra("invoice_id", response.invoiceId ?: "")
+                        putExtra("invoice_number", response.invoiceNumber ?: 0)
                         putExtra("customer_name", customerName)
                         putExtra("customer_address", customerAddress)
                         putExtra("signature", sigForPrinting)
