@@ -37,7 +37,9 @@ class ProductRepository(
                             weightPerUnit = dto.weightPerUnit,
                             unit = dto.unit,
                             caseQty = dto.caseQty,
-                            qty = dto.qty
+                            qty = dto.qty,
+                            qbItemId = dto.qbItemId,
+                            qbActive = dto.qbActive
                         )
                     )
                     return@withContext dto.toProduct()
@@ -65,7 +67,7 @@ class ProductRepository(
     private fun fromCache(barcode: String): Product? {
         val cached = productDao.findByBarcode(barcode)
         return if (cached != null) {
-            Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit, cached.stock, cached.unit, cached.qty, cached.caseQty)
+            Product(cached.barcode, cached.name, cached.price, cached.weightPerUnit, cached.stock, cached.unit, cached.qty, cached.caseQty, cached.qbItemId, cached.qbActive)
         } else null
     }
 }

@@ -247,11 +247,11 @@ class TicketDetailActivity : AppCompatActivity() {
                         )
                     }
                     result.onFailure { e ->
-                        Snackbar.make(
-                            findViewById(android.R.id.content),
-                            getString(R.string.error_qbo_retry_generic, e.localizedMessage ?: getString(R.string.error_unknown)),
-                            Snackbar.LENGTH_LONG
-                        ).show()
+                        com.google.android.material.dialog.MaterialAlertDialogBuilder(this@TicketDetailActivity)
+                            .setTitle(getString(R.string.title_qbo_retry_error))
+                            .setMessage(getString(R.string.error_qbo_retry_generic, e.localizedMessage ?: getString(R.string.error_unknown)))
+                            .setPositiveButton(getString(R.string.btn_understood), null)
+                            .show()
                     }
                     btnRetryQbo.isEnabled = true
                     btnRetryQbo.text = getString(R.string.btn_retry_qbo)

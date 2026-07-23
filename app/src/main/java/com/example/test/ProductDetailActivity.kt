@@ -31,6 +31,8 @@ class ProductDetailActivity : BaseActivity() {
         private const val KEY_CUSTOMER_ID = "CUSTOMER_ID"
         private const val KEY_CUSTOMER_NAME = "CUSTOMER_NAME"
         private const val KEY_UNIT = "UNIT"
+        private const val KEY_QB_ITEM_ID = "QB_ITEM_ID"
+        private const val KEY_QB_ACTIVE = "QB_ACTIVE"
         const val PRE_ORDER_MODE = "pre_order_mode"
         const val RESULT_ITEMS_JSON = "items_json"
     }
@@ -43,6 +45,7 @@ class ProductDetailActivity : BaseActivity() {
     private lateinit var tvTotalWeight: TextView
     private lateinit var tvMinPrice: TextView
     private lateinit var tvStock: TextView
+    private lateinit var tvQbStatus: TextView
     private lateinit var layoutWeights: LinearLayout
     private lateinit var layoutHistory: LinearLayout
     private lateinit var cardWeights: View
@@ -132,6 +135,30 @@ class ProductDetailActivity : BaseActivity() {
                 tvStock.setTextColor(resources.getColor(R.color.success, theme))
             }
         }
+
+        // Estado en QuickBooks: sin qb_item_id (nunca vinculado) o qb_active = false
+        // (desvinculado/inactivo en QBO) — en ninguno de los dos casos se puede
+        // enviar el pedido, así que no se deja agregarlo. qb_active null significa
+        // "no lo sabemos" (producto no sincronizado desde que existe este campo) y
+        // no bloquea, para no romper productos ya andando antes de este cambio.
+        val qbItemId = intent.getStringExtra(KEY_QB_ITEM_ID)
+        val qbActive = if (intent.hasExtra(KEY_QB_ACTIVE)) intent.getBooleanExtra(KEY_QB_ACTIVE, true) else null
+        // En modo pre-orden no bloquea: la pre-orden es un borrador, el vínculo a
+        // QBO solo importa recién al convertirla en pedido real.
+        val qbBlocked = !isPreOrderMode && (qbItemId.isNullOrBlank() || qbActive == false)
+        if (qbBlocked) {
+            tvQbStatus.visibility = View.VISIBLE
+            tvQbStatus.text = if (qbItemId.isNullOrBlank())
+                getString(R.string.label_qb_not_linked) else getString(R.string.label_qb_inactive)
+            tvQbStatus.setTextColor(resources.getColor(R.color.red, theme))
+            btnAddOrder.text = getString(R.string.btn_qb_not_available)
+            btnAddOrder.isEnabled = false
+            btnAddOrder.backgroundTintList =
+                android.content.res.ColorStateList.valueOf(resources.getColor(R.color.red, theme))
+            btnAddOrder.setTextColor(resources.getColor(android.R.color.white, theme))
+            btnUnitMinus.isEnabled = false
+            btnUnitPlus.isEnabled = false
+        }
     }
 
     private fun initViews() {
@@ -143,6 +170,7 @@ class ProductDetailActivity : BaseActivity() {
         tvTotalWeight = findViewById(R.id.tvTotalWeight)
         tvMinPrice = findViewById(R.id.tvMinPrice)
         tvStock = findViewById(R.id.tvStock)
+        tvQbStatus = findViewById(R.id.tvQbStatus)
         layoutWeights = findViewById(R.id.layoutWeights)
         layoutHistory = findViewById(R.id.layoutHistory)
         cardWeights = findViewById(R.id.cardWeights)

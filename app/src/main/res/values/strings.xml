@@ -254,6 +254,9 @@
     <string name="label_no_stock">Out of stock</string>
     <string name="label_stock_available">Available stock: %1$d unit(s)</string>
     <string name="btn_no_stock">OUT OF STOCK</string>
+    <string name="label_qb_not_linked">Not linked to QuickBooks</string>
+    <string name="label_qb_inactive">Inactive in QuickBooks</string>
+    <string name="btn_qb_not_available">NOT AVAILABLE IN QUICKBOOKS</string>
     <string name="label_unit_number">Unit %1$d:</string>
     <string name="title_unit_weight">Unit %1$d weight</string>
     <string name="title_edit_price">Edit total price</string>
@@ -370,6 +373,7 @@
     <string name="btn_retrying_qbo">Sending…</string>
     <string name="msg_qbo_retry_success">Sent to QuickBooks — Invoice #%1$s</string>
     <string name="error_qbo_retry_generic">Could not send to QuickBooks: %1$s</string>
+    <string name="title_qbo_retry_error">QuickBooks sync failed</string>
     <string name="app_title">EXCELLENTIA</string>
     <string name="hint_email">Email</string>
     <string name="app_version_label">v1.2.0</string>

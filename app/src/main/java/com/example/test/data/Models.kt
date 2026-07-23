@@ -13,7 +13,9 @@ data class Product(
     val stock: Int = 0,
     val unit: String? = null,
     val qty: Int = 0,
-    val caseQty: Int? = null
+    val caseQty: Int? = null,
+    val qbItemId: String? = null,
+    val qbActive: Boolean? = null
 )
 
 enum class SyncStatus { PENDING, SENT, FAILED }
@@ -56,6 +58,7 @@ data class ProductDto(
     val price: Double,
     @SerializedName("min_price") val minPrice: Double? = null,
     @SerializedName("qb_item_id") val qbItemId: String? = null,
+    @SerializedName("qb_active") val qbActive: Boolean? = null,
     val category: String? = null,
     val brand: String? = null,
     val stock: Int = 0,
@@ -72,7 +75,9 @@ data class ProductDto(
         stock = stock,
         unit = unit,
         qty = qty,
-        caseQty = caseQty
+        caseQty = caseQty,
+        qbItemId = qbItemId,
+        qbActive = qbActive
     )
 }
 

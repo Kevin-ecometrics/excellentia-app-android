@@ -89,7 +89,9 @@
       "Bash(./gradlew compileDebugKotlin -q)",
       "PowerShell(.\\\\gradlew compileDebugKotlin -q 2>&1 | Select-Object -Last 80)",
       "Bash(export JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\")",
-      "Bash(git status *)"
+      "Bash(git status *)",
+      "Bash(xxd)",
+      "Bash(echo \"EXIT:$?\")"
     ]
   }
 }

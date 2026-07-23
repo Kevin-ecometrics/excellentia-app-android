@@ -31,6 +31,8 @@ class ProductDao(private val db: AppDatabase) {
             product.unit?.let { put("unit", it) }
             product.caseQty?.let { put("case_qty", it) }
             put("qty", product.qty)
+            put("qb_item_id", product.qbItemId)
+            product.qbActive?.let { put("qb_active", if (it) 1 else 0) } ?: putNull("qb_active")
             put("cached_at", product.cachedAt)
         }
         db.writableDatabase.insertWithOnConflict(
@@ -85,6 +87,8 @@ class ProductDao(private val db: AppDatabase) {
         val unitIdx = try { c.getColumnIndexOrThrow("unit") } catch (_: Exception) { -1 }
         val caseQtyIdx = try { c.getColumnIndexOrThrow("case_qty") } catch (_: Exception) { -1 }
         val qtyIdx = try { c.getColumnIndexOrThrow("qty") } catch (_: Exception) { -1 }
+        val qbItemIdIdx = try { c.getColumnIndexOrThrow("qb_item_id") } catch (_: Exception) { -1 }
+        val qbActiveIdx = try { c.getColumnIndexOrThrow("qb_active") } catch (_: Exception) { -1 }
         return CachedProductEntity(
             id = c.getInt(c.getColumnIndexOrThrow("id")),
             barcode = c.getString(c.getColumnIndexOrThrow("barcode")),
@@ -97,6 +101,8 @@ class ProductDao(private val db: AppDatabase) {
             unit = if (unitIdx >= 0 && !c.isNull(unitIdx)) c.getString(unitIdx) else null,
             caseQty = if (caseQtyIdx >= 0 && !c.isNull(caseQtyIdx)) c.getInt(caseQtyIdx) else null,
             qty = if (qtyIdx >= 0 && !c.isNull(qtyIdx)) c.getInt(qtyIdx) else 0,
+            qbItemId = if (qbItemIdIdx >= 0 && !c.isNull(qbItemIdIdx)) c.getString(qbItemIdIdx) else null,
+            qbActive = if (qbActiveIdx >= 0 && !c.isNull(qbActiveIdx)) c.getInt(qbActiveIdx) != 0 else null,
             cachedAt = c.getLong(c.getColumnIndexOrThrow("cached_at"))
         )
     }

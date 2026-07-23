@@ -224,7 +224,9 @@ class OrderRepository(
                             weightPerUnit = dto.weightPerUnit,
                             unit = dto.unit,
                             caseQty = dto.caseQty,
-                            qty = dto.qty
+                            qty = dto.qty,
+                            qbItemId = dto.qbItemId,
+                            qbActive = dto.qbActive
                         )
                     )
                 }

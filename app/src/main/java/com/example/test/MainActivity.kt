@@ -575,6 +575,8 @@ class MainActivity : BaseActivity() {
                     putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
                     putExtra("UNIT", product.unit)
                     putExtra("CASE_QTY", product.caseQty ?: 0)
+                    putExtra("QB_ITEM_ID", product.qbItemId)
+                    product.qbActive?.let { putExtra("QB_ACTIVE", it) }
                 }
             )
         }
@@ -588,7 +590,9 @@ class MainActivity : BaseActivity() {
         val stock: Int,
         val unit: String? = null,
         val qty: Int = 0,
-        val caseQty: Int = 0
+        val caseQty: Int = 0,
+        val qbItemId: String? = null,
+        val qbActive: Boolean? = null
     )
 
     // Abre el detalle directo desde un resultado de búsqueda ya cargado (sin volver a
@@ -610,6 +614,8 @@ class MainActivity : BaseActivity() {
                     putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
                     putExtra("UNIT", item.unit)
                     putExtra("CASE_QTY", item.caseQty)
+                    putExtra("QB_ITEM_ID", item.qbItemId)
+                    item.qbActive?.let { putExtra("QB_ACTIVE", it) }
                 }
             )
     }
@@ -675,7 +681,7 @@ class MainActivity : BaseActivity() {
                             results.isEmpty() -> runOnUiThread { showProductNotFound(query) }
                             results.size == 1 -> runOnUiThread {
                                 openSuggestion(
-                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty, results[0].caseQty ?: 0)
+                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty, results[0].caseQty ?: 0, results[0].qbItemId, results[0].qbActive)
                                 )
                             }
                             // Varios resultados: se listan en el mismo lvSuggestions (un solo
@@ -683,7 +689,7 @@ class MainActivity : BaseActivity() {
                             // evita el bug de "primer click no abre, segundo abre el anterior".
                             else -> runOnUiThread {
                                 showSuggestions(results.map {
-                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0)
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive)
                                 })
                             }
                         }
@@ -716,7 +722,7 @@ class MainActivity : BaseActivity() {
                         val results = productRepository.searchOffline(query)
                         runOnUiThread {
                             showSuggestions(results.map {
-                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0)
+                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive)
                             })
                         }
                     }
@@ -728,7 +734,7 @@ class MainActivity : BaseActivity() {
                                 val products = resp.body()?.data ?: emptyList()
                                 runOnUiThread {
                                     showSuggestions(products.map {
-                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0)
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive)
                                 })
                                 }
                             }
@@ -789,7 +795,7 @@ class MainActivity : BaseActivity() {
         lvResults.setOnItemClickListener { _, _, idx, _ ->
             foundProducts.getOrNull(idx)?.let { p ->
                 dialog.dismiss()
-                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty, p.caseQty ?: 0))
+                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty, p.caseQty ?: 0, p.qbItemId, p.qbActive))
             }
         }
 
