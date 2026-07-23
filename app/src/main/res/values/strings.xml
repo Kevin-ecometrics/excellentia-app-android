@@ -257,6 +257,9 @@
     <string name="label_qb_not_linked">Not linked to QuickBooks</string>
     <string name="label_qb_inactive">Inactive in QuickBooks</string>
     <string name="btn_qb_not_available">NOT AVAILABLE IN QUICKBOOKS</string>
+    <string name="label_no_barcode">No barcode assigned</string>
+    <string name="btn_no_barcode">NO BARCODE ASSIGNED</string>
+    <string name="btn_save_changes">Save changes</string>
     <string name="label_unit_number">Unit %1$d:</string>
     <string name="title_unit_weight">Unit %1$d weight</string>
     <string name="title_edit_price">Edit total price</string>

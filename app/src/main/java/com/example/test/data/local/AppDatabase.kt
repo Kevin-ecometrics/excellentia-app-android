@@ -49,7 +49,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 retry_count INTEGER DEFAULT 0,
                 customer_id TEXT,
                 customer_name TEXT,
-                unit TEXT
+                unit TEXT,
+                case_qty INTEGER
             )
         """)
         db.execSQL("""
@@ -136,11 +137,14 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             try { db.execSQL("ALTER TABLE cached_products ADD COLUMN qb_item_id TEXT") } catch (_: Exception) {}
             try { db.execSQL("ALTER TABLE cached_products ADD COLUMN qb_active INTEGER") } catch (_: Exception) {}
         }
+        if (oldVersion < 12) {
+            try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN case_qty INTEGER") } catch (_: Exception) {}
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 11
+        private const val DATABASE_VERSION = 12
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

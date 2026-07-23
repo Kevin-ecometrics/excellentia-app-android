@@ -6,7 +6,9 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.Base64
 import com.example.test.data.BatchItem
+import com.example.test.data.byTicketCategory
 import com.example.test.data.groupedForTicket
+import com.example.test.data.isWeightTicketCategory
 import com.example.test.data.local.SecurePreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -189,22 +191,38 @@ object PrintService {
             }
         }
 
-        // ── Ítems (agrupados por producto) ──────────────
+        // ── Ítems (agrupados por producto, y por categoría LBS/CASE/UNIT/BUCKET) ──
         // Línea 1+: nombre del producto (con salto de línea si es largo)
-        // Última línea: "X.XX lb x $X.XX/lb      $XX.XX"  (twoCol)
+        // Última línea, por peso: "X.XX lb x $X.XX/lb      $XX.XX"  (twoCol)
+        // Última línea, por caja/unidad: "N - Case x $XX.XX      $XX.XX"  (sin decimales)
         y += 4
         body.t(F4, 0, y, SEP);                                     y += F4H + 8
-        for (g in items.groupedForTicket()) {
-            val avgPrice  = if (g.quantity != 0.0) g.total / g.quantity else 0.0
-            val totalStr  = String.format(Locale.US, "\$%.2f", g.total)
-            val unitLabel = unitLabel(g.unit)
-            val detailStr = String.format(Locale.US, "%.2f %s x \$%.2f/%s",
-                                          g.quantity, unitLabel, avgPrice, unitLabel)
-            for (line in wrapText(g.productName, 28)) {
-                body.t(F4, 0, y, line);                            y += F4H + 3
+        val groupedByCategory = items.groupedForTicket().byTicketCategory()
+        val showCategoryHeaders = groupedByCategory.size > 1
+        for ((category, group) in groupedByCategory) {
+            if (showCategoryHeaders) {
+                body.t(F4, 0, y, category);                        y += F4H + 4
             }
-            body.t(F4, 0, y, twoCol(detailStr, totalStr, 28));     y += F4H + 4
-            y += 8
+            for (g in group) {
+                val avgPrice  = if (g.quantity != 0.0) g.total / g.quantity else 0.0
+                val totalStr  = String.format(Locale.US, "\$%.2f", g.total)
+                val unitLabel = unitLabel(g.unit)
+                val detailStr = when {
+                    isWeightTicketCategory(category) ->
+                        String.format(Locale.US, "%.2f %s x \$%.2f/%s", g.quantity, unitLabel, avgPrice, unitLabel)
+                    // "N - Case of Q x $XX.XX" — Q = unidades por caja (products.qty cuando unit=Case).
+                    // Una caja puede traer 1 o varios artículos; sin este dato no se distingue.
+                    category == "CASE" && (g.caseQty ?: 0) > 0 ->
+                        String.format(Locale.US, "%d - %s of %d x \$%.2f", g.quantity.toInt(), unitLabel, g.caseQty, avgPrice)
+                    else ->
+                        String.format(Locale.US, "%d - %s x \$%.2f", g.quantity.toInt(), unitLabel, avgPrice)
+                }
+                for (line in wrapText(g.productName, 28)) {
+                    body.t(F4, 0, y, line);                        y += F4H + 3
+                }
+                body.t(F4, 0, y, twoCol(detailStr, totalStr, 28)); y += F4H + 4
+                y += 8
+            }
         }
 
         // ── Resumen Negative Sale (si hay alguno) ───────
@@ -223,9 +241,21 @@ object PrintService {
         // ── Total ──────────────────────────────────────
         body.t(F4, 0, y, SEP);                                     y += F4H + 10
         body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 8
-        val overallUnit = items.firstOrNull()?.let { unitLabel(it.unit) } ?: "lb"
-        body.t(F4, 0, y,
-            String.format(Locale.US, "%.2f %s total", totalQty, overallUnit));    y += F4H + 6
+        // Con una sola categoría se puede sumar cantidad + unidad ("22.80 lb total").
+        // Mezclando lb + case + unit no hay una suma que tenga sentido — se muestra
+        // cantidad de productos en su lugar.
+        val qtyLine = if (groupedByCategory.size <= 1) {
+            val category = groupedByCategory.firstOrNull()?.first ?: "LBS"
+            val overallUnit = items.firstOrNull()?.let { unitLabel(it.unit) } ?: "lb"
+            if (isWeightTicketCategory(category))
+                String.format(Locale.US, "%.2f %s total", totalQty, overallUnit)
+            else
+                String.format(Locale.US, "%d %s total", totalQty.toInt(), overallUnit)
+        } else {
+            val itemCount = items.groupedForTicket().size
+            "$itemCount items total"
+        }
+        body.t(F4, 0, y, qtyLine);                                 y += F4H + 6
         body.t(F4, 0, y, companyName.take(32));                    y += F4H + 16
 
         // ── Términos y condiciones ──────────────────────

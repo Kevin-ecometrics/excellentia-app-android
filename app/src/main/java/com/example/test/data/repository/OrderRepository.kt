@@ -59,14 +59,27 @@ class OrderRepository(
         }
     }
 
+    // merge=true (default): si ya hay una fila activa del mismo barcode + mismo
+    // precio en el carrito, suma la cantidad ahí en vez de duplicar la fila —
+    // evita ver el mismo producto dos veces solo por haberlo re-escaneado.
+    // merge=false: siempre inserta una fila nueva — usado para productos por
+    // peso, donde cada unidad pesada individualmente debe quedar editable por
+    // separado (no tiene sentido sumar pesos de artículos físicos distintos).
     fun savePendingOrder(
         barcode: String,
         productName: String,
         price: Double,
         quantity: Double,
         deviceId: Int? = null,
-        unit: String? = null
+        unit: String? = null,
+        caseQty: Int? = null,
+        merge: Boolean = true
     ) {
+        val existing = if (merge) orderDao.findActiveByBarcodeAndPrice(barcode, price) else null
+        if (existing != null) {
+            orderDao.update(existing.id, price, existing.quantity + quantity)
+            return
+        }
         orderDao.insert(
             com.example.test.data.local.entities.PendingOrderEntity(
                 barcode = barcode,
@@ -76,7 +89,8 @@ class OrderRepository(
                 deviceId = deviceId,
                 customerId = securePrefs.getActiveCustomerId(),
                 customerName = securePrefs.getActiveCustomerName(),
-                unit = unit
+                unit = unit,
+                caseQty = caseQty
             )
         )
     }

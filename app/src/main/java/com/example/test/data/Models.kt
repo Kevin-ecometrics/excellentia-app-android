@@ -111,7 +111,8 @@ data class OrderDto(
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("customer_id") val customerId: String? = null,
     @SerializedName("customer_name") val customerName: String? = null,
-    val unit: String? = null
+    val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null
 )
 
 data class DeviceRegisterRequest(
@@ -155,7 +156,8 @@ data class BatchItem(
     val price: Double,
     val quantity: Double,
     val total: Double,
-    val unit: String? = null
+    val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null
 )
 
 // ── Ticket grouping (consolida líneas repetidas del mismo producto) ──
@@ -165,7 +167,11 @@ data class GroupedTicketItem(
     val productName: String,
     val quantity: Double,
     val total: Double,
-    val unit: String? = null
+    val unit: String? = null,
+    // Unidades por caja (ej. 8 yogurts por Case) — atributo del producto, no de la
+    // venta, así que no se suma al agrupar: todas las líneas del mismo barcode
+    // comparten el mismo valor.
+    val caseQty: Int? = null
 )
 
 @JvmName("groupedOrdersForTicket")
@@ -175,7 +181,7 @@ fun List<OrderDto>.groupedForTicket(): List<GroupedTicketItem> {
         val key = o.barcode.ifBlank { o.productName }
         val existing = groups[key]
         groups[key] = if (existing == null) {
-            GroupedTicketItem(o.barcode, o.productName, o.quantity, o.total, o.unit)
+            GroupedTicketItem(o.barcode, o.productName, o.quantity, o.total, o.unit, o.caseQty)
         } else {
             existing.copy(quantity = existing.quantity + o.quantity, total = existing.total + o.total)
         }
@@ -190,12 +196,32 @@ fun List<BatchItem>.groupedForTicket(): List<GroupedTicketItem> {
         val key = i.barcode.ifBlank { i.productName }
         val existing = groups[key]
         groups[key] = if (existing == null) {
-            GroupedTicketItem(i.barcode, i.productName, i.quantity, i.total, i.unit)
+            GroupedTicketItem(i.barcode, i.productName, i.quantity, i.total, i.unit, i.caseQty)
         } else {
             existing.copy(quantity = existing.quantity + i.quantity, total = existing.total + i.total)
         }
     }
     return groups.values.toList()
+}
+
+// ── Ticket: agrupación por categoría de unidad (LBS / CASE / UNIT / BUCKET) ──
+// Usado por PrintService.buildCpcl() y TicketDetailActivity.buildReceipt() — misma
+// lógica en los dos para que el ticket impreso y la vista en pantalla coincidan.
+
+private val TICKET_CATEGORY_ORDER = listOf("LBS", "CASE", "UNIT", "BUCKET")
+
+fun ticketCategoryFor(unit: String?): String =
+    if (unit.isNullOrBlank() || unit == "Lbs") "LBS" else unit.uppercase(Locale.US)
+
+fun isWeightTicketCategory(category: String): Boolean = category == "LBS"
+
+// Agrupa preservando el orden LBS → CASE → UNIT → BUCKET → otras (alfabético);
+// se omite un encabezado de categoría cuando el ticket es de un solo tipo.
+fun List<GroupedTicketItem>.byTicketCategory(): List<Pair<String, List<GroupedTicketItem>>> {
+    val groups = groupBy { ticketCategoryFor(it.unit) }
+    val orderedKeys = TICKET_CATEGORY_ORDER.filter { groups.containsKey(it) } +
+        groups.keys.filter { it !in TICKET_CATEGORY_ORDER }.sorted()
+    return orderedKeys.map { it to groups.getValue(it) }
 }
 
 data class BatchRequest(

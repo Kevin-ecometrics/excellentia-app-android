@@ -21,7 +21,9 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test.data.BatchItem
 import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
+import com.example.test.data.byTicketCategory
 import com.example.test.data.groupedForTicket
+import com.example.test.data.isWeightTicketCategory
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
@@ -304,18 +306,34 @@ class TicketDetailActivity : AppCompatActivity() {
             }
         }
 
-        // ── Ítems (agrupados por producto) ───────────────
+        // ── Ítems (agrupados por producto, y por categoría LBS/CASE/UNIT/BUCKET) ──
         addSep(heavy = true)
-        for (g in orders.groupedForTicket()) {
-            val avgPrice = if (g.quantity != 0.0) g.total / g.quantity else 0.0
-            val unitLabel = unitLabel(g.unit)
-            addLine(g.productName, sizeSp = 12f)
-            addTwoCol(
-                left  = String.format(Locale.US, "%.2f %s x \$%.2f/%s", g.quantity, unitLabel, avgPrice, unitLabel),
-                right = String.format(Locale.US, "\$%.2f", g.total),
-                sizeSp = 12f
-            )
-            addBlank(4)
+        val groupedByCategory = orders.groupedForTicket().byTicketCategory()
+        val showCategoryHeaders = groupedByCategory.size > 1
+        for ((category, group) in groupedByCategory) {
+            if (showCategoryHeaders) {
+                addLine(category, bold = true, sizeSp = 11f)
+            }
+            for (g in group) {
+                val avgPrice = if (g.quantity != 0.0) g.total / g.quantity else 0.0
+                val unitLabel = unitLabel(g.unit)
+                addLine(g.productName, sizeSp = 12f)
+                val detailStr = when {
+                    isWeightTicketCategory(category) ->
+                        String.format(Locale.US, "%.2f %s x \$%.2f/%s", g.quantity, unitLabel, avgPrice, unitLabel)
+                    // "N - Case of Q x $XX.XX" — Q = unidades por caja (products.qty cuando unit=Case).
+                    category == "CASE" && (g.caseQty ?: 0) > 0 ->
+                        String.format(Locale.US, "%d - %s of %d x \$%.2f", g.quantity.toInt(), unitLabel, g.caseQty, avgPrice)
+                    else ->
+                        String.format(Locale.US, "%d - %s x \$%.2f", g.quantity.toInt(), unitLabel, avgPrice)
+                }
+                addTwoCol(
+                    left  = detailStr,
+                    right = String.format(Locale.US, "\$%.2f", g.total),
+                    sizeSp = 12f
+                )
+                addBlank(4)
+            }
         }
 
         // ── Total ───────────────────────────────────────
@@ -326,8 +344,20 @@ class TicketDetailActivity : AppCompatActivity() {
             bold   = true,
             sizeSp = 13f
         )
-        val overallUnit = orders.firstOrNull()?.let { unitLabel(it.unit) } ?: "lb"
-        addLine(String.format(Locale.US, "%.2f %s total", totalQty, overallUnit), sizeSp = 12f)
+        // Con una sola categoría se puede sumar cantidad + unidad ("22.80 lb total").
+        // Mezclando lb + case + unit no hay una suma que tenga sentido — se muestra
+        // cantidad de productos en su lugar.
+        val qtyLine = if (groupedByCategory.size <= 1) {
+            val category = groupedByCategory.firstOrNull()?.first ?: "LBS"
+            val overallUnit = orders.firstOrNull()?.let { unitLabel(it.unit) } ?: "lb"
+            if (isWeightTicketCategory(category))
+                String.format(Locale.US, "%.2f %s total", totalQty, overallUnit)
+            else
+                String.format(Locale.US, "%d %s total", totalQty.toInt(), overallUnit)
+        } else {
+            "${orders.groupedForTicket().size} items total"
+        }
+        addLine(qtyLine, sizeSp = 12f)
         addLine(companyNameFooter, sizeSp = 12f)
 
         // ── Negative Sale Summary ────────────────────────
@@ -351,7 +381,7 @@ class TicketDetailActivity : AppCompatActivity() {
             "(5) In any action which may be brought to enforce payment under this contract, seller shall be entitled to recover from buyer all the attorney fees seller incurs, in addition to seller's actual, incidental, and consequential damages.\n\n" +
             "(6) Buyer agrees to pay a fee of $30.00 for each check drawn on insufficient funds (NSF Check).\n\n" +
             "(7) Buyer agrees that jurisdiction and venue for any dispute under this contract are proper in San Diego, CA.",
-            sizeSp = 10f
+            sizeSp = 8f
         )
 
         // ── Firma ───────────────────────────────────────

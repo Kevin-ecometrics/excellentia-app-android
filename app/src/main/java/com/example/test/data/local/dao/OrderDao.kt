@@ -19,6 +19,7 @@ class OrderDao(private val db: AppDatabase) {
             put("customer_id", order.customerId)
             put("customer_name", order.customerName)
             order.unit?.let { put("unit", it) }
+            order.caseQty?.let { put("case_qty", it) }
         }
         return db.writableDatabase.insert("pending_orders", null, values)
     }
@@ -47,6 +48,21 @@ class OrderDao(private val db: AppDatabase) {
             val list = mutableListOf<PendingOrderEntity>()
             while (it.moveToNext()) { list.add(cursorToEntity(it)) }
             list
+        }
+    }
+
+    // Busca una fila activa (no fallida) del mismo producto y mismo precio, para
+    // agrupar re-escaneos en vez de duplicar la fila en el carrito. El match
+    // incluye el precio a propósito: si el precio cambió entre un escaneo y otro
+    // (editado a mano, o el catálogo cambió), no se mezclan en la misma fila.
+    fun findActiveByBarcodeAndPrice(barcode: String, price: Double): PendingOrderEntity? {
+        val cursor = db.readableDatabase.query(
+            "pending_orders", null,
+            "barcode = ? AND price = ? AND retry_count >= 0", arrayOf(barcode, price.toString()),
+            null, null, "created_at DESC", "1"
+        )
+        return cursor.use {
+            if (it.moveToFirst()) cursorToEntity(it) else null
         }
     }
 
@@ -121,6 +137,8 @@ class OrderDao(private val db: AppDatabase) {
         customerName = c.getColumnIndex("customer_name").takeIf { it >= 0 }
             ?.let { if (c.isNull(it)) null else c.getString(it) },
         unit = c.getColumnIndex("unit").takeIf { it >= 0 }
-            ?.let { if (c.isNull(it)) null else c.getString(it) }
+            ?.let { if (c.isNull(it)) null else c.getString(it) },
+        caseQty = c.getColumnIndex("case_qty").takeIf { it >= 0 }
+            ?.let { if (c.isNull(it)) null else c.getInt(it) }
     )
 }

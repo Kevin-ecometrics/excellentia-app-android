@@ -20,7 +20,6 @@ import com.example.test.data.OrderDto
 import com.example.test.data.print.PrintService
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
-import com.example.test.data.network.RetrofitClient
 import com.example.test.data.repository.OrderRepository
 import com.google.android.material.button.MaterialButton
 
@@ -199,7 +198,7 @@ class CurrentOrderActivity : BaseActivity() {
                 row.findViewById<TextView>(R.id.tvPendingQtyTotal).text =
                     String.format(Locale.US, "%.2f %s  =  $%.2f", order.quantity, unitLabel, order.price * order.quantity)
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnEditItem)
-                    .setOnClickListener { showEditDialog(order) }
+                    .setOnClickListener { editItem(order) }
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnDeleteItem)
                     .setOnClickListener { confirmDelete(order.id, order.productName) }
                 layoutOrderItems.addView(row)
@@ -217,81 +216,28 @@ class CurrentOrderActivity : BaseActivity() {
         }
     }
 
-    private fun showEditDialog(order: com.example.test.data.local.entities.PendingOrderEntity) {
-        lifecycleScope.launch {
-            var minPrice: Double? = null
-            try {
-                val res = RetrofitClient.getApi().getProductByBarcode(order.barcode)
-                if (res.isSuccessful) {
-                    val dto = res.body()?.data
-                    if (dto?.minPrice != null && dto.minPrice > 0) {
-                        minPrice = dto.minPrice
-                    }
-                }
-            } catch (_: Exception) {}
-
-            val ctx = this@CurrentOrderActivity
-            val dialogView = layoutInflater.inflate(R.layout.dialog_edit_order, null)
-            val etQty        = dialogView.findViewById<android.widget.EditText>(R.id.etQty)
-            val etPricePerLb = dialogView.findViewById<android.widget.EditText>(R.id.etPricePerLb)
-            val tvTotal      = dialogView.findViewById<android.widget.TextView>(R.id.tvTotal)
-            val tvMinWarning = dialogView.findViewById<android.widget.TextView>(R.id.tvMinWarning)
-            val unitLabel = if (order.unit.isNullOrBlank() || order.unit == "Lbs") "lb" else order.unit
-
-            etQty.setText(String.format(Locale.US, "%.2f", order.quantity))
-            etQty.selectAll()
-            etPricePerLb.setText(String.format(Locale.US, "%.2f", order.price))
-
-            fun refresh() {
-                val q = etQty.text.toString().toDoubleOrNull() ?: 0.0
-                val r = etPricePerLb.text.toString().toDoubleOrNull() ?: 0.0
-                val total = q * r
-                tvTotal.text = String.format(Locale.US, "%.2f %s  =  \$%.2f", q, unitLabel, total)
-                if (minPrice != null && total > 0) {
-                    if (Math.round(total * 100) < Math.round(minPrice * 100)) {
-                        tvMinWarning.text = getString(R.string.error_min_price, String.format(Locale.US, "%.2f", minPrice))
-                        tvMinWarning.visibility = android.view.View.VISIBLE
-                    } else {
-                        tvMinWarning.visibility = android.view.View.GONE
-                    }
-                }
+    // Reabre la misma pantalla que se usa al escanear/agregar, precargada con los
+    // datos de esta fila — reemplaza el diálogo genérico anterior (que solo
+    // manejaba "cantidad + precio/lb" y no tenía sentido para Case/Unit/Bucket).
+    // KEY_PRICE se manda como precio POR UNIDAD (no por caja): para Case se
+    // reconstruye dividiendo por caseQty, así ProductDetailActivity puede volver a
+    // multiplicar por caseQty con su lógica normal sin casos especiales.
+    private fun editItem(order: com.example.test.data.local.entities.PendingOrderEntity) {
+        val isCaseBased = order.unit.equals("Case", ignoreCase = true) && (order.caseQty ?: 0) > 0
+        val perUnitPrice = if (isCaseBased) order.price / (order.caseQty ?: 1) else order.price
+        startActivity(
+            Intent(this, ProductDetailActivity::class.java).apply {
+                putExtra("BARCODE", order.barcode)
+                putExtra("PRODUCT_NAME", order.productName)
+                putExtra("PRODUCT_PRICE", perUnitPrice)
+                putExtra("QUANTITY", order.quantity)
+                putExtra("UNIT", order.unit)
+                putExtra("CASE_QTY", order.caseQty ?: 0)
+                putExtra("CUSTOMER_ID", customerId)
+                putExtra("CUSTOMER_NAME", customerName)
+                putExtra("EDIT_ORDER_ID", order.id)
             }
-
-            val watcher = object : android.text.TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
-                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-                override fun afterTextChanged(s: android.text.Editable?) { refresh() }
-            }
-
-            etQty.addTextChangedListener(watcher)
-            etPricePerLb.addTextChangedListener(watcher)
-            refresh()
-
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                .setTitle(order.productName)
-                .setView(dialogView)
-                .setPositiveButton(getString(R.string.btn_save_dialog)) { _, _ ->
-                    val qty  = etQty.text.toString().toDoubleOrNull()
-                    val rate = etPricePerLb.text.toString().toDoubleOrNull()
-                    if (qty != null && qty > 0 && rate != null && rate > 0) {
-                        val total = qty * rate
-                        if (minPrice != null && Math.round(total * 100) < Math.round(minPrice * 100)) {
-                            Snackbar.make(
-                                ctx.findViewById(android.R.id.content),
-                                getString(R.string.error_min_price, String.format(Locale.US, "%.2f", minPrice)),
-                                Snackbar.LENGTH_LONG
-                            ).show()
-                            return@setPositiveButton
-                        }
-                        orderRepository.updatePendingOrder(order.id, rate, qty)
-                        loadOrder()
-                    } else {
-                        Snackbar.make(ctx.findViewById(android.R.id.content), getString(R.string.error_invalid_values), Snackbar.LENGTH_SHORT).show()
-                    }
-                }
-                .setNegativeButton(getString(R.string.btn_cancel), null)
-                .show()
-        }
+        )
     }
 
     private fun confirmDelete(id: Int, name: String) {
@@ -323,7 +269,8 @@ class CurrentOrderActivity : BaseActivity() {
                     status = "PENDING",
                     customerId = customerId,
                     customerName = customerName,
-                    unit = order.unit
+                    unit = order.unit,
+                    caseQty = order.caseQty
                 )
             }
             startActivity(Intent(this@CurrentOrderActivity, TicketDetailActivity::class.java).apply {
@@ -568,7 +515,8 @@ class CurrentOrderActivity : BaseActivity() {
                     price = order.price,
                     quantity = order.quantity,
                     total = order.price * order.quantity,
-                    unit = order.unit
+                    unit = order.unit,
+                    caseQty = order.caseQty
                 )
             }
 
@@ -632,7 +580,8 @@ class CurrentOrderActivity : BaseActivity() {
                                         quantity = bi.quantity, total = bi.total,
                                         status = "PENDING", customerId = customerId,
                                         customerName = customerName,
-                                        unit = bi.unit
+                                        unit = bi.unit,
+                                        caseQty = bi.caseQty
                                     )
                                 }
                             ))
@@ -703,7 +652,8 @@ class CurrentOrderActivity : BaseActivity() {
                                     status = "SENT",
                                     customerId = customerId,
                                     customerName = customerName,
-                                    unit = bi.unit
+                                    unit = bi.unit,
+                                    caseQty = bi.caseQty
                                 )
                             }
                         ))

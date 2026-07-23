@@ -33,6 +33,7 @@ class ProductDetailActivity : BaseActivity() {
         private const val KEY_UNIT = "UNIT"
         private const val KEY_QB_ITEM_ID = "QB_ITEM_ID"
         private const val KEY_QB_ACTIVE = "QB_ACTIVE"
+        private const val KEY_EDIT_ORDER_ID = "EDIT_ORDER_ID"
         const val PRE_ORDER_MODE = "pre_order_mode"
         const val RESULT_ITEMS_JSON = "items_json"
     }
@@ -68,6 +69,12 @@ class ProductDetailActivity : BaseActivity() {
     private var productUnit: String? = null
     private var caseQty: Int? = null
     private var isPreOrderMode = false
+    // Si no es null, estamos editando una fila ya existente del carrito (se llegó
+    // desde el botón "editar" en CurrentOrderActivity) en vez de agregando una
+    // nueva — reusa esta misma pantalla para que la edición respete el modo real
+    // del producto (Case/Unit/Bucket/Lbs) en vez del diálogo genérico que solo
+    // hablaba de "lb".
+    private var editOrderId: Int? = null
     private lateinit var orderRepository: OrderRepository
 
     private val isCaseBased: Boolean
@@ -95,6 +102,7 @@ class ProductDetailActivity : BaseActivity() {
         caseQty = intent.getIntExtra("CASE_QTY", 0).takeIf { it > 0 }
             ?: (if (productUnit.equals("Case", true)) defaultWeight.toInt().coerceAtLeast(1) else null)
         isPreOrderMode = intent.getBooleanExtra(PRE_ORDER_MODE, false)
+        editOrderId = intent.getIntExtra(KEY_EDIT_ORDER_ID, -1).takeIf { it >= 0 }
         baseTotal = productPrice
         if (isCaseBased) {
             val cq = caseQty
@@ -117,6 +125,16 @@ class ProductDetailActivity : BaseActivity() {
         showProduct()
         if (customerId != null) loadPriceHistory()
 
+        if (editOrderId != null) {
+            btnAddOrder.text = getString(R.string.btn_save_changes)
+            if (isWeightBased) {
+                // Esta fila representa UNA unidad pesada — el peso se ajusta con los
+                // controles +/-0.1 o tocando el número, no agregando más unidades.
+                btnUnitMinus.isEnabled = false
+                btnUnitPlus.isEnabled = false
+            }
+        }
+
         val stock = intent.getIntExtra("STOCK", -1)
         if (stock >= 0) {
             tvStock.visibility = View.VISIBLE
@@ -136,6 +154,14 @@ class ProductDetailActivity : BaseActivity() {
             }
         }
 
+        // Barcode obligatorio: el matching orders↔products (retry a QBO, SyncEngine)
+        // es por barcode — sin barcode el producto nunca puede facturarse, sin
+        // importar su estado en QBO. Es un problema estructural, no transitorio,
+        // así que bloquea en cualquier modo, incluido pre-orden. "unknown" es el
+        // placeholder que usan MainActivity/CreatePreOrderActivity cuando el
+        // producto no tiene barcode asignado.
+        val hasBarcode = barcode.isNotBlank() && barcode != "unknown"
+
         // Estado en QuickBooks: sin qb_item_id (nunca vinculado) o qb_active = false
         // (desvinculado/inactivo en QBO) — en ninguno de los dos casos se puede
         // enviar el pedido, así que no se deja agregarlo. qb_active null significa
@@ -144,14 +170,23 @@ class ProductDetailActivity : BaseActivity() {
         val qbItemId = intent.getStringExtra(KEY_QB_ITEM_ID)
         val qbActive = if (intent.hasExtra(KEY_QB_ACTIVE)) intent.getBooleanExtra(KEY_QB_ACTIVE, true) else null
         // En modo pre-orden no bloquea: la pre-orden es un borrador, el vínculo a
-        // QBO solo importa recién al convertirla en pedido real.
-        val qbBlocked = !isPreOrderMode && (qbItemId.isNullOrBlank() || qbActive == false)
-        if (qbBlocked) {
+        // QBO solo importa recién al convertirla en pedido real. Tampoco bloquea
+        // editando una fila ya existente del carrito — CurrentOrderActivity.editItem()
+        // no manda QB_ITEM_ID/QB_ACTIVE (no los guarda pending_orders), y el ítem ya
+        // pasó esta validación cuando se agregó la primera vez. La falta de barcode
+        // sí bloquea siempre (ver arriba) porque el barcode sí viaja completo.
+        val qbStateBlocked = !isPreOrderMode && editOrderId == null && (qbItemId.isNullOrBlank() || qbActive == false)
+
+        if (!hasBarcode || qbStateBlocked) {
             tvQbStatus.visibility = View.VISIBLE
-            tvQbStatus.text = if (qbItemId.isNullOrBlank())
-                getString(R.string.label_qb_not_linked) else getString(R.string.label_qb_inactive)
+            tvQbStatus.text = when {
+                !hasBarcode -> getString(R.string.label_no_barcode)
+                qbItemId.isNullOrBlank() -> getString(R.string.label_qb_not_linked)
+                else -> getString(R.string.label_qb_inactive)
+            }
             tvQbStatus.setTextColor(resources.getColor(R.color.red, theme))
-            btnAddOrder.text = getString(R.string.btn_qb_not_available)
+            btnAddOrder.text = if (!hasBarcode)
+                getString(R.string.btn_no_barcode) else getString(R.string.btn_qb_not_available)
             btnAddOrder.isEnabled = false
             btnAddOrder.backgroundTintList =
                 android.content.res.ColorStateList.valueOf(resources.getColor(R.color.red, theme))
@@ -222,7 +257,9 @@ class ProductDetailActivity : BaseActivity() {
     }
 
     private fun resetCount() {
-        units = if (isCaseBased) 1 else defaultWeight.toInt().coerceAtLeast(1)
+        // Editando una fila existente: arrancar con la cantidad que ya tenía (viene
+        // en defaultWeight vía el extra QUANTITY), no reiniciar a 1.
+        units = if (editOrderId != null || !isCaseBased) defaultWeight.toInt().coerceAtLeast(1) else 1
         cardWeights.visibility = View.GONE
         recalcTotal()
     }
@@ -546,30 +583,40 @@ class ProductDetailActivity : BaseActivity() {
             finish()
             return
         }
-        when {
-            isCaseBased -> orderRepository.savePendingOrder(
-                barcode = barcode,
-                productName = productName,
-                price = pricePerLb,
-                quantity = units.toDouble(),
-                unit = productUnit
-            )
-            isWeightBased -> for (weight in weights) {
-                orderRepository.savePendingOrder(
+        val editId = editOrderId
+        if (editId != null) {
+            // Editando una fila existente: actualizarla en el lugar, nunca insertar
+            // una nueva ni mezclarla con otras filas del carrito.
+            val quantity = if (isWeightBased) (weights.firstOrNull() ?: defaultWeight) else units.toDouble()
+            orderRepository.updatePendingOrder(editId, pricePerLb, quantity)
+        } else {
+            when {
+                isCaseBased -> orderRepository.savePendingOrder(
                     barcode = barcode,
                     productName = productName,
                     price = pricePerLb,
-                    quantity = weight,
+                    quantity = units.toDouble(),
+                    unit = productUnit,
+                    caseQty = caseQty
+                )
+                isWeightBased -> for (weight in weights) {
+                    orderRepository.savePendingOrder(
+                        barcode = barcode,
+                        productName = productName,
+                        price = pricePerLb,
+                        quantity = weight,
+                        unit = productUnit,
+                        merge = false
+                    )
+                }
+                else -> orderRepository.savePendingOrder(
+                    barcode = barcode,
+                    productName = productName,
+                    price = pricePerLb,
+                    quantity = units.toDouble(),
                     unit = productUnit
                 )
             }
-            else -> orderRepository.savePendingOrder(
-                barcode = barcode,
-                productName = productName,
-                price = pricePerLb,
-                quantity = units.toDouble(),
-                unit = productUnit
-            )
         }
         btnAddOrder.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
         finish()

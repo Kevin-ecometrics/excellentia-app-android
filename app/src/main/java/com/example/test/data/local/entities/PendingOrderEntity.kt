@@ -11,5 +11,6 @@ data class PendingOrderEntity(
     val retryCount: Int = 0,
     val customerId: String? = null,
     val customerName: String? = null,
-    val unit: String? = null
+    val unit: String? = null,
+    val caseQty: Int? = null
 )
