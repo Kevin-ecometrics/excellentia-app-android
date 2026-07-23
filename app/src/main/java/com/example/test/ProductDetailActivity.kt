@@ -11,10 +11,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.test.data.PreOrderItem
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.repository.OrderRepository
 import com.google.android.material.button.MaterialButton
+import com.google.gson.Gson
 import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -29,6 +31,8 @@ class ProductDetailActivity : BaseActivity() {
         private const val KEY_CUSTOMER_ID = "CUSTOMER_ID"
         private const val KEY_CUSTOMER_NAME = "CUSTOMER_NAME"
         private const val KEY_UNIT = "UNIT"
+        const val PRE_ORDER_MODE = "pre_order_mode"
+        const val RESULT_ITEMS_JSON = "items_json"
     }
 
     private lateinit var tvBarcode: TextView
@@ -59,10 +63,15 @@ class ProductDetailActivity : BaseActivity() {
     private var minTotal: Double? = null
     private var customerId: String? = null
     private var productUnit: String? = null
+    private var caseQty: Int? = null
+    private var isPreOrderMode = false
     private lateinit var orderRepository: OrderRepository
 
+    private val isCaseBased: Boolean
+        get() = productUnit.equals("Case", true) && (caseQty ?: 0) > 0
+
     private val isWeightBased: Boolean
-        get() = productUnit == null || productUnit == "" || productUnit == "Lbs"
+        get() = !isCaseBased && (productUnit == null || productUnit == "" || productUnit == "Lbs")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,17 +89,27 @@ class ProductDetailActivity : BaseActivity() {
         defaultWeight = intent.getDoubleExtra(KEY_QUANTITY, 1.0).coerceAtLeast(0.1)
         customerId = intent.getStringExtra(KEY_CUSTOMER_ID)
         productUnit = intent.getStringExtra(KEY_UNIT)
+        caseQty = intent.getIntExtra("CASE_QTY", 0).takeIf { it > 0 }
+            ?: (if (productUnit.equals("Case", true)) defaultWeight.toInt().coerceAtLeast(1) else null)
+        isPreOrderMode = intent.getBooleanExtra(PRE_ORDER_MODE, false)
         baseTotal = productPrice
+        if (isCaseBased) {
+            val cq = caseQty
+            if (cq != null) {
+                baseTotal = productPrice * cq
+                pricePerLb = baseTotal
+            }
+        }
 
         val db = AppDatabase.getInstance(this)
         val securePrefs = SecurePreferences(this)
         orderRepository = OrderRepository(db, securePrefs)
 
         initViews()
-        if (isWeightBased) {
-            resetWeights()
-        } else {
-            resetCount()
+        when {
+            isCaseBased -> resetCount()
+            isWeightBased -> resetWeights()
+            else -> resetCount()
         }
         showProduct()
         if (customerId != null) loadPriceHistory()
@@ -175,7 +194,7 @@ class ProductDetailActivity : BaseActivity() {
     }
 
     private fun resetCount() {
-        units = defaultWeight.toInt().coerceAtLeast(1)
+        units = if (isCaseBased) 1 else defaultWeight.toInt().coerceAtLeast(1)
         cardWeights.visibility = View.GONE
         recalcTotal()
     }
@@ -288,39 +307,60 @@ class ProductDetailActivity : BaseActivity() {
 
     private fun showProduct() {
         pricePerLb = productPrice
+        if (isCaseBased) {
+            val cq = caseQty
+            if (cq != null) {
+                pricePerLb = productPrice * cq
+                baseTotal = pricePerLb
+            }
+        }
         tvBarcode.text = barcode
         tvProductName.text = productName
-        if (isWeightBased) {
-            tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
-        } else {
-            tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
+        when {
+            isCaseBased -> tvPrice.text = String.format(Locale.US, "$%.2f / Case", baseTotal)
+            isWeightBased -> tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
+            else -> tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
         }
         tvUnits.text = units.toString()
-        if (isWeightBased) {
-            tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * defaultWeight)
-        } else {
-            tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * units)
+        when {
+            isCaseBased -> tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * units)
+            isWeightBased -> tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * defaultWeight)
+            else -> tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * units)
         }
         recalcTotal()
     }
 
     private fun recalcTotal() {
         tvUnits.text = units.toString()
-        if (isWeightBased) {
-            val totalWeight = weights.sum()
-            val total = totalWeight * pricePerLb
-            tvTotalWeight.text = if (units > 1) {
-                val parts = weights.joinToString(" + ") { String.format(Locale.US, "%.2f", it) }
-                "$parts = ${String.format(Locale.US, "%.2f", totalWeight)} lb"
-            } else {
-                String.format(Locale.US, getString(R.string.label_weight_display), totalWeight)
+        when {
+            isCaseBased -> {
+                val total = units * pricePerLb
+                val cq = caseQty ?: 0
+                tvTotalWeight.text = if (cq > 0) {
+                    val totalUnits = units * cq
+                    if (units > 1) "$units cases = $totalUnits units" else "$units case = $totalUnits units"
+                } else {
+                    "$units Case"
+                }
+                tvTotal.text = String.format(Locale.US, "$%.2f", total)
             }
-            tvTotal.text = String.format(Locale.US, "$%.2f", total)
-        } else {
-            val total = units * pricePerLb
-            val unitLabel = productUnit ?: "Unit"
-            tvTotalWeight.text = "$units $unitLabel"
-            tvTotal.text = String.format(Locale.US, "$%.2f", total)
+            isWeightBased -> {
+                val totalWeight = weights.sum()
+                val total = totalWeight * pricePerLb
+                tvTotalWeight.text = if (units > 1) {
+                    val parts = weights.joinToString(" + ") { String.format(Locale.US, "%.2f", it) }
+                    "$parts = ${String.format(Locale.US, "%.2f", totalWeight)} lb"
+                } else {
+                    String.format(Locale.US, getString(R.string.label_weight_display), totalWeight)
+                }
+                tvTotal.text = String.format(Locale.US, "$%.2f", total)
+            }
+            else -> {
+                val total = units * pricePerLb
+                val unitLabel = productUnit ?: "Unit"
+                tvTotalWeight.text = "$units $unitLabel"
+                tvTotal.text = String.format(Locale.US, "$%.2f", total)
+            }
         }
     }
 
@@ -346,10 +386,10 @@ class ProductDetailActivity : BaseActivity() {
                     }
                     baseTotal = newTotal
                     pricePerLb = baseTotal
-                    if (isWeightBased) {
-                        tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
-                    } else {
-                        tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
+                    when {
+                        isCaseBased -> tvPrice.text = String.format(Locale.US, "$%.2f / Case", baseTotal)
+                        isWeightBased -> tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
+                        else -> tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
                     }
                     recalcTotal()
                 } else {
@@ -433,8 +473,52 @@ class ProductDetailActivity : BaseActivity() {
 
     private fun saveOrder() {
         btnAddOrder.isEnabled = false
-        if (isWeightBased) {
-            for (weight in weights) {
+        if (isPreOrderMode) {
+            val items = mutableListOf<PreOrderItem>()
+            when {
+                isCaseBased -> items.add(PreOrderItem(
+                    barcode = barcode,
+                    productName = productName,
+                    price = pricePerLb,
+                    quantity = units.toDouble(),
+                    total = pricePerLb * units,
+                    unit = productUnit
+                ))
+                isWeightBased -> for (weight in weights) {
+                    items.add(PreOrderItem(
+                        barcode = barcode,
+                        productName = productName,
+                        price = pricePerLb,
+                        quantity = weight,
+                        total = pricePerLb * weight,
+                        unit = productUnit
+                    ))
+                }
+                else -> items.add(PreOrderItem(
+                    barcode = barcode,
+                    productName = productName,
+                    price = pricePerLb,
+                    quantity = units.toDouble(),
+                    total = pricePerLb * units,
+                    unit = productUnit
+                ))
+            }
+            val resultIntent = android.content.Intent().apply {
+                putExtra(RESULT_ITEMS_JSON, Gson().toJson(items))
+            }
+            setResult(RESULT_OK, resultIntent)
+            finish()
+            return
+        }
+        when {
+            isCaseBased -> orderRepository.savePendingOrder(
+                barcode = barcode,
+                productName = productName,
+                price = pricePerLb,
+                quantity = units.toDouble(),
+                unit = productUnit
+            )
+            isWeightBased -> for (weight in weights) {
                 orderRepository.savePendingOrder(
                     barcode = barcode,
                     productName = productName,
@@ -443,8 +527,7 @@ class ProductDetailActivity : BaseActivity() {
                     unit = productUnit
                 )
             }
-        } else {
-            orderRepository.savePendingOrder(
+            else -> orderRepository.savePendingOrder(
                 barcode = barcode,
                 productName = productName,
                 price = pricePerLb,

@@ -29,6 +29,7 @@ class ProductDao(private val db: AppDatabase) {
             put("stock", product.stock)
             product.weightPerUnit?.let { put("weight_per_unit", it) }
             product.unit?.let { put("unit", it) }
+            product.caseQty?.let { put("case_qty", it) }
             put("qty", product.qty)
             put("cached_at", product.cachedAt)
         }
@@ -75,6 +76,7 @@ class ProductDao(private val db: AppDatabase) {
     private fun cursorToEntity(c: Cursor): CachedProductEntity {
         val weightIdx = try { c.getColumnIndexOrThrow("weight_per_unit") } catch (_: Exception) { -1 }
         val unitIdx = try { c.getColumnIndexOrThrow("unit") } catch (_: Exception) { -1 }
+        val caseQtyIdx = try { c.getColumnIndexOrThrow("case_qty") } catch (_: Exception) { -1 }
         val qtyIdx = try { c.getColumnIndexOrThrow("qty") } catch (_: Exception) { -1 }
         return CachedProductEntity(
             id = c.getInt(c.getColumnIndexOrThrow("id")),
@@ -86,6 +88,7 @@ class ProductDao(private val db: AppDatabase) {
             stock = c.getInt(c.getColumnIndexOrThrow("stock")),
             weightPerUnit = if (weightIdx >= 0 && !c.isNull(weightIdx)) c.getDouble(weightIdx) else null,
             unit = if (unitIdx >= 0 && !c.isNull(unitIdx)) c.getString(unitIdx) else null,
+            caseQty = if (caseQtyIdx >= 0 && !c.isNull(caseQtyIdx)) c.getInt(caseQtyIdx) else null,
             qty = if (qtyIdx >= 0 && !c.isNull(qtyIdx)) c.getInt(qtyIdx) else 0,
             cachedAt = c.getLong(c.getColumnIndexOrThrow("cached_at"))
         )

@@ -10,19 +10,17 @@ import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.PreOrderItem
 import com.example.test.data.PreOrderRequest
+import com.example.test.data.UserBrief
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.google.android.material.appbar.MaterialToolbar
@@ -30,6 +28,8 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
@@ -38,20 +38,24 @@ class CreatePreOrderActivity : BaseActivity() {
 
     private lateinit var cardCustomer: MaterialCardView
     private lateinit var tvSelectedCustomer: TextView
+    private lateinit var cardSalesperson: MaterialCardView
+    private lateinit var tvSalesperson: TextView
     private lateinit var btnPickDate: MaterialButton
     private lateinit var tvSelectedDate: TextView
     private lateinit var etNotes: TextInputEditText
     private lateinit var layoutItems: LinearLayout
     private lateinit var tvNoItems: TextView
     private lateinit var tvTotalEstimated: TextView
-    private lateinit var btnAddItem: MaterialButton
+    private lateinit var btnSearchProduct: MaterialButton
     private lateinit var btnSavePreOrder: MaterialButton
     private lateinit var securePrefs: SecurePreferences
 
     private var selectedCustomerId: String? = null
     private var selectedCustomerName: String? = null
+    private var selectedSalespersonName: String? = null
     private var selectedDate: String? = null
     private val items = mutableListOf<PreOrderItem>()
+    private val salespersons = mutableListOf<UserBrief>()
 
     private companion object {
         const val DW_RESULT_ACTION = "com.symbol.datawedge.datawedge.ACTION_RESULT"
@@ -62,7 +66,7 @@ class CreatePreOrderActivity : BaseActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == DW_RESULT_ACTION) {
                 val data = intent.getStringExtra(DW_EXTRA_DATA) ?: return
-                if (data.isNotBlank()) lookupAndAddItem(data)
+                if (data.isNotBlank()) onBarcodeScanned(data)
             }
         }
     }
@@ -75,6 +79,19 @@ class CreatePreOrderActivity : BaseActivity() {
             selectedCustomerName = result.data?.getStringExtra("customer_name")
             tvSelectedCustomer.text = selectedCustomerName ?: getString(R.string.label_customer_selected)
             tvSelectedCustomer.setTextColor(getColor(R.color.text_primary))
+        }
+    }
+
+    private val productDetailLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val itemsJson = result.data?.getStringExtra(ProductDetailActivity.RESULT_ITEMS_JSON) ?: return@registerForActivityResult
+            try {
+                val type = object : TypeToken<List<PreOrderItem>>() {}.type
+                val newItems: List<PreOrderItem> = Gson().fromJson(itemsJson, type)
+                for (item in newItems) addItem(item)
+            } catch (_: Exception) {}
         }
     }
 
@@ -93,13 +110,15 @@ class CreatePreOrderActivity : BaseActivity() {
 
         cardCustomer      = findViewById(R.id.cardCustomer)
         tvSelectedCustomer = findViewById(R.id.tvSelectedCustomer)
+        cardSalesperson   = findViewById(R.id.cardSalesperson)
+        tvSalesperson     = findViewById(R.id.tvSalesperson)
         btnPickDate       = findViewById(R.id.btnPickDate)
         tvSelectedDate    = findViewById(R.id.tvSelectedDate)
         etNotes           = findViewById(R.id.etNotes)
         layoutItems       = findViewById(R.id.layoutItems)
         tvNoItems         = findViewById(R.id.tvNoItems)
         tvTotalEstimated  = findViewById(R.id.tvTotalEstimated)
-        btnAddItem        = findViewById(R.id.btnAddItem)
+        btnSearchProduct  = findViewById(R.id.btnSearchProduct)
         btnSavePreOrder   = findViewById(R.id.btnSavePreOrder)
 
         // Pre-fill active customer if any
@@ -110,14 +129,17 @@ class CreatePreOrderActivity : BaseActivity() {
             tvSelectedCustomer.setTextColor(getColor(R.color.text_primary))
         }
 
+        loadSalespersons()
+
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
 
         cardCustomer.setOnClickListener {
             customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
         }
 
+        cardSalesperson.setOnClickListener { showSalespersonPicker() }
         btnPickDate.setOnClickListener { showDatePicker() }
-        btnAddItem.setOnClickListener { showAddItemDialog() }
+        btnSearchProduct.setOnClickListener { showProductSearchDialog() }
         btnSavePreOrder.setOnClickListener { savePreOrder() }
 
         registerDwReceiver()
@@ -139,6 +161,37 @@ class CreatePreOrderActivity : BaseActivity() {
         }
     }
 
+    private fun loadSalespersons() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().listSalespersons()
+                if (resp.isSuccessful) {
+                    val list = resp.body()?.data ?: emptyList()
+                    salespersons.clear()
+                    salespersons.addAll(list)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun showSalespersonPicker() {
+        if (salespersons.isEmpty()) {
+            Snackbar.make(findViewById(android.R.id.content), "No hay vendedores disponibles", Snackbar.LENGTH_SHORT).show()
+            return
+        }
+        val names = salespersons.map { it.name ?: "—" }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Seleccionar vendedor")
+            .setItems(names) { _, index ->
+                val sp = salespersons[index]
+                selectedSalespersonName = sp.name
+                tvSalesperson.text = sp.name ?: "—"
+                tvSalesperson.setTextColor(getColor(R.color.text_primary))
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
     private fun showDatePicker() {
         val cal = Calendar.getInstance()
         DatePickerDialog(this, { _, y, m, d ->
@@ -150,110 +203,127 @@ class CreatePreOrderActivity : BaseActivity() {
         }.show()
     }
 
-    private fun showAddItemDialog() {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 16, 48, 0)
-        }
-        val etBarcode = EditText(this).apply { hint = getString(R.string.hint_barcode_or_code) }
-        val etQty = EditText(this).apply {
-            hint = getString(R.string.hint_quantity_lb)
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        }
-        val etPrice = EditText(this).apply {
-            hint = getString(R.string.hint_price_per_lb)
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        }
-        layout.addView(etBarcode)
-        layout.addView(etQty)
-        layout.addView(etPrice)
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.title_add_product))
-            .setView(layout)
-            .setPositiveButton(getString(R.string.btn_add)) { _, _ ->
-                val barcode = etBarcode.text.toString().trim()
-                val qty     = etQty.text.toString().toDoubleOrNull() ?: 0.0
-                val price   = etPrice.text.toString().toDoubleOrNull() ?: 0.0
-                if (barcode.isNotBlank() && qty > 0 && price > 0) {
-                    lookupAndAddItemWithHint(barcode, qty, price)
-                } else {
-                    Snackbar.make(
-                        findViewById(android.R.id.content),
-                        getString(R.string.error_valid_barcode_qty_price),
-                        Snackbar.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
-    }
-
-    private fun lookupAndAddItemWithHint(barcode: String, qty: Double, price: Double) {
-        lifecycleScope.launch {
-            try {
-                val resp = RetrofitClient.getApi().getProductByBarcode(barcode)
-                val productName = if (resp.isSuccessful) {
-                    resp.body()?.data?.name ?: barcode
-                } else barcode
-                addItem(PreOrderItem(barcode, productName, price, qty, price * qty))
-            } catch (_: Exception) {
-                addItem(PreOrderItem(barcode, barcode, price, qty, price * qty))
-            }
-        }
-    }
-
-    private fun lookupAndAddItem(barcode: String) {
+    private fun onBarcodeScanned(barcode: String) {
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().getProductByBarcode(barcode)
                 if (resp.isSuccessful) {
                     val product = resp.body()?.data ?: return@launch
-                    runOnUiThread { showQtyDialog(barcode, product.name, product.price) }
+                    launchProductDetail(barcode, product.name, product.price, product.unit, product.caseQty)
                 } else {
-                    Snackbar.make(
-                        findViewById(android.R.id.content),
-                        getString(R.string.error_product_not_found_barcode, barcode),
-                        Snackbar.LENGTH_SHORT
-                    ).show()
+                    Snackbar.make(findViewById(android.R.id.content),
+                        getString(R.string.error_product_not_found_barcode, barcode), Snackbar.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Snackbar.make(
-                    findViewById(android.R.id.content),
-                    getString(R.string.error_searching_product),
-                    Snackbar.LENGTH_SHORT
-                ).show()
+                Snackbar.make(findViewById(android.R.id.content),
+                    getString(R.string.error_searching_product), Snackbar.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun showQtyDialog(barcode: String, name: String, defaultPrice: Double) {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+    private fun showProductSearchDialog() {
+        val ctx = this
+        val layout = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
             setPadding(48, 16, 48, 0)
         }
-        val etQty = EditText(this).apply {
-            hint = getString(R.string.hint_quantity_lb)
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        val etSearch = android.widget.EditText(ctx).apply {
+            hint = getString(R.string.hint_product_name_search)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
-        val etPrice = EditText(this).apply {
-            hint = getString(R.string.hint_price_per_lb)
-            setText(String.format(Locale.US, "%.2f", defaultPrice))
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        val tvStatus = android.widget.TextView(ctx).apply {
+            textSize = 13f
+            setPadding(0, 12, 0, 0)
+            setTextColor(getColor(R.color.text_secondary))
+            text = getString(R.string.label_type_to_search)
         }
-        layout.addView(etQty)
-        layout.addView(etPrice)
+        val listHeightPx = (240 * resources.displayMetrics.density).toInt()
+        val lvResults = android.widget.ListView(ctx).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, listHeightPx
+            )
+            visibility = android.view.View.GONE
+            divider = android.graphics.drawable.ColorDrawable(getColor(R.color.text_secondary))
+            dividerHeight = 1
+            clipToPadding = false
+            setPadding(0, 0, 0, 24)
+        }
+        layout.addView(etSearch)
+        layout.addView(tvStatus)
+        layout.addView(lvResults)
 
-        AlertDialog.Builder(this)
-            .setTitle(name)
+        var foundProducts: List<com.example.test.data.ProductDto> = emptyList()
+        val resultsAdapter = android.widget.ArrayAdapter<String>(ctx, android.R.layout.simple_list_item_1, mutableListOf())
+        lvResults.adapter = resultsAdapter
+
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle(getString(R.string.title_search_product_by_name))
             .setView(layout)
-            .setPositiveButton(getString(R.string.btn_add)) { _, _ ->
-                val qty   = etQty.text.toString().toDoubleOrNull() ?: 0.0
-                val price = etPrice.text.toString().toDoubleOrNull() ?: defaultPrice
-                if (qty > 0) addItem(PreOrderItem(barcode, name, price, qty, price * qty))
-            }
             .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
+            .create()
+
+        lvResults.setOnItemClickListener { _, _, idx, _ ->
+            foundProducts.getOrNull(idx)?.let { p ->
+                dialog.dismiss()
+                launchProductDetail(p.barcode ?: "", p.name, p.price, p.unit, p.caseQty)
+            }
+        }
+
+        etSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val query = s?.toString()?.trim() ?: return
+                if (query.length < 2) {
+                    tvStatus.text = getString(R.string.label_type_at_least_2)
+                    lvResults.visibility = android.view.View.GONE
+                    return
+                }
+                tvStatus.text = getString(R.string.label_searching)
+                lvResults.visibility = android.view.View.GONE
+                lifecycleScope.launch {
+                    try {
+                        val resp = RetrofitClient.getApi().searchProducts(query)
+                        if (resp.isSuccessful) {
+                            foundProducts = resp.body()?.data ?: emptyList()
+                            if (foundProducts.isEmpty()) {
+                                tvStatus.text = getString(R.string.label_no_results, query)
+                                lvResults.visibility = android.view.View.GONE
+                            } else {
+                                tvStatus.text = ""
+                                resultsAdapter.clear()
+                                foundProducts.forEach { p ->
+                                    resultsAdapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/${p.unit ?: "lb"}  ·  ${p.barcode ?: getString(R.string.no_barcode_label)}")
+                                }
+                                lvResults.visibility = android.view.View.VISIBLE
+                                lvResults.post { lvResults.setSelection(0) }
+                            }
+                        }
+                    } catch (_: Exception) {
+                        tvStatus.text = getString(R.string.label_search_error)
+                        lvResults.visibility = android.view.View.GONE
+                    }
+                }
+            }
+        })
+
+        dialog.show()
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+    }
+
+    private fun launchProductDetail(barcode: String, name: String, price: Double, unit: String?, caseQty: Int? = null) {
+        val intent = Intent(this, ProductDetailActivity::class.java).apply {
+            putExtra("BARCODE", barcode)
+            putExtra("PRODUCT_NAME", name)
+            putExtra("PRODUCT_PRICE", price)
+            putExtra("QUANTITY", 1.0)
+            putExtra("CUSTOMER_ID", selectedCustomerId)
+            putExtra("CUSTOMER_NAME", selectedCustomerName)
+            putExtra("UNIT", unit)
+            putExtra("CASE_QTY", caseQty ?: 0)
+            putExtra(ProductDetailActivity.PRE_ORDER_MODE, true)
+        }
+        productDetailLauncher.launch(intent)
     }
 
     private fun addItem(item: PreOrderItem) {
@@ -277,7 +347,7 @@ class CreatePreOrderActivity : BaseActivity() {
 
             val tvItem = TextView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${item.productName}\n${String.format(Locale.US, "%.2f lb × $%.2f = $%.2f", item.quantity, item.price, item.total)}"
+                text = "${item.productName}\n${String.format(Locale.US, "%.2f %s × \$%.2f = \$%.2f", item.quantity, item.unit ?: "lb", item.price, item.total)}"
                 textSize = 13f
                 setTextColor(getColor(R.color.text_primary))
             }
@@ -307,19 +377,15 @@ class CreatePreOrderActivity : BaseActivity() {
 
     private fun savePreOrder() {
         if (selectedCustomerId == null || selectedCustomerName == null) {
-            Snackbar.make(
-                findViewById(android.R.id.content),
-                getString(R.string.error_select_customer_first),
-                Snackbar.LENGTH_SHORT
-            ).show()
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_select_customer_first), Snackbar.LENGTH_SHORT).show()
+            return
+        }
+        if (selectedDate == null) {
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_select_date), Snackbar.LENGTH_SHORT).show()
             return
         }
         if (items.isEmpty()) {
-            Snackbar.make(
-                findViewById(android.R.id.content),
-                getString(R.string.error_add_at_least_one_product),
-                Snackbar.LENGTH_SHORT
-            ).show()
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_add_at_least_one_product), Snackbar.LENGTH_SHORT).show()
             return
         }
 
@@ -327,11 +393,12 @@ class CreatePreOrderActivity : BaseActivity() {
         btnSavePreOrder.text = getString(R.string.btn_saving)
 
         val request = PreOrderRequest(
-            customerId    = selectedCustomerId!!,
-            customerName  = selectedCustomerName!!,
-            scheduledDate = selectedDate,
-            notes         = etNotes.text?.toString()?.trim()?.takeIf { it.isNotBlank() },
-            items         = items.toList()
+            customerId      = selectedCustomerId!!,
+            customerName    = selectedCustomerName!!,
+            salespersonName = selectedSalespersonName,
+            scheduledDate   = selectedDate,
+            notes           = etNotes.text?.toString()?.trim()?.takeIf { it.isNotBlank() },
+            items           = items.toList()
         )
 
         lifecycleScope.launch {
@@ -341,20 +408,12 @@ class CreatePreOrderActivity : BaseActivity() {
                     setResult(Activity.RESULT_OK)
                     finish()
                 } else {
-                    Snackbar.make(
-                        findViewById(android.R.id.content),
-                        getString(R.string.error_server_code, resp.code()),
-                        Snackbar.LENGTH_LONG
-                    ).show()
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_server_code, resp.code()), Snackbar.LENGTH_LONG).show()
                     btnSavePreOrder.isEnabled = true
                     btnSavePreOrder.text = getString(R.string.btn_save_pre_order)
                 }
             } catch (e: Exception) {
-                Snackbar.make(
-                    findViewById(android.R.id.content),
-                    e.localizedMessage ?: getString(R.string.error_no_connection),
-                    Snackbar.LENGTH_LONG
-                ).show()
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_no_connection), Snackbar.LENGTH_LONG).show()
                 btnSavePreOrder.isEnabled = true
                 btnSavePreOrder.text = getString(R.string.btn_save_pre_order)
             }

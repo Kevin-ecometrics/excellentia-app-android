@@ -225,6 +225,7 @@
     <string name="btn_new_pre_order">New pre-order</string>
     <string name="label_delivery_prefix">Delivery: %1$s</string>
     <string name="label_created_prefix">Created: %1$s</string>
+    <string name="label_salesperson_prefix">Salesperson: %1$s</string>
     <string name="status_draft">DRAFT</string>
     <string name="status_confirmed">CONFIRMED</string>
     <string name="status_converted">CONVERTED</string>
@@ -304,6 +305,10 @@
     <string name="label_n_products">%1$d products</string>
 
     <!-- Settings layout strings -->
+    <string name="label_disclaimer">Disclaimer / Legal Terms</string>
+    <string name="hint_disclaimer">Terms and Conditions:\n(1) Seller retains title…</string>
+    <string name="label_disclaimer_hint">Shown on printed tickets and receipts. Leave empty to omit.</string>
+
     <string name="label_printer_help_content_description">Printer help</string>
 
     <!-- CreatePreOrderActivity layout -->
@@ -311,6 +316,8 @@
     <string name="hint_notes_optional">Notes (optional)</string>
     <string name="label_products_section">PRODUCTS</string>
     <string name="btn_add_item">+ Add</string>
+    <string name="btn_search_product">Search product</string>
+    <string name="error_select_date">Select a delivery date</string>
     <string name="label_no_items_scan">No products. Tap \'+ Add\' or scan a barcode.</string>
     <string name="label_estimated_total">ESTIMATED TOTAL</string>
 

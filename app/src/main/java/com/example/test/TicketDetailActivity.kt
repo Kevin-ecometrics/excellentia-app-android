@@ -87,6 +87,8 @@ class TicketDetailActivity : AppCompatActivity() {
 
         damageItemsForReprint = initialDamage
 
+        val disclaimerText = prefs.getDisclaimer()
+
         buildReceipt(
             companyName       = companyName,
             subtitle          = prefs.getCompanySubtitle(),
@@ -105,7 +107,8 @@ class TicketDetailActivity : AppCompatActivity() {
             companyNameFooter = companyName,
             signature         = signatureForReprint,
             damageItems       = initialDamage,
-            status            = orderStatus
+            status            = orderStatus,
+            disclaimer        = disclaimerText
         )
 
         // Si hay batchId, cargar firma + damage desde API y actualizar recibo
@@ -146,7 +149,8 @@ class TicketDetailActivity : AppCompatActivity() {
                                 companyNameFooter = companyName,
                                 signature         = signatureForReprint,
                                 damageItems       = damageItemsForReprint,
-                                status            = orderStatus
+                                status            = orderStatus,
+                                disclaimer        = disclaimerText
                             )
                         }
                     }
@@ -212,7 +216,8 @@ class TicketDetailActivity : AppCompatActivity() {
         companyNameFooter: String,
         signature: String?,
         damageItems: List<DamageItem> = emptyList(),
-        status: String?
+        status: String?,
+        disclaimer: String? = null
     ) {
         // ── Cabecera empresa ────────────────────────────
         addLine(companyName, bold = true, sizeSp = 13f)
@@ -281,10 +286,14 @@ class TicketDetailActivity : AppCompatActivity() {
         // ── Términos ────────────────────────────────────
         addSep(heavy = false)
         addLine(
-            "I hereby acknowledge that all above referenced goods have been received " +
-            "and are in good condition. I also understand that this sale is expressly " +
-            "conditioned upon my assent to all terms on the reverse of this page and " +
-            "I accept all the terms of this sale.",
+            disclaimer ?: "Terms and Conditions:\n\n" +
+            "(1) Seller retains title to the goods until buyer performs the entire contract and goods have been paid for in full. Seller retains a security interest in the goods, including all additions and replacements, to secure performance of all buyer's obligations under this contract.\n\n" +
+            "(2) The buyer is responsible for any loss or damage to goods once they are in buyer's possession.\n\n" +
+            "(3) Any claim of immediately apparent defect against delivered goods must be made upon receipt. In the case of hidden defects, buyer shall have no more than 3 days to present seller with a claim of defect.\n\n" +
+            "(4) The goods sold in this invoice will only be used for resale.\n\n" +
+            "(5) In any action which may be brought to enforce payment under this contract, seller shall be entitled to recover from buyer all the attorney fees seller incurs, in addition to seller's actual, incidental, and consequential damages.\n\n" +
+            "(6) Buyer agrees to pay a fee of $30.00 for each check drawn on insufficient funds (NSF Check).\n\n" +
+            "(7) Buyer agrees that jurisdiction and venue for any dispute under this contract are proper in San Diego, CA.",
             sizeSp = 10f
         )
 

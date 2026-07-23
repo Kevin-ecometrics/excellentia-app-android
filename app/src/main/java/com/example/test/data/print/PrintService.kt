@@ -59,7 +59,8 @@ object PrintService {
             city            = prefs.getCompanyCity(),
             damageItems     = damageItems,
             paymentMethod   = paymentMethod,
-            signature       = signature
+            signature       = signature,
+            disclaimer      = prefs.getDisclaimer()
         ))
     }
 
@@ -137,7 +138,8 @@ object PrintService {
         city: String? = null,
         damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null,
-        signature: String? = null
+        signature: String? = null,
+        disclaimer: String? = null
     ): String {
         val date = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
         val grandTotal = items.sumOf { it.total }
@@ -240,7 +242,7 @@ object PrintService {
         // wrapText(28) = 476px — margen seguro para evitar corte en el borde físico
         y += 8
         body.left()
-        val terms = "I hereby acknowledge that all above referenced goods have been received and are in good condition. I also understand that this sale is expressly conditioned upon my assent to all terms on the reverse of this page and I accept all the terms of this sale."
+        val terms = disclaimer ?: "Terms and Conditions:\n\n(1) Seller retains title to the goods until buyer performs the entire contract and goods have been paid for in full. Seller retains a security interest in the goods, including all additions and replacements, to secure performance of all buyer's obligations under this contract.\n\n(2) The buyer is responsible for any loss or damage to goods once they are in buyer's possession.\n\n(3) Any claim of immediately apparent defect against delivered goods must be made upon receipt. In the case of hidden defects, buyer shall have no more than 3 days to present seller with a claim of defect.\n\n(4) The goods sold in this invoice will only be used for resale.\n\n(5) In any action which may be brought to enforce payment under this contract, seller shall be entitled to recover from buyer all the attorney fees seller incurs, in addition to seller's actual, incidental, and consequential damages.\n\n(6) Buyer agrees to pay a fee of $30.00 for each check drawn on insufficient funds (NSF Check).\n\n(7) Buyer agrees that jurisdiction and venue for any dispute under this contract are proper in San Diego, CA."
         for (line in wrapText(terms, 28)) {
             body.t(F4, 0, y, line);                                y += F4H + 4
         }

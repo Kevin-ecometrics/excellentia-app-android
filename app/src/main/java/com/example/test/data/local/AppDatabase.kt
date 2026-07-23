@@ -19,6 +19,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 stock INTEGER DEFAULT 0,
                 weight_per_unit REAL,
                 unit TEXT,
+                case_qty INTEGER DEFAULT NULL,
                 qty INTEGER DEFAULT 0,
                 cached_at INTEGER NOT NULL
             )
@@ -122,11 +123,14 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             db.execSQL("INSERT INTO pending_orders SELECT * FROM pending_orders_old")
             db.execSQL("DROP TABLE pending_orders_old")
         }
+        if (oldVersion < 10) {
+            try { db.execSQL("ALTER TABLE cached_products ADD COLUMN case_qty INTEGER DEFAULT NULL") } catch (_: Exception) {}
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 9
+        private const val DATABASE_VERSION = 10
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

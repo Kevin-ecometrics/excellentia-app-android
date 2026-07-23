@@ -224,6 +224,7 @@
     <string name="btn_new_pre_order">Nueva pre-orden</string>
     <string name="label_delivery_prefix">Entrega: %1$s</string>
     <string name="label_created_prefix">Creado: %1$s</string>
+    <string name="label_salesperson_prefix">Vendedor: %1$s</string>
     <string name="status_draft">BORRADOR</string>
     <string name="status_confirmed">CONFIRMADA</string>
     <string name="status_converted">CONVERTIDA</string>
@@ -394,4 +395,13 @@
     <string name="bottom_nav_order">Pedido</string>
     <string name="bottom_nav_history">Historial</string>
     <string name="bottom_nav_settings">Ajustes</string>
+
+    <!-- Disclaimer -->
+    <string name="label_disclaimer">Aviso legal / Términos</string>
+    <string name="hint_disclaimer">Términos y Condiciones:\n(1) El vendedor retiene…</string>
+    <string name="label_disclaimer_hint">Se muestra en tickets y recibos. Vacío para omitir.</string>
+
+    <!-- Pre-Orders -->
+    <string name="btn_search_product">Buscar producto</string>
+    <string name="error_select_date">Seleccione una fecha de entrega</string>
 </resources>

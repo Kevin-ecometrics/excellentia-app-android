@@ -12,7 +12,8 @@ data class Product(
     val weightPerUnit: Double? = null,
     val stock: Int = 0,
     val unit: String? = null,
-    val qty: Int = 0
+    val qty: Int = 0,
+    val caseQty: Int? = null
 )
 
 enum class SyncStatus { PENDING, SENT, FAILED }
@@ -60,6 +61,7 @@ data class ProductDto(
     val stock: Int = 0,
     @SerializedName("weight_per_unit") val weightPerUnit: Double? = null,
     val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null,
     val qty: Int = 0
 ) {
     fun toProduct(): Product = Product(
@@ -69,7 +71,8 @@ data class ProductDto(
         weightPerUnit = weightPerUnit,
         stock = stock,
         unit = unit,
-        qty = qty
+        qty = qty,
+        caseQty = caseQty
     )
 }
 
@@ -277,7 +280,8 @@ data class CompanySettingsData(
     val subtitle: String = "Ticket de Venta",
     val address: String? = null,
     val phone: String? = null,
-    val city: String? = null
+    val city: String? = null,
+    val disclaimer: String? = null
 )
 
 // ── Price History Models ──
@@ -317,6 +321,7 @@ data class PreOrderItem(
 data class PreOrderRequest(
     @SerializedName("customer_id") val customerId: String,
     @SerializedName("customer_name") val customerName: String,
+    @SerializedName("salesperson_name") val salespersonName: String? = null,
     @SerializedName("scheduled_date") val scheduledDate: String? = null,
     val notes: String? = null,
     val items: List<PreOrderItem>
@@ -326,6 +331,7 @@ data class PreOrderDto(
     val id: Int,
     @SerializedName("customer_id") val customerId: String,
     @SerializedName("customer_name") val customerName: String,
+    @SerializedName("salesperson_name") val salespersonName: String? = null,
     @SerializedName("scheduled_date") val scheduledDate: String? = null,
     val notes: String? = null,
     val status: String,
@@ -333,6 +339,11 @@ data class PreOrderDto(
     val total: Double = 0.0,
     @SerializedName("created_at") val createdAt: String? = null,
     val items: List<PreOrderItem> = emptyList()
+)
+
+data class UserBrief(
+    val id: Int,
+    val name: String?
 )
 
 data class PreOrderResponse(

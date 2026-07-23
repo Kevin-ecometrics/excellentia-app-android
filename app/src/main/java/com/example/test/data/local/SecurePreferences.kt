@@ -112,15 +112,22 @@ class SecurePreferences(context: Context) {
             .apply()
     }
 
-    fun saveCompanySettings(name: String, subtitle: String, address: String?, phone: String?, city: String?) {
+    fun saveCompanySettings(name: String, subtitle: String, address: String?, phone: String?, city: String?, disclaimer: String? = null) {
         prefs.edit()
             .putString(KEY_COMPANY_NAME, name)
             .putString(KEY_COMPANY_SUBTITLE, subtitle)
             .putString(KEY_COMPANY_ADDRESS, address)
             .putString(KEY_COMPANY_PHONE, phone)
             .putString(KEY_COMPANY_CITY, city)
+            .putString(KEY_DISCLAIMER, disclaimer)
             .apply()
     }
+
+    fun saveDisclaimer(text: String?) {
+        prefs.edit().putString(KEY_DISCLAIMER, text?.takeIf { it.isNotBlank() }).apply()
+    }
+
+    fun getDisclaimer(): String? = prefs.getString(KEY_DISCLAIMER, null)?.takeIf { it.isNotBlank() }
 
     fun saveUserInfo(email: String, name: String?, role: String?) {
         prefs.edit()
@@ -176,6 +183,7 @@ class SecurePreferences(context: Context) {
         private const val KEY_COMPANY_ADDRESS = "company_address"
         private const val KEY_COMPANY_PHONE = "company_phone"
         private const val KEY_COMPANY_CITY = "company_city"
+        private const val KEY_DISCLAIMER = "company_disclaimer"
         private const val DEFAULT_BACKEND_URL = "https://app.excellentiafoods.com"
     }
 }

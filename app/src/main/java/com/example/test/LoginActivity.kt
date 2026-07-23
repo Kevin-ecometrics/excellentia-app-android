@@ -196,11 +196,12 @@ class LoginActivity : BaseActivity() {
                         if (settingsResp.isSuccessful) {
                             settingsResp.body()?.data?.let { d ->
                                 securePrefs.saveCompanySettings(
-                                    name     = d.companyName,
-                                    subtitle = d.subtitle,
-                                    address  = d.address,
-                                    phone    = d.phone,
-                                    city     = d.city
+                                    name       = d.companyName,
+                                    subtitle   = d.subtitle,
+                                    address    = d.address,
+                                    phone      = d.phone,
+                                    city       = d.city,
+                                    disclaimer = d.disclaimer
                                 )
                             }
                         }

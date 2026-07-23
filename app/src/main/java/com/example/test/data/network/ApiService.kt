@@ -98,6 +98,9 @@ interface ApiService {
 
     // ── Customer History ──
 
+    @GET("api/users/salespersons")
+    suspend fun listSalespersons(): Response<ApiResponse<List<UserBrief>>>
+
     @GET("api/customers/{customerId}/orders")
     suspend fun getCustomerOrders(
         @Path("customerId") customerId: String,

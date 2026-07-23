@@ -194,6 +194,14 @@ class PreOrderListActivity : BaseActivity() {
             tvNotes.visibility = View.GONE
         }
 
+        val tvSalesperson = view.findViewById<TextView>(R.id.tvPreOrderSalesperson)
+        if (!po.salespersonName.isNullOrBlank()) {
+            tvSalesperson.text = "Vendedor: ${po.salespersonName}"
+            tvSalesperson.visibility = View.VISIBLE
+        } else {
+            tvSalesperson.visibility = View.GONE
+        }
+
         view.findViewById<TextView>(R.id.tvPreOrderTotal).text =
             String.format(Locale.US, "$%.2f", po.total)
 

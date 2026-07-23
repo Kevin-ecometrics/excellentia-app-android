@@ -10,6 +10,7 @@ data class CachedProductEntity(
     val stock: Int = 0,
     val weightPerUnit: Double? = null,
     val unit: String? = null,
+    val caseQty: Int? = null,
     val qty: Int = 0,
     val cachedAt: Long = System.currentTimeMillis()
 )

@@ -192,7 +192,8 @@ class OrderRepository(
                             brand = dto.brand,
                             stock = dto.stock,
                             weightPerUnit = dto.weightPerUnit,
-                            unit = dto.unit
+                            unit = dto.unit,
+                            caseQty = dto.caseQty
                         )
                     )
                 }

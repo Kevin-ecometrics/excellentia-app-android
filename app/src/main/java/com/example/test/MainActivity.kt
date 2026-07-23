@@ -257,7 +257,7 @@ class MainActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().getCompanySettings()
                 if (resp.isSuccessful) {
                     resp.body()?.data?.let { d ->
-                        securePrefs.saveCompanySettings(d.companyName, d.subtitle, d.address, d.phone, d.city)
+                        securePrefs.saveCompanySettings(d.companyName, d.subtitle, d.address, d.phone, d.city, d.disclaimer)
                     }
                 }
             } catch (_: Exception) {}
@@ -574,6 +574,7 @@ class MainActivity : BaseActivity() {
                     putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
                     putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
                     putExtra("UNIT", product.unit)
+                    putExtra("CASE_QTY", product.caseQty ?: 0)
                 }
             )
         }
@@ -586,7 +587,8 @@ class MainActivity : BaseActivity() {
         val weightPerUnit: Double?,
         val stock: Int,
         val unit: String? = null,
-        val qty: Int = 0
+        val qty: Int = 0,
+        val caseQty: Int = 0
     )
 
     // Abre el detalle directo desde un resultado de búsqueda ya cargado (sin volver a
@@ -607,6 +609,7 @@ class MainActivity : BaseActivity() {
                     putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
                     putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
                     putExtra("UNIT", item.unit)
+                    putExtra("CASE_QTY", item.caseQty)
                 }
             )
     }
@@ -672,7 +675,7 @@ class MainActivity : BaseActivity() {
                             results.isEmpty() -> runOnUiThread { showProductNotFound(query) }
                             results.size == 1 -> runOnUiThread {
                                 openSuggestion(
-                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty)
+                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty, results[0].caseQty ?: 0)
                                 )
                             }
                             // Varios resultados: se listan en el mismo lvSuggestions (un solo
@@ -680,7 +683,7 @@ class MainActivity : BaseActivity() {
                             // evita el bug de "primer click no abre, segundo abre el anterior".
                             else -> runOnUiThread {
                                 showSuggestions(results.map {
-                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty)
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0)
                                 })
                             }
                         }
@@ -713,7 +716,7 @@ class MainActivity : BaseActivity() {
                         val results = productRepository.searchOffline(query)
                         runOnUiThread {
                             showSuggestions(results.map {
-                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty)
+                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0)
                             })
                         }
                     }
@@ -725,8 +728,8 @@ class MainActivity : BaseActivity() {
                                 val products = resp.body()?.data ?: emptyList()
                                 runOnUiThread {
                                     showSuggestions(products.map {
-                                        SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty)
-                                    })
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0)
+                                })
                                 }
                             }
                         } catch (_: Exception) { /* búsqueda silenciosa */ }
@@ -786,7 +789,7 @@ class MainActivity : BaseActivity() {
         lvResults.setOnItemClickListener { _, _, idx, _ ->
             foundProducts.getOrNull(idx)?.let { p ->
                 dialog.dismiss()
-                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty))
+                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty, p.caseQty ?: 0))
             }
         }
 

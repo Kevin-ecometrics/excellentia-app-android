@@ -38,6 +38,7 @@ class SettingsActivity : BaseActivity() {
     private lateinit var tvAccountName: TextView
     private lateinit var tvAccountEmail: TextView
     private lateinit var tvAccountRole: TextView
+    private lateinit var etDisclaimer: EditText
     private lateinit var btnSave: MaterialButton
     private lateinit var btnLogout: MaterialButton
     private lateinit var btnSelectPrinter: MaterialButton
@@ -79,6 +80,7 @@ class SettingsActivity : BaseActivity() {
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         btnSave.setOnClickListener { saveSettings() }
         btnLogout.setOnClickListener { logout() }
+        etDisclaimer = findViewById(R.id.etDisclaimer)
         findViewById<MaterialButton>(R.id.btnChangePassword).setOnClickListener {
             startActivity(Intent(this, ChangePasswordActivity::class.java))
         }
@@ -133,6 +135,9 @@ class SettingsActivity : BaseActivity() {
         } catch (_: Exception) { "—" }
         findViewById<TextView>(R.id.tvDeviceSerial).text = serial
 
+        // Disclaimer
+        etDisclaimer.setText(securePrefs.getDisclaimer() ?: "")
+
         // App version
         val versionName = try {
             packageManager.getPackageInfo(packageName, 0).versionName
@@ -143,6 +148,7 @@ class SettingsActivity : BaseActivity() {
     private fun saveSettings() {
         securePrefs.saveBackendUrl(etBackendUrl.text.toString().trim())
         securePrefs.saveOfflineMode(switchOffline.isChecked)
+        securePrefs.saveDisclaimer(etDisclaimer.text.toString().trim().takeIf { it.isNotBlank() })
         Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_settings_saved), Snackbar.LENGTH_SHORT).show()
     }
 

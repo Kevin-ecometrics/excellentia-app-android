@@ -40,6 +40,7 @@ class PreOrderDetailActivity : BaseActivity() {
     private lateinit var tvDetailCustomer: TextView
     private lateinit var tvDetailStatus: TextView
     private lateinit var tvDetailDate: TextView
+    private lateinit var tvDetailSalesperson: TextView
     private lateinit var tvDetailNotes: TextView
     private lateinit var layoutDetailItems: LinearLayout
     private lateinit var tvDetailTotal: TextView
@@ -87,6 +88,7 @@ class PreOrderDetailActivity : BaseActivity() {
         tvDetailCustomer  = findViewById(R.id.tvDetailCustomer)
         tvDetailStatus    = findViewById(R.id.tvDetailStatus)
         tvDetailDate      = findViewById(R.id.tvDetailDate)
+        tvDetailSalesperson = findViewById(R.id.tvDetailSalesperson)
         tvDetailNotes     = findViewById(R.id.tvDetailNotes)
         layoutDetailItems = findViewById(R.id.layoutDetailItems)
         tvDetailTotal     = findViewById(R.id.tvDetailTotal)
@@ -158,6 +160,13 @@ class PreOrderDetailActivity : BaseActivity() {
             }
         }
         tvDetailDate.text = dateStr
+
+        if (!po.salespersonName.isNullOrBlank()) {
+            tvDetailSalesperson.text = getString(R.string.label_salesperson_prefix, po.salespersonName)
+            tvDetailSalesperson.visibility = View.VISIBLE
+        } else {
+            tvDetailSalesperson.visibility = View.GONE
+        }
 
         if (!po.notes.isNullOrBlank()) {
             tvDetailNotes.text = getString(R.string.label_notes_prefix, po.notes)
