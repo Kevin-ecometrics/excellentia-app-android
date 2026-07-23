@@ -319,8 +319,10 @@ class TicketDetailActivity : AppCompatActivity() {
                 val unitLabel = unitLabel(g.unit)
                 addLine(g.productName, sizeSp = 12f)
                 val detailStr = when {
+                    // "N - X.XX lb x $X.XX/lb" — N = cantidad de unidades pesadas por
+                    // separado y agrupadas en esta línea (ej. 2 chicharrones = 2.00 lb).
                     isWeightTicketCategory(category) ->
-                        String.format(Locale.US, "%.2f %s x \$%.2f/%s", g.quantity, unitLabel, avgPrice, unitLabel)
+                        String.format(Locale.US, "%d - %.2f %s x \$%.2f/%s", g.count, g.quantity, unitLabel, avgPrice, unitLabel)
                     // "N - Case of Q x $XX.XX" — Q = unidades por caja (products.qty cuando unit=Case).
                     category == "CASE" && (g.caseQty ?: 0) > 0 ->
                         String.format(Locale.US, "%d - %s of %d x \$%.2f", g.quantity.toInt(), unitLabel, g.caseQty, avgPrice)

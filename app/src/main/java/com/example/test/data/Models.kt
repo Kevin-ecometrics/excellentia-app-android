@@ -171,7 +171,12 @@ data class GroupedTicketItem(
     // Unidades por caja (ej. 8 yogurts por Case) — atributo del producto, no de la
     // venta, así que no se suma al agrupar: todas las líneas del mismo barcode
     // comparten el mismo valor.
-    val caseQty: Int? = null
+    val caseQty: Int? = null,
+    // Cuántas filas (escaneos/pesadas individuales) se combinaron en esta línea —
+    // ej. 2 chicharrones pesados por separado y agrupados en una sola línea de
+    // 2.00 lb. Para LBS es la cantidad de unidades físicas que se pesaron, no el
+    // peso; para Case/Unit coincide con `quantity` (ver `groupedForTicket`).
+    val count: Int = 1
 )
 
 @JvmName("groupedOrdersForTicket")
@@ -183,7 +188,7 @@ fun List<OrderDto>.groupedForTicket(): List<GroupedTicketItem> {
         groups[key] = if (existing == null) {
             GroupedTicketItem(o.barcode, o.productName, o.quantity, o.total, o.unit, o.caseQty)
         } else {
-            existing.copy(quantity = existing.quantity + o.quantity, total = existing.total + o.total)
+            existing.copy(quantity = existing.quantity + o.quantity, total = existing.total + o.total, count = existing.count + 1)
         }
     }
     return groups.values.toList()
@@ -198,7 +203,7 @@ fun List<BatchItem>.groupedForTicket(): List<GroupedTicketItem> {
         groups[key] = if (existing == null) {
             GroupedTicketItem(i.barcode, i.productName, i.quantity, i.total, i.unit, i.caseQty)
         } else {
-            existing.copy(quantity = existing.quantity + i.quantity, total = existing.total + i.total)
+            existing.copy(quantity = existing.quantity + i.quantity, total = existing.total + i.total, count = existing.count + 1)
         }
     }
     return groups.values.toList()

@@ -261,7 +261,7 @@
     <string name="btn_apply">Aplicar</string>
     <string name="error_invalid_price">Precio inválido</string>
     <string name="error_load_price_history">No se pudo cargar historial de precios</string>
-    <string name="label_weight_display">Peso: %.2f lb</string>
+    <string name="label_weight_display">Peso: %s lb</string>
 
     <!-- SettingsActivity -->
     <string name="label_no_name">Sin nombre</string>

@@ -268,7 +268,7 @@
     <string name="btn_apply">Apply</string>
     <string name="error_invalid_price">Invalid price</string>
     <string name="error_load_price_history">Could not load price history</string>
-    <string name="label_weight_display">Weight: %.2f lb</string>
+    <string name="label_weight_display">Weight: %s lb</string>
 
     <!-- SettingsActivity -->
     <string name="label_no_name">No name</string>

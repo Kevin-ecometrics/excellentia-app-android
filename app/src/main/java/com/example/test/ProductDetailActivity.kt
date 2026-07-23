@@ -127,12 +127,6 @@ class ProductDetailActivity : BaseActivity() {
 
         if (editOrderId != null) {
             btnAddOrder.text = getString(R.string.btn_save_changes)
-            if (isWeightBased) {
-                // Esta fila representa UNA unidad pesada — el peso se ajusta con los
-                // controles +/-0.1 o tocando el número, no agregando más unidades.
-                btnUnitMinus.isEnabled = false
-                btnUnitPlus.isEnabled = false
-            }
         }
 
         val stock = intent.getIntExtra("STOCK", -1)
@@ -421,10 +415,10 @@ class ProductDetailActivity : BaseActivity() {
                 val totalWeight = weights.sum()
                 val total = totalWeight * pricePerLb
                 tvTotalWeight.text = if (units > 1) {
-                    val parts = weights.joinToString(" + ") { String.format(Locale.US, "%.2f", it) }
-                    "$parts = ${String.format(Locale.US, "%.2f", totalWeight)} lb"
+                    val parts = weights.joinToString(" + ") { formatQty(it) }
+                    "$parts = ${formatQty(totalWeight)} lb"
                 } else {
-                    String.format(Locale.US, getString(R.string.label_weight_display), totalWeight)
+                    getString(R.string.label_weight_display, formatQty(totalWeight))
                 }
                 tvTotal.text = String.format(Locale.US, "$%.2f", total)
             }
@@ -434,6 +428,17 @@ class ProductDetailActivity : BaseActivity() {
                 tvTotalWeight.text = "$units $unitLabel"
                 tvTotal.text = String.format(Locale.US, "$%.2f", total)
             }
+        }
+    }
+
+    // Muestra cantidades sin decimales de sobra: "2" en vez de "2.00", pero
+    // conserva la precisión real cuando sí hay parte decimal ("6.5").
+    private fun formatQty(value: Double): String {
+        val rounded = Math.round(value * 100) / 100.0
+        return if (rounded == rounded.toLong().toDouble()) {
+            rounded.toLong().toString()
+        } else {
+            String.format(Locale.US, "%.2f", rounded).trimEnd('0').trimEnd('.')
         }
     }
 
@@ -586,8 +591,10 @@ class ProductDetailActivity : BaseActivity() {
         val editId = editOrderId
         if (editId != null) {
             // Editando una fila existente: actualizarla en el lugar, nunca insertar
-            // una nueva ni mezclarla con otras filas del carrito.
-            val quantity = if (isWeightBased) (weights.firstOrNull() ?: defaultWeight) else units.toDouble()
+            // una nueva ni mezclarla con otras filas del carrito. Para peso, la fila
+            // guarda el TOTAL (no un desglose por unidad) — si se usó el stepper
+            // para agregar más unidades pesadas durante la edición, se suman todas.
+            val quantity = if (isWeightBased) weights.sum() else units.toDouble()
             orderRepository.updatePendingOrder(editId, pricePerLb, quantity)
         } else {
             when {

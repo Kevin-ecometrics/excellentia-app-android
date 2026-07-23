@@ -208,8 +208,10 @@ object PrintService {
                 val totalStr  = String.format(Locale.US, "\$%.2f", g.total)
                 val unitLabel = unitLabel(g.unit)
                 val detailStr = when {
+                    // "N - X.XX lb x $X.XX/lb" — N = cantidad de unidades pesadas por
+                    // separado y agrupadas en esta línea (ej. 2 chicharrones = 2.00 lb).
                     isWeightTicketCategory(category) ->
-                        String.format(Locale.US, "%.2f %s x \$%.2f/%s", g.quantity, unitLabel, avgPrice, unitLabel)
+                        String.format(Locale.US, "%d - %.2f %s x \$%.2f/%s", g.count, g.quantity, unitLabel, avgPrice, unitLabel)
                     // "N - Case of Q x $XX.XX" — Q = unidades por caja (products.qty cuando unit=Case).
                     // Una caja puede traer 1 o varios artículos; sin este dato no se distingue.
                     category == "CASE" && (g.caseQty ?: 0) > 0 ->
@@ -360,18 +362,29 @@ object PrintService {
         return l + " ".repeat(padding) + right
     }
 
+    // Respeta saltos de línea reales del texto original (ej. el disclaimer guardado
+    // en la webapp, con un Enter entre cada punto numerado) partiendo primero por
+    // "\n" — si no, una "palabra" podía terminar arrastrando un salto de línea crudo
+    // metido en medio del texto (ej. "...contrato.\n(2) The buyer..."), lo que rompía
+    // el comando CPCL de esa línea al imprimir (T requiere una sola línea de texto).
     private fun wrapText(text: String, maxChars: Int = 30): List<String> {
-        val words = text.split(" ")
         val lines = mutableListOf<String>()
-        val current = StringBuilder()
-        for (word in words) {
-            when {
-                current.isEmpty() -> current.append(word)
-                current.length + 1 + word.length <= maxChars -> current.append(" $word")
-                else -> { lines.add(current.toString()); current.clear(); current.append(word) }
+        for (paragraph in text.split("\n")) {
+            if (paragraph.isBlank()) {
+                lines.add("")
+                continue
             }
+            val current = StringBuilder()
+            for (word in paragraph.split(" ")) {
+                if (word.isEmpty()) continue
+                when {
+                    current.isEmpty() -> current.append(word)
+                    current.length + 1 + word.length <= maxChars -> current.append(" $word")
+                    else -> { lines.add(current.toString()); current.clear(); current.append(word) }
+                }
+            }
+            if (current.isNotEmpty()) lines.add(current.toString())
         }
-        if (current.isNotEmpty()) lines.add(current.toString())
         return lines
     }
 
