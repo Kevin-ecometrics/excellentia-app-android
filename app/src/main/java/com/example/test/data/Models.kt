@@ -247,6 +247,15 @@ data class BatchResponse(
     val orders: List<OrderResponse>
 )
 
+data class RetryBatchResponse(
+    @SerializedName("batchId") val batchId: String,
+    val status: String,
+    @SerializedName("invoiceId") val invoiceId: String? = null,
+    @SerializedName("invoiceNumber") val invoiceNumber: Int? = null
+)
+
+data class ApiErrorBody(val error: String? = null)
+
 // ── Auth Models ──
 
 data class ChangePasswordRequest(

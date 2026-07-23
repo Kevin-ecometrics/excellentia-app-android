@@ -366,6 +366,10 @@
     <!-- i18n additions -->
     <string name="title_ticket_detail">Sale Ticket</string>
     <string name="btn_reprint">Reprint ticket</string>
+    <string name="btn_retry_qbo">Resend to QuickBooks</string>
+    <string name="btn_retrying_qbo">Sending…</string>
+    <string name="msg_qbo_retry_success">Sent to QuickBooks — Invoice #%1$s</string>
+    <string name="error_qbo_retry_generic">Could not send to QuickBooks: %1$s</string>
     <string name="app_title">EXCELLENTIA</string>
     <string name="hint_email">Email</string>
     <string name="app_version_label">v1.2.0</string>

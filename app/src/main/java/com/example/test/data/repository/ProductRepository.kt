@@ -42,8 +42,16 @@ class ProductRepository(
                     )
                     return@withContext dto.toProduct()
                 }
+                return@withContext null
             }
-            // API respondió pero sin datos — intentar cache
+            if (response.code() == 404) {
+                // El backend confirmó que no existe (o está oculto/inactivo) — no
+                // servirlo desde un cache viejo, y sacarlo si había quedado cacheado
+                // de antes de que se ocultara.
+                productDao.deleteByBarcode(barcode)
+                return@withContext null
+            }
+            // Error de servidor — fallback al cache
             fromCache(barcode)
         } catch (_: Exception) {
             // Sin red — fallback al cache

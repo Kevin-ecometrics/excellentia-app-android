@@ -66,6 +66,13 @@ class ProductDao(private val db: AppDatabase) {
         }
     }
 
+    fun deleteByBarcode(barcode: String) {
+        db.writableDatabase.delete(
+            "cached_products",
+            "barcode = ?", arrayOf(barcode)
+        )
+    }
+
     fun deleteOldCache(before: Long) {
         db.writableDatabase.delete(
             "cached_products",

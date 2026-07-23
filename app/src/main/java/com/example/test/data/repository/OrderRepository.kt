@@ -148,6 +148,23 @@ class OrderRepository(
         }
     }
 
+    // Reenvía a QuickBooks los items de un batch que quedaron PENDING/FAILED.
+    suspend fun retryBatchSync(batchId: String): Result<RetryBatchResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = RetrofitClient.getApi().retryBatchSync(batchId)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val message = try {
+                    response.errorBody()?.string()?.let { gson.fromJson(it, ApiErrorBody::class.java)?.error }
+                } catch (_: Exception) { null }
+                Result.failure(Exception(message ?: "Error del servidor: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getRemoteOrders(page: Int = 1, limit: Int = 20): Result<ApiResponse<List<OrderDto>>> = withContext(Dispatchers.IO) {
         try {
             val response = RetrofitClient.getApi().listOrders(page = page, limit = limit)
@@ -176,12 +193,25 @@ class OrderRepository(
 
     // ── Pre-caché masivo al conectar ──
 
+    // Trae el catálogo completo (el backend ya excluye productos ocultos/inactivos,
+    // hidden = 1) y podá del cache local cualquier producto que ya no vino en este
+    // barrido — así un producto que se desactiva en la webapp deja de aparecer en
+    // búsquedas/escaneos offline en vez de quedar cacheado para siempre.
     suspend fun prefetchAllProducts() = withContext(Dispatchers.IO) {
+        val syncStartedAt = System.currentTimeMillis()
+        val dao = ProductDao(db)
         try {
-            val response = RetrofitClient.getApi().getAllProducts(limit = 500)
-            if (response.isSuccessful) {
-                val products = response.body()?.data ?: return@withContext
-                val dao = ProductDao(db)
+            var page = 1
+            val pageSize = 500
+            var fetched = 0
+            var total = Int.MAX_VALUE
+            while (fetched < total) {
+                val response = RetrofitClient.getApi().getAllProducts(page = page, limit = pageSize)
+                if (!response.isSuccessful) return@withContext
+                val body = response.body() ?: return@withContext
+                val products = body.data ?: emptyList()
+                if (products.isEmpty()) break
+
                 for (dto in products) {
                     dao.upsert(
                         CachedProductEntity(
@@ -193,11 +223,19 @@ class OrderRepository(
                             stock = dto.stock,
                             weightPerUnit = dto.weightPerUnit,
                             unit = dto.unit,
-                            caseQty = dto.caseQty
+                            caseQty = dto.caseQty,
+                            qty = dto.qty
                         )
                     )
                 }
+
+                fetched += products.size
+                total = body.meta?.total ?: fetched
+                page++
             }
+            // Solo podamos si el barrido completo terminó sin errores — si se cortó a
+            // mitad de camino, podar borraría productos activos que no llegamos a tocar.
+            dao.deleteOldCache(syncStartedAt)
         } catch (_: Exception) {}
     }
 

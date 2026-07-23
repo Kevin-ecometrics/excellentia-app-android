@@ -22,9 +22,11 @@ import com.example.test.data.BatchItem
 import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
 import com.example.test.data.groupedForTicket
+import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.print.PrintService
+import com.example.test.data.repository.OrderRepository
 import com.google.android.material.button.MaterialButton
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
@@ -66,7 +68,7 @@ class TicketDetailActivity : AppCompatActivity() {
         val rawDate         = orders.firstOrNull()?.createdAt
         val grandTotal      = orders.sumOf { it.total }
         val totalQty        = orders.sumOf { it.quantity }
-        val orderStatus = when {
+        var orderStatus = when {
             orders.all { it.status == "SENT" }    -> "SENT"
             orders.any { it.status == "PENDING" } -> "PENDING"
             orders.any { it.status == "FAILED" }  -> "FAILED"
@@ -77,6 +79,7 @@ class TicketDetailActivity : AppCompatActivity() {
 
         val prefs = SecurePreferences(this)
         val companyName = prefs.getCompanyName()
+        val orderRepository = OrderRepository(AppDatabase.getInstance(this), prefs)
 
         // Cargar damage items desde el intent (flujo inmediato)
         val intentDamage = intent.getStringExtra("damage_items_json")
@@ -198,6 +201,60 @@ class TicketDetailActivity : AppCompatActivity() {
                     }
                     btnReprint.isEnabled = true
                     btnReprint.text = getString(R.string.btn_reprint)
+                }
+            }
+        }
+
+        // Botón reintentar envío a QuickBooks — solo para batches remotos que
+        // no terminaron SENT (PENDING o FAILED).
+        val btnRetryQbo = findViewById<MaterialButton>(R.id.btnRetryQbo)
+        if (batchId.isNotBlank() && orderStatus != null && orderStatus != "SENT") {
+            btnRetryQbo.visibility = android.view.View.VISIBLE
+            btnRetryQbo.setOnClickListener {
+                btnRetryQbo.isEnabled = false
+                btnRetryQbo.text = getString(R.string.btn_retrying_qbo)
+                lifecycleScope.launch {
+                    val result = orderRepository.retryBatchSync(batchId)
+                    result.onSuccess { response ->
+                        Snackbar.make(
+                            findViewById(android.R.id.content),
+                            getString(R.string.msg_qbo_retry_success, (response.invoiceNumber ?: response.invoiceId ?: "").toString()),
+                            Snackbar.LENGTH_LONG
+                        ).show()
+                        orderStatus = response.status
+                        btnRetryQbo.visibility = if (response.status == "SENT") android.view.View.GONE else android.view.View.VISIBLE
+                        ticketContent.removeAllViews()
+                        buildReceipt(
+                            companyName       = companyName,
+                            subtitle          = prefs.getCompanySubtitle(),
+                            city              = prefs.getCompanyCity(),
+                            address           = prefs.getCompanyAddress(),
+                            phone             = prefs.getCompanyPhone(),
+                            date              = formatDate(rawDate),
+                            batchId           = batchId,
+                            invoiceId         = response.invoiceId ?: invoiceId,
+                            invoiceNumber     = response.invoiceNumber ?: invoiceNumber,
+                            customerName      = customerName,
+                            customerAddress   = customerAddress,
+                            orders            = orders,
+                            grandTotal        = grandTotal,
+                            totalQty          = totalQty,
+                            companyNameFooter = companyName,
+                            signature         = signatureForReprint,
+                            damageItems       = damageItemsForReprint,
+                            status            = orderStatus,
+                            disclaimer        = disclaimerText
+                        )
+                    }
+                    result.onFailure { e ->
+                        Snackbar.make(
+                            findViewById(android.R.id.content),
+                            getString(R.string.error_qbo_retry_generic, e.localizedMessage ?: getString(R.string.error_unknown)),
+                            Snackbar.LENGTH_LONG
+                        ).show()
+                    }
+                    btnRetryQbo.isEnabled = true
+                    btnRetryQbo.text = getString(R.string.btn_retry_qbo)
                 }
             }
         }

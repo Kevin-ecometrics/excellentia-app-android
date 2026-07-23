@@ -54,6 +54,7 @@ interface ApiService {
 
     @GET("api/products")
     suspend fun getAllProducts(
+        @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 500
     ): Response<ApiResponse<List<ProductDto>>>
 
@@ -70,6 +71,11 @@ interface ApiService {
     suspend fun getBatchDamage(
         @Path("batchId") batchId: String
     ): Response<ApiResponse<List<DamageItem>>>
+
+    @POST("api/orders/batch/{batchId}/retry")
+    suspend fun retryBatchSync(
+        @Path("batchId") batchId: String
+    ): Response<RetryBatchResponse>
 
     // ── Pre-Orders ──
 
