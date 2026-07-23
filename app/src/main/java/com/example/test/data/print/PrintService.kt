@@ -182,18 +182,8 @@ object PrintService {
                 body.t(F4, 0, y, "Payment: $paymentMethod");       y += F4H + 4
             }
             if (!customerAddress.isNullOrBlank()) {
-                if (customerAddress.length <= 32) {
-                    body.t(F4, 4, y, customerAddress);             y += F4H + 3
-                } else {
-                    val ci = customerAddress.indexOf(", ")
-                    if (ci > 0) {
-                        body.t(F4, 4, y, customerAddress.substring(0, ci).take(32));   y += F4H + 3
-                        body.t(F4, 4, y, customerAddress.substring(ci + 2).take(32)); y += F4H + 3
-                    } else {
-                        for (l in wrapText(customerAddress, 30)) {
-                            body.t(F4, 4, y, l);                   y += F4H + 3
-                        }
-                    }
+                for (l in wrapText(customerAddress, 28)) {
+                    body.t(F4, 4, y, l);                           y += F4H + 3
                 }
                 y += 1
             }

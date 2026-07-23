@@ -86,7 +86,10 @@
       "Bash(./gradlew.bat compileDebugKotlin --console=plain)",
       "PowerShell(.\\\\gradlew.bat compileDebugKotlin --console=plain 2>&1 | Select-Object -Last 60)",
       "Bash(adb devices *)",
-      "Bash(./gradlew compileDebugKotlin -q)"
+      "Bash(./gradlew compileDebugKotlin -q)",
+      "PowerShell(.\\\\gradlew compileDebugKotlin -q 2>&1 | Select-Object -Last 80)",
+      "Bash(export JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\")",
+      "Bash(git status *)"
     ]
   }
 }

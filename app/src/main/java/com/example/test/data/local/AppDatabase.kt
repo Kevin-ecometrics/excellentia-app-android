@@ -60,6 +60,27 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        // Debe ejecutarse primero: recrea pending_orders con el esquema base.
+        // Si corriera después de los ALTER TABLE de más abajo (oldVersion < 4 / < 8),
+        // la tabla recreada perdería customer_id/customer_name/unit y el
+        // "INSERT INTO ... SELECT *" fallaría por columnas desparejadas.
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE pending_orders RENAME TO pending_orders_old")
+            db.execSQL("""
+                CREATE TABLE pending_orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    barcode TEXT NOT NULL,
+                    product_name TEXT NOT NULL,
+                    price REAL NOT NULL,
+                    quantity REAL NOT NULL,
+                    device_id INTEGER,
+                    created_at INTEGER NOT NULL,
+                    retry_count INTEGER DEFAULT 0
+                )
+            """)
+            db.execSQL("INSERT INTO pending_orders SELECT * FROM pending_orders_old")
+            db.execSQL("DROP TABLE pending_orders_old")
+        }
         if (oldVersion < 2) {
             try {
                 db.execSQL("ALTER TABLE cached_products ADD COLUMN weight_per_unit REAL")
@@ -87,8 +108,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             try { db.execSQL("ALTER TABLE cached_customers ADD COLUMN postal_code TEXT") } catch (_: Exception) {}
         }
         if (oldVersion < 4) {
-            db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_id TEXT")
-            db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_name TEXT")
+            try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_id TEXT") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN customer_name TEXT") } catch (_: Exception) {}
         }
         if (oldVersion < 7) {
             db.execSQL("""
@@ -105,23 +126,6 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
         }
         if (oldVersion < 9) {
             try { db.execSQL("ALTER TABLE cached_products ADD COLUMN qty INTEGER DEFAULT 0") } catch (_: Exception) {}
-        }
-        if (oldVersion < 3) {
-            db.execSQL("ALTER TABLE pending_orders RENAME TO pending_orders_old")
-            db.execSQL("""
-                CREATE TABLE pending_orders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    barcode TEXT NOT NULL,
-                    product_name TEXT NOT NULL,
-                    price REAL NOT NULL,
-                    quantity REAL NOT NULL,
-                    device_id INTEGER,
-                    created_at INTEGER NOT NULL,
-                    retry_count INTEGER DEFAULT 0
-                )
-            """)
-            db.execSQL("INSERT INTO pending_orders SELECT * FROM pending_orders_old")
-            db.execSQL("DROP TABLE pending_orders_old")
         }
         if (oldVersion < 10) {
             try { db.execSQL("ALTER TABLE cached_products ADD COLUMN case_qty INTEGER DEFAULT NULL") } catch (_: Exception) {}

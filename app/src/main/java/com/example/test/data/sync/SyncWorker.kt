@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.work.*
 import com.example.test.data.BatchRequest
 import com.example.test.data.local.AppDatabase
-import com.example.test.data.local.dao.OrderDao
 import com.example.test.data.local.dao.PendingBatchDao
 import com.example.test.data.network.RetrofitClient
 import com.google.gson.Gson
@@ -22,39 +21,15 @@ class SyncWorker(
             val db = AppDatabase.getInstance(applicationContext)
             var anythingSynced = false
 
-            // ── 1. Reintentar pending_orders individuales (legacy) ──
-            val orderDao = OrderDao(db)
-            val pending = orderDao.getAllPending()
-            for (order in pending) {
-                try {
-                    val response = RetrofitClient.getApi().createOrder(
-                        com.example.test.data.CreateOrderRequest(
-                            barcode = order.barcode,
-                            productName = order.productName,
-                            price = order.price,
-                            quantity = order.quantity,
-                            total = order.price * order.quantity,
-                            deviceId = order.deviceId
-                        )
-                    )
-                    if (response.isSuccessful) {
-                        orderDao.deleteById(order.id)
-                        anythingSynced = true
-                    } else if (order.retryCount >= 3) {
-                        orderDao.markFailed(order.id)
-                    } else {
-                        orderDao.incrementRetry(order.id)
-                    }
-                } catch (_: Exception) {
-                    if (order.retryCount >= 3) {
-                        orderDao.markFailed(order.id)
-                    } else {
-                        orderDao.incrementRetry(order.id)
-                    }
-                }
-            }
+            // NOTA: pending_orders es el carrito local (ProductDetailActivity.savePendingOrder
+            // inserta ahí directamente en cada escaneo). No se sincroniza individualmente aquí:
+            // solo debe salir de esa tabla cuando el usuario finaliza el pedido
+            // (CurrentOrderActivity.finalizeOrder -> sendBatch -> clearPending) o lo borra a mano.
+            // Antes este worker reenviaba cada fila via el endpoint legacy createOrder() y la
+            // borraba al tener éxito, lo que vaciaba el carrito en segundo plano (incluso con la
+            // app cerrada) sin que el usuario llegara a elegir cliente/firma/pago.
 
-            // ── 2. Enviar pending_batches offline ──
+            // ── Enviar pending_batches offline ──
             val batchDao = PendingBatchDao(db)
             val pendingBatches = batchDao.getAll()
             for (batch in pendingBatches) {
