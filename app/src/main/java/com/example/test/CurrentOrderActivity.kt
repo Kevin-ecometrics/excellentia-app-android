@@ -324,6 +324,19 @@ class CurrentOrderActivity : BaseActivity() {
         )
     }
 
+    // Valor por unidad de un producto en el carrito, para la estimación LOCAL
+    // del crédito (preview antes de finalizar, y ticket offline). Espeja la
+    // regla autoritativa del backend (creditCalculator.ts): para Case,
+    // order.price ya es el precio de la caja completa (price/unit × caseQty,
+    // per ProductDetailActivity) — se divide para volver al valor de una sola
+    // unidad. Para Lbs/Unit/Bucket, order.price ya es efectivamente el valor
+    // por unidad.
+    private fun unitValueOf(order: com.example.test.data.local.entities.PendingOrderEntity): Double =
+        if (order.unit.equals("Case", ignoreCase = true) && (order.caseQty ?: 0) > 0)
+            order.price / order.caseQty!!
+        else
+            order.price
+
     private fun askDamagedItems() {
         lifecycleScope.launch {
             val pending = orderRepository.getPendingOrders()
@@ -425,7 +438,8 @@ class CurrentOrderActivity : BaseActivity() {
                         if (qty > 0) com.example.test.data.DamageItem(
                             barcode     = order.barcode,
                             productName = order.productName,
-                            qty         = qty
+                            qty         = qty,
+                            unitPrice   = unitValueOf(order)
                         ) else null
                     }
                     launchSignature()
@@ -616,7 +630,8 @@ class CurrentOrderActivity : BaseActivity() {
                         customerAddress = customerAddress,
                         damageItems = damageForPrinting,
                         paymentMethod = paymentForPrinting,
-                        signature = sigForPrinting
+                        signature = sigForPrinting,
+                        creditsTotal = response.creditsTotal
                     )
                     printResult.onFailure { e ->
                         Snackbar.make(

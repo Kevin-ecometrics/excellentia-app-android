@@ -22,6 +22,7 @@ import com.example.test.data.BatchItem
 import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
 import com.example.test.data.byTicketCategory
+import com.example.test.data.creditsTotalOf
 import com.example.test.data.groupedForTicket
 import com.example.test.data.isWeightTicketCategory
 import com.example.test.data.local.AppDatabase
@@ -339,10 +340,15 @@ class TicketDetailActivity : AppCompatActivity() {
         }
 
         // ── Total ───────────────────────────────────────
+        val credits = creditsTotalOf(damageItems, authoritative = null)
         addSep(heavy = true)
+        if (credits > 0) {
+            addTwoCol(left = "Subtotal:", right = String.format(Locale.US, "\$%.2f", grandTotal), sizeSp = 12f)
+            addTwoCol(left = "Credits:", right = String.format(Locale.US, "-\$%.2f", credits), sizeSp = 12f)
+        }
         addTwoCol(
             left   = "TOTAL:",
-            right  = String.format(Locale.US, "\$%.2f", grandTotal),
+            right  = String.format(Locale.US, "\$%.2f", grandTotal - credits),
             bold   = true,
             sizeSp = 13f
         )
@@ -368,7 +374,10 @@ class TicketDetailActivity : AppCompatActivity() {
             addSep(heavy = false)
             addLine("Negative Sale Summary:", bold = true, sizeSp = 12f)
             for (dmg in damageItems.filter { it.qty > 0 }) {
-                addLine("${dmg.productName}: ${dmg.qty} unit(s)", sizeSp = 12f, indent = true)
+                addLine(
+                    "${dmg.productName}: ${dmg.qty} unit(s) · ${String.format(Locale.US, "-\$%.2f", dmg.qty * dmg.unitPrice)}",
+                    sizeSp = 12f, indent = true
+                )
             }
         }
 

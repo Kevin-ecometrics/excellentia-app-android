@@ -229,6 +229,15 @@ fun List<GroupedTicketItem>.byTicketCategory(): List<Pair<String, List<GroupedTi
     return orderedKeys.map { it to groups.getValue(it) }
 }
 
+// ── Ticket: créditos por daño ───────────────────────────────────────────────
+// Separado de la agrupación por categoría (arriba) — es una feature distinta.
+// `authoritative` es el creditsTotal que devuelve el backend (BatchResponse,
+// o batch_damage.amount vía getBatchDamage) — siempre se prioriza sobre la
+// suma local, que solo sirve de aproximación antes de tener esa respuesta
+// (preview pre-finalizar, o ticket impreso en modo offline).
+fun creditsTotalOf(damageItems: List<DamageItem>, authoritative: Double?): Double =
+    authoritative ?: damageItems.sumOf { it.qty * it.unitPrice }
+
 data class BatchRequest(
     val items: List<BatchItem>,
     @SerializedName("customer_id") val customerId: String? = null,
@@ -241,7 +250,13 @@ data class BatchRequest(
 data class DamageItem(
     val barcode: String,
     @SerializedName("product_name") val productName: String,
-    val qty: Int
+    val qty: Int,
+    // Valor por unidad usado para estimar el crédito localmente (preview antes
+    // de finalizar, y ticket impreso en modo offline). El backend recalcula su
+    // propia cifra autoritativa desde el catálogo — este campo nunca se usa
+    // para lo financiero/QBO, solo para lo que se muestra en pantalla antes de
+    // tener la respuesta del servidor.
+    @SerializedName("unit_price") val unitPrice: Double = 0.0
 )
 
 // ── QuickBooks Customer Models ──
@@ -280,7 +295,8 @@ data class BatchResponse(
     @SerializedName("batchId") val batchId: String,
     @SerializedName("invoiceId") val invoiceId: String? = null,
     @SerializedName("invoiceNumber") val invoiceNumber: Int? = null,
-    val orders: List<OrderResponse>
+    val orders: List<OrderResponse>,
+    @SerializedName("creditsTotal") val creditsTotal: Double? = null
 )
 
 data class RetryBatchResponse(

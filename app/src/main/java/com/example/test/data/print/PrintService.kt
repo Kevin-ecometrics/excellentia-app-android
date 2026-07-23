@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import com.example.test.data.BatchItem
 import com.example.test.data.byTicketCategory
+import com.example.test.data.creditsTotalOf
 import com.example.test.data.groupedForTicket
 import com.example.test.data.isWeightTicketCategory
 import com.example.test.data.local.SecurePreferences
@@ -42,7 +43,13 @@ object PrintService {
         customerAddress: String? = null,
         damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null,
-        signature: String? = null
+        signature: String? = null,
+        // Total de créditos ya calculado por el backend (BatchResponse.creditsTotal),
+        // cuando está disponible — más preciso que sumar qty*unitPrice localmente
+        // (para Lbs, el backend usa weight_per_unit, que el cliente no conoce). Si
+        // es null (impresión offline, sin respuesta del servidor todavía), se cae a
+        // la suma local vía creditsTotalOf().
+        creditsTotal: Double? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         if (!hasBtConnectPermission(context))
             return@withContext Result.failure(Exception("Bluetooth permission not granted"))
@@ -62,7 +69,8 @@ object PrintService {
             damageItems     = damageItems,
             paymentMethod   = paymentMethod,
             signature       = signature,
-            disclaimer      = prefs.getDisclaimer()
+            disclaimer      = prefs.getDisclaimer(),
+            creditsTotal    = creditsTotal
         ))
     }
 
@@ -141,7 +149,8 @@ object PrintService {
         damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null,
         signature: String? = null,
-        disclaimer: String? = null
+        disclaimer: String? = null,
+        creditsTotal: Double? = null
     ): String {
         val date = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
         val grandTotal = items.sumOf { it.total }
@@ -229,11 +238,13 @@ object PrintService {
 
         // ── Resumen Negative Sale (si hay alguno) ───────
         val totalDamage = damageItems.sumOf { it.qty }
+        val credits = creditsTotalOf(damageItems, creditsTotal)
         if (totalDamage > 0) {
             body.t(F4, 0, y, DASH);                                y += F4H + 6
             body.t(F4, 0, y, "Negative Sale Summary:");            y += F4H + 4
             for (dmg in damageItems.filter { it.qty > 0 }) {
-                for (line in wrapText("${dmg.productName}: ${dmg.qty} unit(s)", 28)) {
+                val lineAmount = String.format(Locale.US, "\$%.2f", dmg.qty * dmg.unitPrice)
+                for (line in wrapText("${dmg.productName}: ${dmg.qty} unit(s) · -$lineAmount", 28)) {
                     body.t(F4, 4, y, line);                        y += F4H + 3
                 }
             }
@@ -242,7 +253,12 @@ object PrintService {
 
         // ── Total ──────────────────────────────────────
         body.t(F4, 0, y, SEP);                                     y += F4H + 10
-        body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 8
+        if (credits > 0) {
+            body.t(F4, 0, y, twoCol("Subtotal:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 4
+            body.t(F4, 0, y, twoCol("Credits:", String.format(Locale.US, "-\$%.2f", credits), 28));    y += F4H + 4
+        }
+        val finalTotal = grandTotal - credits
+        body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", finalTotal), 28)); y += F4H + 8
         // Con una sola categoría se puede sumar cantidad + unidad ("22.80 lb total").
         // Mezclando lb + case + unit no hay una suma que tenga sentido — se muestra
         // cantidad de productos en su lugar.
