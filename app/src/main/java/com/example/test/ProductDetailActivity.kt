@@ -320,7 +320,7 @@ class ProductDetailActivity : BaseActivity() {
             isCaseBased -> {
                 val cq = caseQty ?: 0
                 tvPrice.text = if (cq > 0)
-                    String.format(Locale.US, "$%.2f / Case de %d ($%.2f/unit)", baseTotal, cq, productPrice)
+                    String.format(Locale.US, "$%.2f / Case of %d ($%.2f/unit)", baseTotal, cq, productPrice)
                 else
                     String.format(Locale.US, "$%.2f / Case", baseTotal)
             }
