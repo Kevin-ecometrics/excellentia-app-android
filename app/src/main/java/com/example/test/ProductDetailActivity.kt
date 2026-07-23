@@ -317,7 +317,13 @@ class ProductDetailActivity : BaseActivity() {
         tvBarcode.text = barcode
         tvProductName.text = productName
         when {
-            isCaseBased -> tvPrice.text = String.format(Locale.US, "$%.2f / Case", baseTotal)
+            isCaseBased -> {
+                val cq = caseQty ?: 0
+                tvPrice.text = if (cq > 0)
+                    String.format(Locale.US, "$%.2f / Case de %d ($%.2f/unit)", baseTotal, cq, productPrice)
+                else
+                    String.format(Locale.US, "$%.2f / Case", baseTotal)
+            }
             isWeightBased -> tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
             else -> tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
         }
@@ -338,7 +344,9 @@ class ProductDetailActivity : BaseActivity() {
                 val cq = caseQty ?: 0
                 tvTotalWeight.text = if (cq > 0) {
                     val totalUnits = units * cq
-                    if (units > 1) "$units cases = $totalUnits units" else "$units case = $totalUnits units"
+                    val unitPrice = productPrice
+                    val cases = if (units > 1) "$units cases" else "1 case"
+                    "$cases × $cq = $totalUnits units · ${String.format(Locale.US, "$%.2f", unitPrice)}/unit"
                 } else {
                     "$units Case"
                 }
