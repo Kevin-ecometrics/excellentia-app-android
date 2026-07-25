@@ -452,21 +452,77 @@ class CurrentOrderActivity : BaseActivity() {
         }
     }
 
-    private fun askPaymentMethod() {
+    private fun toBatchItems(pending: List<com.example.test.data.local.entities.PendingOrderEntity>): List<BatchItem> =
+        pending.map { order ->
+            BatchItem(
+                barcode = order.barcode,
+                productName = order.productName,
+                price = order.price,
+                quantity = order.quantity,
+                total = order.price * order.quantity,
+                unit = order.unit,
+                caseQty = order.caseQty
+            )
+        }
+
+    // Ticket #1 — impreso justo después de firmar, antes de conocer el método de
+    // pago o la factura de QBO (esa llegada de la factura depende de si hay
+    // conexión, que aún no se intenta en este punto). Sale sin línea "Payment:"
+    // y sin número de factura. El ticket #2 (en finalizeOrder) sí los trae.
+    private fun printFirstTicketThenAskPayment(skipPrint: Boolean) {
+        btnFinalize.isEnabled = false
+        btnViewTicket.isEnabled = false
+        lifecycleScope.launch {
+            if (!skipPrint) {
+                val printerAddress = securePrefs.getPrinterAddress()
+                if (!printerAddress.isNullOrBlank()) {
+                    layoutLoading.visibility = View.VISIBLE
+                    tvLoadingTitle.text = getString(R.string.loading_printing_ticket)
+                    tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
+                    val items = toBatchItems(orderRepository.getPendingOrders())
+                    val printResult = PrintService.printTicket(
+                        context = this@CurrentOrderActivity,
+                        deviceAddress = printerAddress,
+                        items = items,
+                        customerName = customerName,
+                        batchId = "",
+                        invoiceId = null,
+                        invoiceNumber = null,
+                        customerAddress = customerAddress,
+                        damageItems = pendingDamageItems,
+                        paymentMethod = null,
+                        signature = pendingSignature
+                    )
+                    printResult.onFailure { e ->
+                        Snackbar.make(
+                            findViewById(android.R.id.content),
+                            getString(R.string.error_order_sent_print_fail, e.localizedMessage ?: getString(R.string.error_no_connection)),
+                            Snackbar.LENGTH_LONG
+                        ).show()
+                    }
+                    layoutLoading.visibility = View.GONE
+                }
+            }
+            askPaymentMethod(skipPrint)
+        }
+    }
+
+    private fun askPaymentMethod(skipPrint: Boolean) {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_payment_method))
             .setMessage(getString(R.string.msg_payment_method))
+            .setCancelable(false)
             .setPositiveButton(getString(R.string.btn_cash)) { _, _ ->
-                pendingPaymentMethod = getString(R.string.btn_cash)
-                launchSignature()
+                pendingPaymentMethod = "Cash"
+                finalizeOrder(customerId, customerName, skipPrint)
             }
             .setNeutralButton(getString(R.string.btn_check)) { _, _ ->
-                pendingPaymentMethod = getString(R.string.btn_check)
-                launchSignature()
+                pendingPaymentMethod = "Check"
+                finalizeOrder(customerId, customerName, skipPrint)
             }
-            .setNegativeButton(getString(R.string.btn_skip)) { _, _ ->
-                pendingPaymentMethod = null
-                launchSignature()
+            .setNegativeButton(getString(R.string.btn_account)) { _, _ ->
+                pendingPaymentMethod = "On Account"
+                finalizeOrder(customerId, customerName, skipPrint)
             }
             .show()
     }
@@ -482,7 +538,7 @@ class CurrentOrderActivity : BaseActivity() {
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .setMessage(getString(R.string.msg_no_printer))
                 .setPositiveButton(getString(R.string.btn_continue_no_print)) { _, _ ->
-                    finalizeOrder(customerId, customerName, skipPrint = true)
+                    printFirstTicketThenAskPayment(skipPrint = true)
                 }
                 .setNeutralButton(getString(R.string.btn_go_to_settings)) { _, _ ->
                     startActivity(Intent(this, SettingsActivity::class.java))
@@ -495,10 +551,10 @@ class CurrentOrderActivity : BaseActivity() {
                 .setTitle(getString(R.string.title_confirm_print))
                 .setMessage(getString(R.string.msg_confirm_print, printerName))
                 .setPositiveButton(getString(R.string.btn_finalize_and_print)) { _, _ ->
-                    finalizeOrder(customerId, customerName, skipPrint = false)
+                    printFirstTicketThenAskPayment(skipPrint = false)
                 }
                 .setNeutralButton(getString(R.string.btn_finalize_no_print)) { _, _ ->
-                    finalizeOrder(customerId, customerName, skipPrint = true)
+                    printFirstTicketThenAskPayment(skipPrint = true)
                 }
                 .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
@@ -522,17 +578,7 @@ class CurrentOrderActivity : BaseActivity() {
                 return@launch
             }
 
-            val items = pending.map { order ->
-                BatchItem(
-                    barcode = order.barcode,
-                    productName = order.productName,
-                    price = order.price,
-                    quantity = order.quantity,
-                    total = order.price * order.quantity,
-                    unit = order.unit,
-                    caseQty = order.caseQty
-                )
-            }
+            val items = toBatchItems(pending)
 
             val sigForPrinting     = pendingSignature
             val damageForPrinting  = pendingDamageItems

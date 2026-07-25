@@ -158,6 +158,7 @@
     <string name="msg_payment_method">¿Cómo paga el cliente?</string>
     <string name="btn_cash">Cash</string>
     <string name="btn_check">Check</string>
+    <string name="btn_account">A cuenta</string>
     <string name="btn_skip">Omitir</string>
     <string name="title_no_printer">Sin impresora configurada</string>
     <string name="msg_no_printer">No hay ninguna impresora asignada en Ajustes. No se generará ticket físico.\n\n¿Deseas continuar sin imprimir o ir a Ajustes para configurarla?</string>

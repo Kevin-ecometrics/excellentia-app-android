@@ -240,7 +240,7 @@ class PreOrderDetailActivity : BaseActivity() {
     private fun askDamagedItems() {
         val po = currentPreOrder ?: return
         val items = po.items
-        if (items.isEmpty()) { checkPrinterThenConvert(); return }
+        if (items.isEmpty()) { askPaymentMethod(); return }
 
         val density = resources.displayMetrics.density
         val scroll = ScrollView(this)
@@ -316,22 +316,26 @@ class PreOrderDetailActivity : BaseActivity() {
                     if (qty > 0) DamageItem(barcode = item.barcode, productName = item.productName, qty = qty)
                     else null
                 }
-                checkPrinterThenConvert()
+                askPaymentMethod()
             }
             .setNegativeButton(getString(R.string.btn_none)) { _, _ ->
                 pendingDamageItems = emptyList()
-                checkPrinterThenConvert()
+                askPaymentMethod()
             }
             .show()
     }
 
+    // Obligatorio (setCancelable(false), sin "Omitir") — mismo criterio que
+    // CurrentOrderActivity desde la Fase 76/77. Antes de eso, este diálogo
+    // existía pero no se llamaba desde ningún lado (dead code).
     private fun askPaymentMethod() {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_payment_method))
             .setMessage(getString(R.string.msg_payment_method))
-            .setPositiveButton(getString(R.string.btn_cash))   { _, _ -> pendingPaymentMethod = "Cash";  checkPrinterThenConvert() }
-            .setNeutralButton(getString(R.string.btn_check))   { _, _ -> pendingPaymentMethod = "Check"; checkPrinterThenConvert() }
-            .setNegativeButton(getString(R.string.btn_skip)) { _, _ -> pendingPaymentMethod = null;    checkPrinterThenConvert() }
+            .setCancelable(false)
+            .setPositiveButton(getString(R.string.btn_cash))    { _, _ -> pendingPaymentMethod = "Cash";       checkPrinterThenConvert() }
+            .setNeutralButton(getString(R.string.btn_check))    { _, _ -> pendingPaymentMethod = "Check";      checkPrinterThenConvert() }
+            .setNegativeButton(getString(R.string.btn_account)) { _, _ -> pendingPaymentMethod = "On Account"; checkPrinterThenConvert() }
             .show()
     }
 
