@@ -56,6 +56,7 @@ class CurrentOrderActivity : BaseActivity() {
     private var pendingSignature: String? = null
     private var pendingDamageItems: List<com.example.test.data.DamageItem> = emptyList()
     private var pendingPaymentMethod: String? = null
+    private var pendingCheckNumber: String? = null
     private var launchSignatureAfterCustomer = false
 
     private val customerPickerLauncher = registerForActivityResult(
@@ -480,14 +481,33 @@ class CurrentOrderActivity : BaseActivity() {
             .setCancelable(false)
             .setPositiveButton(getString(R.string.btn_cash)) { _, _ ->
                 pendingPaymentMethod = "Cash"
+                pendingCheckNumber = null
                 sendBatchAndPrint(skipPrint)
             }
             .setNeutralButton(getString(R.string.btn_check)) { _, _ ->
                 pendingPaymentMethod = "Check"
-                sendBatchAndPrint(skipPrint)
+                val input = android.widget.EditText(this).apply {
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    hint = getString(R.string.hint_check_number)
+                }
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle(getString(R.string.title_check_number))
+                    .setMessage(getString(R.string.msg_check_number))
+                    .setView(input)
+                    .setCancelable(false)
+                    .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                        pendingCheckNumber = input.text.toString().take(20)
+                        sendBatchAndPrint(skipPrint)
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
+                        // Vuelve al diálogo de método de pago
+                        askPaymentMethod(skipPrint)
+                    }
+                    .show()
             }
             .setNegativeButton(getString(R.string.btn_account)) { _, _ ->
                 pendingPaymentMethod = "On Account"
+                pendingCheckNumber = null
                 sendBatchAndPrint(skipPrint)
             }
             .show()
@@ -546,12 +566,14 @@ class CurrentOrderActivity : BaseActivity() {
             val sigForPrinting     = pendingSignature
             val damageForPrinting  = pendingDamageItems
             val paymentForPrinting = pendingPaymentMethod
+            val checkForPrinting   = pendingCheckNumber
 
-            val result = orderRepository.sendBatch(items, customerId, customerName, pendingSignature, pendingDamageItems, pendingPaymentMethod)
+            val result = orderRepository.sendBatch(items, customerId, customerName, pendingSignature, pendingDamageItems, pendingPaymentMethod, checkForPrinting)
 
             pendingSignature    = null
             pendingDamageItems  = emptyList()
             pendingPaymentMethod = null
+            pendingCheckNumber  = null
 
             result.onSuccess { response ->
                 val isOfflinePending = response.batchId == "OFFLINE_PENDING"
@@ -588,7 +610,8 @@ class CurrentOrderActivity : BaseActivity() {
                         damageItems = damageForPrinting,
                         paymentMethod = null,
                         signature = sigForPrinting,
-                        creditsTotal = response.creditsTotal
+                        creditsTotal = response.creditsTotal,
+                        checkNumber = checkForPrinting
                     ).onFailure { e ->
                         Snackbar.make(
                             findViewById(android.R.id.content),
@@ -610,7 +633,8 @@ class CurrentOrderActivity : BaseActivity() {
                         damageItems = damageForPrinting,
                         paymentMethod = paymentForPrinting,
                         signature = sigForPrinting,
-                        creditsTotal = response.creditsTotal
+                        creditsTotal = response.creditsTotal,
+                        checkNumber = checkForPrinting
                     ).onFailure { e ->
                         Snackbar.make(
                             findViewById(android.R.id.content),

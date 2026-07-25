@@ -112,7 +112,9 @@ data class OrderDto(
     @SerializedName("customer_id") val customerId: String? = null,
     @SerializedName("customer_name") val customerName: String? = null,
     val unit: String? = null,
-    @SerializedName("case_qty") val caseQty: Int? = null
+    @SerializedName("case_qty") val caseQty: Int? = null,
+    @SerializedName("payment_method") val paymentMethod: String? = null,
+    @SerializedName("check_number") val checkNumber: String? = null
 )
 
 data class DeviceRegisterRequest(
@@ -244,7 +246,8 @@ data class BatchRequest(
     @SerializedName("customer_name") val customerName: String? = null,
     @SerializedName("signature") val signature: String? = null,
     @SerializedName("damage_items") val damageItems: List<DamageItem>? = null,
-    @SerializedName("payment_method") val paymentMethod: String? = null
+    @SerializedName("payment_method") val paymentMethod: String? = null,
+    @SerializedName("check_number") val checkNumber: String? = null
 )
 
 data class DamageItem(
@@ -415,7 +418,8 @@ data class PreOrderResponse(
 data class ConvertPreOrderRequest(
     val signature: String? = null,
     @SerializedName("payment_method") val paymentMethod: String? = null,
-    @SerializedName("damage_items") val damageItems: List<DamageItem>? = null
+    @SerializedName("damage_items") val damageItems: List<DamageItem>? = null,
+    @SerializedName("check_number") val checkNumber: String? = null
 )
 
 data class ConvertPreOrderResponse(

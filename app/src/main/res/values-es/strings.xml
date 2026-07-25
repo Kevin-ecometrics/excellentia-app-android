@@ -95,6 +95,10 @@
     <string name="label_offline_banner">Modo offline — los pedidos se guardan localmente</string>
     <string name="tip_longpress">Tip: Mantén presionado \"Ingresar código\" para buscar por nombre, o el último escaneo para el resumen del día</string>
     <string name="btn_understood">Entendido</string>
+    <string name="btn_confirm">Confirmar</string>
+    <string name="hint_check_number">N° de cheque</string>
+    <string name="title_check_number">Número de Cheque</string>
+    <string name="msg_check_number">Ingrese el número de cheque:</string>
     <string name="title_product_not_found">Producto no encontrado</string>
     <string name="msg_product_not_found">El código \"%1$s\" no existe en el catálogo.\n\nVerifica que el producto esté registrado en el sistema.</string>
     <string name="btn_retry">Reintentar</string>

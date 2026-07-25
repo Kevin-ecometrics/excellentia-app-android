@@ -68,6 +68,8 @@ class TicketDetailActivity : AppCompatActivity() {
         val invoiceNumber   = intent.getIntExtra("invoice_number", 0).takeIf { it > 0 }
         val customerName    = intent.getStringExtra("customer_name") ?: orders.firstOrNull()?.customerName
         val customerAddress = intent.getStringExtra("customer_address")
+        val paymentMethod   = orders.firstOrNull()?.paymentMethod
+        val checkNumber     = orders.firstOrNull()?.checkNumber
         val rawDate         = orders.firstOrNull()?.createdAt
         val grandTotal      = orders.sumOf { it.total }
         val totalQty        = orders.sumOf { it.quantity }
@@ -107,6 +109,8 @@ class TicketDetailActivity : AppCompatActivity() {
             invoiceNumber     = invoiceNumber,
             customerName      = customerName,
             customerAddress   = customerAddress,
+            paymentMethod     = paymentMethod,
+            checkNumber       = checkNumber,
             orders            = orders,
             grandTotal        = grandTotal,
             totalQty          = totalQty,
@@ -149,6 +153,8 @@ class TicketDetailActivity : AppCompatActivity() {
                                 invoiceNumber     = invoiceNumber,
                                 customerName      = customerName,
                                 customerAddress   = customerAddress,
+                                paymentMethod     = paymentMethod,
+                                checkNumber       = checkNumber,
                                 orders            = orders,
                                 grandTotal        = grandTotal,
                                 totalQty          = totalQty,
@@ -193,6 +199,8 @@ class TicketDetailActivity : AppCompatActivity() {
                         invoiceNumber   = invoiceNumber,
                         customerAddress = customerAddress,
                         damageItems     = damageItemsForReprint,
+                        paymentMethod   = paymentMethod,
+                        checkNumber     = checkNumber,
                         signature       = signatureForReprint
                     )
                     result.onSuccess {
@@ -239,6 +247,8 @@ class TicketDetailActivity : AppCompatActivity() {
                             invoiceNumber     = response.invoiceNumber ?: invoiceNumber,
                             customerName      = customerName,
                             customerAddress   = customerAddress,
+                            paymentMethod     = paymentMethod,
+                            checkNumber       = checkNumber,
                             orders            = orders,
                             grandTotal        = grandTotal,
                             totalQty          = totalQty,
@@ -271,6 +281,7 @@ class TicketDetailActivity : AppCompatActivity() {
         date: String, batchId: String, invoiceId: String,
         invoiceNumber: Int? = null,
         customerName: String?, customerAddress: String?,
+        paymentMethod: String? = null, checkNumber: String? = null,
         orders: List<OrderDto>,
         grandTotal: Double, totalQty: Double,
         companyNameFooter: String,
@@ -305,6 +316,13 @@ class TicketDetailActivity : AppCompatActivity() {
                     addLine(customerAddress, sizeSp = 12f, indent = true)
                 }
             }
+        }
+
+        // ── Payment ─────────────────────────────────────
+        if (!paymentMethod.isNullOrBlank()) {
+            val pmLine = if ("Check".equals(paymentMethod, ignoreCase = true) && !checkNumber.isNullOrBlank())
+                "Payment: $paymentMethod (#$checkNumber)" else "Payment: $paymentMethod"
+            addLine(pmLine, sizeSp = 12f)
         }
 
         // ── Ítems (agrupados por producto, y por categoría LBS/CASE/UNIT/BUCKET) ──

@@ -96,6 +96,10 @@
     <string name="label_offline_banner">Offline mode — orders are saved locally</string>
     <string name="tip_longpress">Tip: Long-press \"Enter code\" to search by name, or the last scan for the daily summary</string>
     <string name="btn_understood">Got it</string>
+    <string name="btn_confirm">Confirm</string>
+    <string name="hint_check_number">Check number</string>
+    <string name="title_check_number">Check Number</string>
+    <string name="msg_check_number">Enter the check number:</string>
     <string name="title_product_not_found">Product not found</string>
     <string name="msg_product_not_found">The code \"%1$s\" does not exist in the catalog.\n\nVerify that the product is registered in the system.</string>
     <string name="btn_retry">Retry</string>

@@ -43,6 +43,7 @@ object PrintService {
         customerAddress: String? = null,
         damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null,
+        checkNumber: String? = null,
         signature: String? = null,
         // Total de créditos ya calculado por el backend (BatchResponse.creditsTotal),
         // cuando está disponible — más preciso que sumar qty*unitPrice localmente
@@ -68,6 +69,7 @@ object PrintService {
             city            = prefs.getCompanyCity(),
             damageItems     = damageItems,
             paymentMethod   = paymentMethod,
+            checkNumber     = checkNumber,
             signature       = signature,
             disclaimer      = prefs.getDisclaimer(),
             creditsTotal    = creditsTotal
@@ -148,6 +150,7 @@ object PrintService {
         city: String? = null,
         damageItems: List<com.example.test.data.DamageItem> = emptyList(),
         paymentMethod: String? = null,
+        checkNumber: String? = null,
         signature: String? = null,
         disclaimer: String? = null,
         creditsTotal: Double? = null
@@ -190,7 +193,8 @@ object PrintService {
             for (line in clientLines) { body.t(F4, 0, y, line);   y += F4H + 3 }
             y += 1
             if (!paymentMethod.isNullOrBlank()) {
-                body.t(F4, 0, y, "Payment: $paymentMethod");       y += F4H + 4
+                body.t(F4, 0, y, if ("Check".equals(paymentMethod, ignoreCase = true) && !checkNumber.isNullOrBlank())
+                    "Payment: $paymentMethod (#$checkNumber)" else "Payment: $paymentMethod");       y += F4H + 4
             }
             if (!customerAddress.isNullOrBlank()) {
                 for (l in wrapText(customerAddress, 28)) {

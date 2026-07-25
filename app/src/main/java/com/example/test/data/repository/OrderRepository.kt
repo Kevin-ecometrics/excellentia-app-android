@@ -123,7 +123,8 @@ class OrderRepository(
         customerName: String? = null,
         signature: String? = null,
         damageItems: List<DamageItem> = emptyList(),
-        paymentMethod: String? = null
+        paymentMethod: String? = null,
+        checkNumber: String? = null
     ): Result<BatchResponse> = withContext(Dispatchers.IO) {
         val request = BatchRequest(
             items = items,
@@ -131,7 +132,8 @@ class OrderRepository(
             customerName = customerName,
             signature = signature,
             damageItems = damageItems.ifEmpty { null },
-            paymentMethod = paymentMethod
+            paymentMethod = paymentMethod,
+            checkNumber = checkNumber
         )
 
         // Si ya estamos en modo offline, guardar directamente sin intentar el API

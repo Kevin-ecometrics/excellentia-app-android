@@ -60,6 +60,7 @@ class PreOrderDetailActivity : BaseActivity() {
     private var pendingSignature: String? = null
     private var pendingDamageItems: List<DamageItem> = emptyList()
     private var pendingPaymentMethod: String? = null
+    private var pendingCheckNumber: String? = null
 
     private val signatureLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -333,9 +334,36 @@ class PreOrderDetailActivity : BaseActivity() {
             .setTitle(getString(R.string.title_payment_method))
             .setMessage(getString(R.string.msg_payment_method))
             .setCancelable(false)
-            .setPositiveButton(getString(R.string.btn_cash))    { _, _ -> pendingPaymentMethod = "Cash";       checkPrinterThenConvert() }
-            .setNeutralButton(getString(R.string.btn_check))    { _, _ -> pendingPaymentMethod = "Check";      checkPrinterThenConvert() }
-            .setNegativeButton(getString(R.string.btn_account)) { _, _ -> pendingPaymentMethod = "On Account"; checkPrinterThenConvert() }
+            .setPositiveButton(getString(R.string.btn_cash)) { _, _ ->
+                pendingPaymentMethod = "Cash"
+                pendingCheckNumber = null
+                checkPrinterThenConvert()
+            }
+            .setNeutralButton(getString(R.string.btn_check)) { _, _ ->
+                pendingPaymentMethod = "Check"
+                val input = android.widget.EditText(this).apply {
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    hint = getString(R.string.hint_check_number)
+                }
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle(getString(R.string.title_check_number))
+                    .setMessage(getString(R.string.msg_check_number))
+                    .setView(input)
+                    .setCancelable(false)
+                    .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                        pendingCheckNumber = input.text.toString().take(20)
+                        checkPrinterThenConvert()
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
+                        askPaymentMethod()
+                    }
+                    .show()
+            }
+            .setNegativeButton(getString(R.string.btn_account)) { _, _ ->
+                pendingPaymentMethod = "On Account"
+                pendingCheckNumber = null
+                checkPrinterThenConvert()
+            }
             .show()
     }
 
@@ -375,6 +403,7 @@ class PreOrderDetailActivity : BaseActivity() {
         val sigForPrinting     = pendingSignature
         val damageForPrinting  = pendingDamageItems
         val paymentForPrinting = pendingPaymentMethod
+        val checkForPrinting   = pendingCheckNumber
 
         lifecycleScope.launch {
             try {
@@ -383,7 +412,8 @@ class PreOrderDetailActivity : BaseActivity() {
                     request = ConvertPreOrderRequest(
                         signature     = sigForPrinting,
                         paymentMethod = paymentForPrinting,
-                        damageItems   = damageForPrinting.takeIf { it.isNotEmpty() }
+                        damageItems   = damageForPrinting.takeIf { it.isNotEmpty() },
+                        checkNumber   = checkForPrinting
                     )
                 )
 
@@ -398,6 +428,7 @@ class PreOrderDetailActivity : BaseActivity() {
                     pendingSignature     = null
                     pendingDamageItems   = emptyList()
                     pendingPaymentMethod = null
+                    pendingCheckNumber   = null
 
                     val batchItems = po.items.map { item ->
                         BatchItem(
@@ -425,7 +456,8 @@ class PreOrderDetailActivity : BaseActivity() {
                             customerAddress = null,
                             damageItems     = damageForPrinting,
                             paymentMethod   = paymentForPrinting,
-                            signature       = sigForPrinting
+                            signature       = sigForPrinting,
+                            checkNumber     = checkForPrinting
                         )
                         printResult.onFailure { e ->
                             Snackbar.make(
