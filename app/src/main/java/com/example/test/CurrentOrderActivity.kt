@@ -82,7 +82,7 @@ class CurrentOrderActivity : BaseActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             pendingSignature = result.data?.getStringExtra("signature")
-            askPaymentMethod()
+            checkPrinterThenFinalize()
         }
     }
 
@@ -465,22 +465,22 @@ class CurrentOrderActivity : BaseActivity() {
             )
         }
 
-    private fun askPaymentMethod() {
+    private fun askPaymentMethod(skipPrint: Boolean) {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_payment_method))
             .setMessage(getString(R.string.msg_payment_method))
             .setCancelable(false)
             .setPositiveButton(getString(R.string.btn_cash)) { _, _ ->
                 pendingPaymentMethod = "Cash"
-                checkPrinterThenFinalize()
+                sendBatchAndPrint(skipPrint)
             }
             .setNeutralButton(getString(R.string.btn_check)) { _, _ ->
                 pendingPaymentMethod = "Check"
-                checkPrinterThenFinalize()
+                sendBatchAndPrint(skipPrint)
             }
             .setNegativeButton(getString(R.string.btn_account)) { _, _ ->
                 pendingPaymentMethod = "On Account"
-                checkPrinterThenFinalize()
+                sendBatchAndPrint(skipPrint)
             }
             .show()
     }
@@ -495,7 +495,7 @@ class CurrentOrderActivity : BaseActivity() {
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .setMessage(getString(R.string.msg_no_printer))
                 .setPositiveButton(getString(R.string.btn_continue_no_print)) { _, _ ->
-                    sendBatchAndPrint(skipPrint = true)
+                    askPaymentMethod(skipPrint = true)
                 }
                 .setNeutralButton(getString(R.string.btn_go_to_settings)) { _, _ ->
                     startActivity(Intent(this, SettingsActivity::class.java))
@@ -507,10 +507,10 @@ class CurrentOrderActivity : BaseActivity() {
                 .setTitle(getString(R.string.title_confirm_print))
                 .setMessage(getString(R.string.msg_confirm_print, printerName))
                 .setPositiveButton(getString(R.string.btn_finalize_and_print)) { _, _ ->
-                    sendBatchAndPrint(skipPrint = false)
+                    askPaymentMethod(skipPrint = false)
                 }
                 .setNeutralButton(getString(R.string.btn_finalize_no_print)) { _, _ ->
-                    sendBatchAndPrint(skipPrint = true)
+                    askPaymentMethod(skipPrint = true)
                 }
                 .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
