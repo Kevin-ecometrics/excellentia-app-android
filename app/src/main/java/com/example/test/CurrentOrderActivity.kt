@@ -396,7 +396,15 @@ class CurrentOrderActivity : BaseActivity() {
 
                 val unitLabel = if (order.unit.isNullOrBlank() || order.unit == "Lbs") "lb" else order.unit
                 val tvDetail = android.widget.TextView(ctx).apply {
-                    text = String.format(Locale.US, "%.2f %s · \$%.2f/%s", order.quantity, unitLabel, order.price, unitLabel)
+                    val detailText = if (order.unit.equals("Case", ignoreCase = true) && (order.caseQty ?: 0) > 0) {
+                        val perUnitPrice = order.price / order.caseQty!!
+                        String.format(Locale.US, "%.0f %s of %d · \$%.2f/unit", order.quantity, unitLabel, order.caseQty, perUnitPrice)
+                    } else if (order.unit.isNullOrBlank() || order.unit == "Lbs") {
+                        String.format(Locale.US, "%.2f %s · \$%.2f/%s", order.quantity, unitLabel, order.price, unitLabel)
+                    } else {
+                        String.format(Locale.US, "%.0f %s · \$%.2f/%s", order.quantity, unitLabel, order.price, unitLabel)
+                    }
+                    text = detailText
                     textSize = 12f
                     setTextColor(getColor(R.color.text_secondary))
                     layoutParams = android.widget.LinearLayout.LayoutParams(0,
