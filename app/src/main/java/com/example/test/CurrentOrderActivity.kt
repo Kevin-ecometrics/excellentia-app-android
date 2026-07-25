@@ -82,7 +82,7 @@ class CurrentOrderActivity : BaseActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             pendingSignature = result.data?.getStringExtra("signature")
-            checkPrinterThenFinalize()
+            askPaymentMethod()
         }
     }
 
@@ -465,64 +465,22 @@ class CurrentOrderActivity : BaseActivity() {
             )
         }
 
-    // Ticket #1 — impreso justo después de firmar, antes de conocer el método de
-    // pago o la factura de QBO (esa llegada de la factura depende de si hay
-    // conexión, que aún no se intenta en este punto). Sale sin línea "Payment:"
-    // y sin número de factura. El ticket #2 (en finalizeOrder) sí los trae.
-    private fun printFirstTicketThenAskPayment(skipPrint: Boolean) {
-        btnFinalize.isEnabled = false
-        btnViewTicket.isEnabled = false
-        lifecycleScope.launch {
-            if (!skipPrint) {
-                val printerAddress = securePrefs.getPrinterAddress()
-                if (!printerAddress.isNullOrBlank()) {
-                    layoutLoading.visibility = View.VISIBLE
-                    tvLoadingTitle.text = getString(R.string.loading_printing_ticket)
-                    tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
-                    val items = toBatchItems(orderRepository.getPendingOrders())
-                    val printResult = PrintService.printTicket(
-                        context = this@CurrentOrderActivity,
-                        deviceAddress = printerAddress,
-                        items = items,
-                        customerName = customerName,
-                        batchId = "",
-                        invoiceId = null,
-                        invoiceNumber = null,
-                        customerAddress = customerAddress,
-                        damageItems = pendingDamageItems,
-                        paymentMethod = null,
-                        signature = pendingSignature
-                    )
-                    printResult.onFailure { e ->
-                        Snackbar.make(
-                            findViewById(android.R.id.content),
-                            getString(R.string.error_order_sent_print_fail, e.localizedMessage ?: getString(R.string.error_no_connection)),
-                            Snackbar.LENGTH_LONG
-                        ).show()
-                    }
-                    layoutLoading.visibility = View.GONE
-                }
-            }
-            askPaymentMethod(skipPrint)
-        }
-    }
-
-    private fun askPaymentMethod(skipPrint: Boolean) {
+    private fun askPaymentMethod() {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_payment_method))
             .setMessage(getString(R.string.msg_payment_method))
             .setCancelable(false)
             .setPositiveButton(getString(R.string.btn_cash)) { _, _ ->
                 pendingPaymentMethod = "Cash"
-                finalizeOrder(customerId, customerName, skipPrint)
+                checkPrinterThenFinalize()
             }
             .setNeutralButton(getString(R.string.btn_check)) { _, _ ->
                 pendingPaymentMethod = "Check"
-                finalizeOrder(customerId, customerName, skipPrint)
+                checkPrinterThenFinalize()
             }
             .setNegativeButton(getString(R.string.btn_account)) { _, _ ->
                 pendingPaymentMethod = "On Account"
-                finalizeOrder(customerId, customerName, skipPrint)
+                checkPrinterThenFinalize()
             }
             .show()
     }
@@ -532,13 +490,12 @@ class CurrentOrderActivity : BaseActivity() {
         val printerName    = securePrefs.getPrinterName() ?: getString(R.string.label_no_printer_selected)
 
         if (printerAddress.isNullOrBlank()) {
-            // No printer configured
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.title_no_printer))
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .setMessage(getString(R.string.msg_no_printer))
                 .setPositiveButton(getString(R.string.btn_continue_no_print)) { _, _ ->
-                    printFirstTicketThenAskPayment(skipPrint = true)
+                    sendBatchAndPrint(skipPrint = true)
                 }
                 .setNeutralButton(getString(R.string.btn_go_to_settings)) { _, _ ->
                     startActivity(Intent(this, SettingsActivity::class.java))
@@ -546,30 +503,29 @@ class CurrentOrderActivity : BaseActivity() {
                 .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
         } else {
-            // Printer configured — confirm it's on
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.title_confirm_print))
                 .setMessage(getString(R.string.msg_confirm_print, printerName))
                 .setPositiveButton(getString(R.string.btn_finalize_and_print)) { _, _ ->
-                    printFirstTicketThenAskPayment(skipPrint = false)
+                    sendBatchAndPrint(skipPrint = false)
                 }
                 .setNeutralButton(getString(R.string.btn_finalize_no_print)) { _, _ ->
-                    printFirstTicketThenAskPayment(skipPrint = true)
+                    sendBatchAndPrint(skipPrint = true)
                 }
                 .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
         }
     }
 
-    private fun finalizeOrder(customerId: String?, customerName: String?, skipPrint: Boolean = false) {
+    private fun sendBatchAndPrint(skipPrint: Boolean) {
+        btnFinalize.isEnabled = false
+        btnViewTicket.isEnabled = false
         lifecycleScope.launch {
             layoutLoading.visibility = View.VISIBLE
             setStep(1)
             tvLoadingTitle.text = getString(R.string.loading_sending_order)
             tvLoadingSubtitle.text = if (!customerName.isNullOrBlank())
                 getString(R.string.loading_client, customerName) else getString(R.string.loading_connecting_qb)
-            btnFinalize.isEnabled = false
-            btnViewTicket.isEnabled = false
 
             val pending = orderRepository.getPendingOrders()
             if (pending.isEmpty()) {
@@ -579,85 +535,30 @@ class CurrentOrderActivity : BaseActivity() {
             }
 
             val items = toBatchItems(pending)
-
             val sigForPrinting     = pendingSignature
             val damageForPrinting  = pendingDamageItems
             val paymentForPrinting = pendingPaymentMethod
-            android.util.Log.d("DamageDebug", "sendBatch damageItems=${pendingDamageItems.size}: ${pendingDamageItems.map { "${it.productName}:${it.qty}" }}")
+
             val result = orderRepository.sendBatch(items, customerId, customerName, pendingSignature, pendingDamageItems, pendingPaymentMethod)
+
             pendingSignature    = null
             pendingDamageItems  = emptyList()
             pendingPaymentMethod = null
+
             result.onSuccess { response ->
                 val isOfflinePending = response.batchId == "OFFLINE_PENDING"
 
-                if (isOfflinePending) {
-                    // Flujo offline: no hay factura, solo imprimir y navegar
+                if (!isOfflinePending) {
+                    setStep(2)
+                    tvLoadingTitle.text = getString(R.string.loading_generating_invoice)
+                    tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, response.invoiceId ?: "—")
+                } else {
+                    setStep(2)
                     tvLoadingTitle.text = getString(R.string.loading_saving_offline)
                     tvLoadingSubtitle.text = ""
-                    orderRepository.clearPending()
-                    securePrefs.clearActiveCustomer()
-
-                    val printerAddress = securePrefs.getPrinterAddress()
-                    if (!skipPrint && !printerAddress.isNullOrBlank()) {
-                        setStep(3)
-                        tvLoadingTitle.text = getString(R.string.loading_printing_ticket)
-                        tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
-                        PrintService.printTicket(
-                            context       = this@CurrentOrderActivity,
-                            deviceAddress = printerAddress,
-                            items         = items,
-                            customerName  = customerName,
-                            batchId       = "",
-                            invoiceId     = null,
-                            invoiceNumber = null,
-                            customerAddress = customerAddress,
-                            damageItems   = damageForPrinting,
-                            paymentMethod = paymentForPrinting,
-                            signature     = sigForPrinting
-                        )
-                    }
-
-                    layoutLoading.visibility = View.GONE
-                    val grandTotal = items.sumOf { it.total }
-                    startActivity(
-                        Intent(this@CurrentOrderActivity, OrderSuccessActivity::class.java).apply {
-                            putExtra("batch_id", "")
-                            putExtra("invoice_id", "")
-                            putExtra("invoice_number", 0)
-                            putExtra("offline_pending", true)
-                            putExtra("customer_name", customerName)
-                            putExtra("customer_address", customerAddress)
-                            putExtra("signature", sigForPrinting)
-                            putExtra("damage_items_json", Gson().toJson(damageForPrinting))
-                            putExtra("total", grandTotal)
-                            putExtra("item_count", items.size)
-                            putExtra("orders_json", Gson().toJson(
-                                items.map { bi ->
-                                    OrderDto(
-                                        id = 0, barcode = bi.barcode,
-                                        productName = bi.productName, price = bi.price,
-                                        quantity = bi.quantity, total = bi.total,
-                                        status = "PENDING", customerId = customerId,
-                                        customerName = customerName,
-                                        unit = bi.unit,
-                                        caseQty = bi.caseQty
-                                    )
-                                }
-                            ))
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        }
-                    )
-                    finish()
-                    return@onSuccess
                 }
 
-                // Flujo online normal
-                setStep(2)
-                tvLoadingTitle.text = getString(R.string.loading_generating_invoice)
-                tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, response.invoiceId ?: "—")
                 orderRepository.clearPending()
-
                 securePrefs.clearActiveCustomer()
 
                 val printerAddress = securePrefs.getPrinterAddress()
@@ -665,21 +566,44 @@ class CurrentOrderActivity : BaseActivity() {
                     setStep(3)
                     tvLoadingTitle.text = getString(R.string.loading_printing_ticket)
                     tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
-                    val printResult = PrintService.printTicket(
+
+                    // Ticket #1: with invoice, NO payment
+                    PrintService.printTicket(
                         context = this@CurrentOrderActivity,
                         deviceAddress = printerAddress,
                         items = items,
                         customerName = customerName,
                         batchId = response.batchId,
-                        invoiceId = response.invoiceId,
-                        invoiceNumber = response.invoiceNumber,
+                        invoiceId = if (isOfflinePending) null else response.invoiceId,
+                        invoiceNumber = if (isOfflinePending) null else response.invoiceNumber,
+                        customerAddress = customerAddress,
+                        damageItems = damageForPrinting,
+                        paymentMethod = null,
+                        signature = sigForPrinting,
+                        creditsTotal = response.creditsTotal
+                    ).onFailure { e ->
+                        Snackbar.make(
+                            findViewById(android.R.id.content),
+                            getString(R.string.error_order_sent_print_fail, e.localizedMessage ?: getString(R.string.error_no_connection)),
+                            Snackbar.LENGTH_LONG
+                        ).show()
+                    }
+
+                    // Ticket #2: with invoice + payment
+                    PrintService.printTicket(
+                        context = this@CurrentOrderActivity,
+                        deviceAddress = printerAddress,
+                        items = items,
+                        customerName = customerName,
+                        batchId = response.batchId,
+                        invoiceId = if (isOfflinePending) null else response.invoiceId,
+                        invoiceNumber = if (isOfflinePending) null else response.invoiceNumber,
                         customerAddress = customerAddress,
                         damageItems = damageForPrinting,
                         paymentMethod = paymentForPrinting,
                         signature = sigForPrinting,
                         creditsTotal = response.creditsTotal
-                    )
-                    printResult.onFailure { e ->
+                    ).onFailure { e ->
                         Snackbar.make(
                             findViewById(android.R.id.content),
                             getString(R.string.error_order_sent_print_fail, e.localizedMessage ?: getString(R.string.error_no_connection)),
@@ -695,6 +619,7 @@ class CurrentOrderActivity : BaseActivity() {
                         putExtra("batch_id", response.batchId ?: "")
                         putExtra("invoice_id", response.invoiceId ?: "")
                         putExtra("invoice_number", response.invoiceNumber ?: 0)
+                        putExtra("offline_pending", isOfflinePending)
                         putExtra("customer_name", customerName)
                         putExtra("customer_address", customerAddress)
                         putExtra("signature", sigForPrinting)
@@ -710,7 +635,7 @@ class CurrentOrderActivity : BaseActivity() {
                                     price = bi.price,
                                     quantity = bi.quantity,
                                     total = bi.total,
-                                    status = "SENT",
+                                    status = if (isOfflinePending) "PENDING" else "SENT",
                                     customerId = customerId,
                                     customerName = customerName,
                                     unit = bi.unit,
