@@ -7,7 +7,9 @@ import android.widget.TextView
 
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
+import com.example.test.data.creditsTotalOf
 import com.google.android.material.button.MaterialButton
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -36,6 +38,14 @@ class OrderSuccessActivity : BaseActivity() {
         val total      = intent.getDoubleExtra("total", 0.0)
         val itemCount  = intent.getIntExtra("item_count", 0)
         val ordersJson = intent.getStringExtra("orders_json") ?: "[]"
+        val creditsTotalExtra = intent.getDoubleExtra("credits_total", -1.0).takeIf { it >= 0.0 }
+        val creditApplied     = intent.getDoubleExtra("credit_applied", 0.0)
+        val damageItems: List<DamageItem> = try {
+            val type = object : TypeToken<List<DamageItem>>() {}.type
+            Gson().fromJson(damageItemsJson ?: "[]", type) ?: emptyList()
+        } catch (_: Exception) { emptyList() }
+        val credits = creditsTotalOf(damageItems, authoritative = creditsTotalExtra)
+        val displayTotal = total - credits - creditApplied
 
         if (isOfflinePending) {
             com.google.android.material.snackbar.Snackbar.make(
@@ -64,8 +74,16 @@ class OrderSuccessActivity : BaseActivity() {
         findViewById<TextView>(R.id.tvSuccessItems).text =
             getString(R.string.label_products_count, itemCount)
 
+        val totalCredits = credits + creditApplied
+        if (totalCredits > 0) {
+            findViewById<View>(R.id.rowCredits).visibility = View.VISIBLE
+            findViewById<View>(R.id.dividerCredits).visibility = View.VISIBLE
+            findViewById<TextView>(R.id.tvSuccessCredits).text =
+                String.format(Locale.US, "-$%.2f", totalCredits)
+        }
+
         findViewById<TextView>(R.id.tvSuccessTotal).text =
-            String.format(Locale.US, "$%.2f", total)
+            String.format(Locale.US, "$%.2f", displayTotal)
 
         findViewById<MaterialButton>(R.id.btnViewTicket).setOnClickListener {
             val intent = Intent(this, TicketDetailActivity::class.java).apply {

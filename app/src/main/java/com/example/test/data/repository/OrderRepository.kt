@@ -99,6 +99,30 @@ class OrderRepository(
         orderDao.getAllForHistory()
     }
 
+    // Fase 86 — persiste un "credit item" (botón "+ Agregar crédito" en
+    // CurrentOrderActivity) en la misma tabla que el carrito normal
+    // (is_credit = true), para que sobreviva el cierre de la app igual que
+    // los productos normales. Mergea por barcode si ya había un crédito
+    // activo del mismo producto (suma qty, mantiene el precio ya guardado).
+    suspend fun saveCreditItem(barcode: String, productName: String, qty: Int, unitPrice: Double) = withContext(Dispatchers.IO) {
+        val existing = orderDao.findActiveCreditByBarcode(barcode)
+        if (existing != null) {
+            orderDao.update(existing.id, existing.price, existing.quantity + qty)
+        } else {
+            orderDao.insert(
+                com.example.test.data.local.entities.PendingOrderEntity(
+                    barcode = barcode,
+                    productName = productName,
+                    price = unitPrice,
+                    quantity = qty.toDouble(),
+                    customerId = securePrefs.getActiveCustomerId(),
+                    customerName = securePrefs.getActiveCustomerName(),
+                    isCredit = true
+                )
+            )
+        }
+    }
+
     fun getPendingCount(): Int = orderDao.count()
 
     suspend fun clearPending() = withContext(Dispatchers.IO) {
@@ -124,7 +148,8 @@ class OrderRepository(
         signature: String? = null,
         damageItems: List<DamageItem> = emptyList(),
         paymentMethod: String? = null,
-        checkNumber: String? = null
+        checkNumber: String? = null,
+        applyCredit: Double? = null
     ): Result<BatchResponse> = withContext(Dispatchers.IO) {
         val request = BatchRequest(
             items = items,
@@ -133,7 +158,8 @@ class OrderRepository(
             signature = signature,
             damageItems = damageItems.ifEmpty { null },
             paymentMethod = paymentMethod,
-            checkNumber = checkNumber
+            checkNumber = checkNumber,
+            applyCredit = applyCredit
         )
 
         // Si ya estamos en modo offline, guardar directamente sin intentar el API
@@ -157,12 +183,49 @@ class OrderRepository(
     private fun saveOfflineBatch(request: BatchRequest): Result<BatchResponse> {
         return try {
             val json = gson.toJson(request)
-            PendingBatchDao(db).insert(PendingBatchEntity(batchJson = json))
-            Result.success(BatchResponse(batchId = "OFFLINE_PENDING", invoiceId = null, orders = emptyList()))
+            val localId = PendingBatchDao(db).insert(PendingBatchEntity(batchJson = json))
+            Result.success(BatchResponse(batchId = "OFFLINE_PENDING", invoiceId = null, orders = emptyList(), localPendingId = localId))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    // Fase 82 — adjunta el payment_method/check_number (elegido después del
+    // ticket #1, cuando el batch ya se mandó y tiene invoice real) a un
+    // batch que sí llegó al servidor.
+    suspend fun attachPaymentMethod(batchId: String, paymentMethod: String?, checkNumber: String?): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.getApi().updateBatchPayment(
+                    batchId, UpdatePaymentRequest(paymentMethod, checkNumber)
+                )
+                if (response.isSuccessful) Result.success(Unit)
+                else Result.failure(Exception("Error del servidor: ${response.code()}"))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    // Fase 82 — mismo propósito que attachPaymentMethod() pero para un
+    // batch que quedó encolado offline (nunca llegó al servidor todavía):
+    // re-serializa el BatchRequest ya guardado en pending_batches con el
+    // payment_method/check_number correctos, para que SyncWorker lo mande
+    // bien cuando recupere conexión (createBatch de siempre, sin endpoint
+    // especial para este caso).
+    suspend fun attachPaymentMethodOffline(localPendingId: Long, paymentMethod: String?, checkNumber: String?): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val dao = PendingBatchDao(db)
+                val entity = dao.getAll().find { it.id == localPendingId.toInt() }
+                    ?: return@withContext Result.failure(Exception("Pending batch $localPendingId not found"))
+                val request = gson.fromJson(entity.batchJson, BatchRequest::class.java)
+                    .copy(paymentMethod = paymentMethod, checkNumber = checkNumber)
+                dao.updateBatchJson(localPendingId, gson.toJson(request))
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 
     // Reenvía a QuickBooks los items de un batch que quedaron PENDING/FAILED.
     suspend fun retryBatchSync(batchId: String): Result<RetryBatchResponse> = withContext(Dispatchers.IO) {

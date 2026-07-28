@@ -66,6 +66,7 @@ class MainActivity : BaseActivity() {
     private lateinit var tvLastTime: TextView
     private lateinit var tvHoldState: TextView
     private lateinit var tvCustomerName: TextView
+    private lateinit var tvCustomerCredit: TextView
     private lateinit var btnScan: View
     private lateinit var btnHoldScan: View
     private lateinit var btnManualEntry: View
@@ -73,6 +74,7 @@ class MainActivity : BaseActivity() {
     private lateinit var btnChangeCustomer: MaterialButton
     private lateinit var btnViewClientHistory: MaterialButton
     private lateinit var btnPreOrders: MaterialButton
+    private lateinit var btnAddCredit: MaterialButton
     private lateinit var layoutLastScan: View
     private lateinit var layoutCustomerCard: MaterialCardView
     private lateinit var layoutSelectCustomer: MaterialCardView
@@ -304,10 +306,27 @@ class MainActivity : BaseActivity() {
             layoutSelectCustomer.visibility = View.GONE
             tvCustomerName.text = customerName
             enableScanning(true)
+            refreshCustomerCredit(customerId)
         } else {
             layoutCustomerCard.visibility = View.GONE
             layoutSelectCustomer.visibility = View.VISIBLE
             enableScanning(false)
+        }
+    }
+
+    private fun refreshCustomerCredit(customerId: String) {
+        tvCustomerCredit.visibility = View.GONE
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getCustomerCreditBalance(customerId)
+                if (resp.isSuccessful) {
+                    val balance = resp.body()?.balance ?: 0.0
+                    if (balance > 0) {
+                        tvCustomerCredit.text = getString(R.string.label_available_credit, balance)
+                        tvCustomerCredit.visibility = View.VISIBLE
+                    }
+                }
+            } catch (_: Exception) { }
         }
     }
 
@@ -329,6 +348,7 @@ class MainActivity : BaseActivity() {
         tvLastTime      = findViewById(R.id.tvLastTime)
         tvHoldState     = findViewById(R.id.tvHoldState)
         tvCustomerName  = findViewById(R.id.tvCustomerName)
+        tvCustomerCredit = findViewById(R.id.tvCustomerCredit)
         btnScan         = findViewById(R.id.btnScan)
         btnHoldScan     = findViewById(R.id.btnHoldScan)
         btnManualEntry  = findViewById(R.id.btnManualEntry)
@@ -340,6 +360,7 @@ class MainActivity : BaseActivity() {
         btnChangeCustomer    = findViewById(R.id.btnChangeCustomer)
         btnViewClientHistory = findViewById(R.id.btnViewClientHistory)
         btnPreOrders         = findViewById(R.id.btnPreOrders)
+        btnAddCredit         = findViewById(R.id.btnAddCredit)
 
         btnHoldScan.setOnClickListener { toggleScan() }
         btnScan.setOnClickListener { showGuide() }
@@ -385,6 +406,9 @@ class MainActivity : BaseActivity() {
         }
         btnPreOrders.setOnClickListener {
             startActivity(Intent(this, PreOrderListActivity::class.java))
+        }
+        btnAddCredit.setOnClickListener {
+            startActivity(Intent(this, IssueCreditActivity::class.java))
         }
 
         layoutLastScan.setOnClickListener {

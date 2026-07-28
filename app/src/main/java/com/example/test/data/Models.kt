@@ -114,7 +114,9 @@ data class OrderDto(
     val unit: String? = null,
     @SerializedName("case_qty") val caseQty: Int? = null,
     @SerializedName("payment_method") val paymentMethod: String? = null,
-    @SerializedName("check_number") val checkNumber: String? = null
+    @SerializedName("check_number") val checkNumber: String? = null,
+    @SerializedName("credit_applied") val creditApplied: Double? = null,
+    @SerializedName("damage_credits") val damageCredits: Double? = null
 )
 
 data class DeviceRegisterRequest(
@@ -247,7 +249,16 @@ data class BatchRequest(
     @SerializedName("signature") val signature: String? = null,
     @SerializedName("damage_items") val damageItems: List<DamageItem>? = null,
     @SerializedName("payment_method") val paymentMethod: String? = null,
-    @SerializedName("check_number") val checkNumber: String? = null
+    @SerializedName("check_number") val checkNumber: String? = null,
+    @SerializedName("apply_credit") val applyCredit: Double? = null
+)
+
+// Fase 82 — adjunta payment_method/check_number a un batch que ya se mandó
+// sin conocerlos todavía (el batch se manda antes del ticket #1, para tener
+// el número de factura real ahí; el método de pago se elige después).
+data class UpdatePaymentRequest(
+    @SerializedName("payment_method") val paymentMethod: String?,
+    @SerializedName("check_number") val checkNumber: String?
 )
 
 data class DamageItem(
@@ -260,6 +271,25 @@ data class DamageItem(
     // para lo financiero/QBO, solo para lo que se muestra en pantalla antes de
     // tener la respuesta del servidor.
     @SerializedName("unit_price") val unitPrice: Double = 0.0
+)
+
+// ── Créditos standalone (sin venta asociada) ──
+
+data class CreditItemRequest(
+    val barcode: String,
+    @SerializedName("product_name") val productName: String,
+    val qty: Int
+)
+
+data class IssueCreditRequest(
+    @SerializedName("customer_id") val customerId: String,
+    @SerializedName("customer_name") val customerName: String?,
+    val items: List<CreditItemRequest>
+)
+
+data class IssueCreditResponse(
+    @SerializedName("batchId") val batchId: String,
+    @SerializedName("creditsTotal") val creditsTotal: Double
 )
 
 // ── QuickBooks Customer Models ──
@@ -299,7 +329,13 @@ data class BatchResponse(
     @SerializedName("invoiceId") val invoiceId: String? = null,
     @SerializedName("invoiceNumber") val invoiceNumber: Int? = null,
     val orders: List<OrderResponse>,
-    @SerializedName("creditsTotal") val creditsTotal: Double? = null
+    @SerializedName("creditsTotal") val creditsTotal: Double? = null,
+    @SerializedName("creditApplied") val creditApplied: Double? = null,
+    // Nunca lo manda el servidor (queda null en respuestas reales) — lo usa
+    // OrderRepository.saveOfflineBatch() para devolver el id de la fila local
+    // en pending_batches, así se le puede "pegar" el payment_method después
+    // sin depender de un batchId real del servidor (Fase 82).
+    val localPendingId: Long? = null
 )
 
 data class RetryBatchResponse(
@@ -373,13 +409,17 @@ data class PriceHistoryResponse(
 
 // ── Pre-Order Models ──
 
+// price/quantity/total quedan null mientras la pre-orden está sin detallar (recién
+// creada — solo barcode+productName) y se llenan al finalizar cada ítem el día de la
+// entrega (ver PreOrderDetailActivity.finalizeItem()).
 data class PreOrderItem(
     val barcode: String,
     @SerializedName("product_name") val productName: String,
-    val price: Double,
-    val quantity: Double,
-    val total: Double,
-    val unit: String? = null
+    val price: Double? = null,
+    val quantity: Double? = null,
+    val total: Double? = null,
+    val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null
 )
 
 data class PreOrderRequest(
@@ -419,14 +459,27 @@ data class ConvertPreOrderRequest(
     val signature: String? = null,
     @SerializedName("payment_method") val paymentMethod: String? = null,
     @SerializedName("damage_items") val damageItems: List<DamageItem>? = null,
-    @SerializedName("check_number") val checkNumber: String? = null
+    @SerializedName("check_number") val checkNumber: String? = null,
+    @SerializedName("apply_credit") val applyCredit: Double? = null,
+    // Detalle finalizado (precio/peso/case) capturado el día de la conversión —
+    // la pre-orden se creó sin esto, ver PreOrderItem.
+    val items: List<PreOrderItem>
 )
 
 data class ConvertPreOrderResponse(
     @SerializedName("batchId") val batchId: String,
     @SerializedName("invoiceId") val invoiceId: String? = null,
     @SerializedName("invoiceNumber") val invoiceNumber: Int? = null,
-    @SerializedName("preOrderId") val preOrderId: String
+    @SerializedName("preOrderId") val preOrderId: String,
+    @SerializedName("creditsTotal") val creditsTotal: Double? = null,
+    @SerializedName("creditApplied") val creditApplied: Double? = null
+)
+
+data class CreditBalance(
+    @SerializedName("customer_id") val customerId: String,
+    val balance: Double,
+    @SerializedName("earned_total") val earnedTotal: Double,
+    @SerializedName("used_total") val usedTotal: Double
 )
 
 // ── Customer Batch Summary ──

@@ -184,6 +184,15 @@
                     android:textColor="@color/primary"
                     android:textSize="26sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvCreditsTotal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/red"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <LinearLayout
@@ -213,45 +222,70 @@
             android:id="@+id/layoutActions"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:weightSum="2"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="16dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnViewTicket"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="52dp"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1"
+                android:id="@+id/btnAddCreditItem"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_gravity="start"
+                android:layout_marginBottom="4dp"
                 android:insetBottom="0dp"
                 android:insetTop="0dp"
-                android:text="@string/btn_view_ticket"
-                android:textSize="13sp"
-                app:cornerRadius="26dp"
-                app:icon="@drawable/ic_history"
+                android:text="@string/btn_add_credit_item"
+                android:textColor="@color/red"
+                android:textSize="12sp"
+                app:icon="@drawable/ic_remove"
                 app:iconGravity="textStart"
-                app:iconSize="18dp" />
+                app:iconSize="14dp"
+                app:iconTint="@color/red" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnFinalize"
-                android:layout_width="0dp"
-                android:layout_height="52dp"
-                android:layout_weight="1"
-                android:insetBottom="0dp"
-                android:insetTop="0dp"
-                android:text="@string/btn_finalize_order"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                app:backgroundTint="@color/success"
-                app:cornerRadius="26dp"
-                app:icon="@drawable/ic_add_cart"
-                app:iconGravity="textStart"
-                app:iconSize="18dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnViewTicket"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:insetBottom="0dp"
+                    android:insetTop="0dp"
+                    android:text="@string/btn_view_ticket"
+                    android:textSize="13sp"
+                    app:cornerRadius="26dp"
+                    app:icon="@drawable/ic_history"
+                    app:iconGravity="textStart"
+                    app:iconSize="18dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnFinalize"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_weight="1"
+                    android:insetBottom="0dp"
+                    android:insetTop="0dp"
+                    android:text="@string/btn_finalize_order"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@color/success"
+                    app:cornerRadius="26dp"
+                    app:icon="@drawable/ic_add_cart"
+                    app:iconGravity="textStart"
+                    app:iconSize="18dp" />
+            </LinearLayout>
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 

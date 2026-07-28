@@ -7,12 +7,22 @@ import com.example.test.data.local.entities.PendingBatchEntity
 
 class PendingBatchDao(private val db: AppDatabase) {
 
-    fun insert(entity: PendingBatchEntity) {
+    fun insert(entity: PendingBatchEntity): Long {
         val values = ContentValues().apply {
             put("batch_json", entity.batchJson)
             put("created_at", entity.createdAt)
         }
-        db.writableDatabase.insert("pending_batches", null, values)
+        return db.writableDatabase.insert("pending_batches", null, values)
+    }
+
+    // Fase 82 — re-serializa un batch offline ya encolado con el
+    // payment_method/check_number elegido después del ticket #1, para que
+    // SyncWorker lo mande correcto cuando recupere conexión.
+    fun updateBatchJson(id: Long, newJson: String) {
+        val values = ContentValues().apply {
+            put("batch_json", newJson)
+        }
+        db.writableDatabase.update("pending_batches", values, "id = ?", arrayOf(id.toString()))
     }
 
     fun getAll(): List<PendingBatchEntity> {

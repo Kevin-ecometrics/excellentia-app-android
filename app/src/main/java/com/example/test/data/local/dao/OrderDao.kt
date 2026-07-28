@@ -20,6 +20,7 @@ class OrderDao(private val db: AppDatabase) {
             put("customer_name", order.customerName)
             order.unit?.let { put("unit", it) }
             order.caseQty?.let { put("case_qty", it) }
+            put("is_credit", if (order.isCredit) 1 else 0)
         }
         return db.writableDatabase.insert("pending_orders", null, values)
     }
@@ -58,7 +59,22 @@ class OrderDao(private val db: AppDatabase) {
     fun findActiveByBarcodeAndPrice(barcode: String, price: Double): PendingOrderEntity? {
         val cursor = db.readableDatabase.query(
             "pending_orders", null,
-            "barcode = ? AND price = ? AND retry_count >= 0", arrayOf(barcode, price.toString()),
+            "barcode = ? AND price = ? AND retry_count >= 0 AND is_credit = 0", arrayOf(barcode, price.toString()),
+            null, null, "created_at DESC", "1"
+        )
+        return cursor.use {
+            if (it.moveToFirst()) cursorToEntity(it) else null
+        }
+    }
+
+    // Fase 86 — fila de crédito activa para el mismo barcode (sin importar el
+    // precio, que acá es solo una estimación local del valor por unidad) —
+    // usada por OrderRepository.saveCreditItem() para sumar cantidad en vez
+    // de duplicar la fila al agregar el mismo producto dos veces como crédito.
+    fun findActiveCreditByBarcode(barcode: String): PendingOrderEntity? {
+        val cursor = db.readableDatabase.query(
+            "pending_orders", null,
+            "barcode = ? AND is_credit = 1 AND retry_count >= 0", arrayOf(barcode),
             null, null, "created_at DESC", "1"
         )
         return cursor.use {
@@ -115,7 +131,7 @@ class OrderDao(private val db: AppDatabase) {
 
     fun count(): Int {
         val cursor = db.readableDatabase.rawQuery(
-            "SELECT COUNT(*) FROM pending_orders WHERE retry_count >= 0", null
+            "SELECT COUNT(*) FROM pending_orders WHERE retry_count >= 0 AND is_credit = 0", null
         )
         return cursor.use {
             if (it.moveToFirst()) it.getInt(0) else 0
@@ -139,6 +155,8 @@ class OrderDao(private val db: AppDatabase) {
         unit = c.getColumnIndex("unit").takeIf { it >= 0 }
             ?.let { if (c.isNull(it)) null else c.getString(it) },
         caseQty = c.getColumnIndex("case_qty").takeIf { it >= 0 }
-            ?.let { if (c.isNull(it)) null else c.getInt(it) }
+            ?.let { if (c.isNull(it)) null else c.getInt(it) },
+        isCredit = c.getColumnIndex("is_credit").takeIf { it >= 0 }
+            ?.let { !c.isNull(it) && c.getInt(it) == 1 } ?: false
     )
 }

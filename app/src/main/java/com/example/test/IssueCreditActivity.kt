@@ -1,7 +1,6 @@
 package com.example.test
 
 import android.app.Activity
-import android.app.DatePickerDialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -14,45 +13,45 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
-import com.example.test.data.PreOrderItem
-import com.example.test.data.PreOrderRequest
-import com.example.test.data.UserBrief
+import com.example.test.data.CreditItemRequest
+import com.example.test.data.IssueCreditRequest
+import com.example.test.data.ProductDto
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
-import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import java.util.Locale
 
-class CreatePreOrderActivity : BaseActivity() {
+class IssueCreditActivity : BaseActivity() {
 
     private lateinit var cardCustomer: MaterialCardView
     private lateinit var tvSelectedCustomer: TextView
-    private lateinit var cardSalesperson: MaterialCardView
-    private lateinit var tvSalesperson: TextView
-    private lateinit var btnPickDate: MaterialButton
-    private lateinit var tvSelectedDate: TextView
-    private lateinit var etNotes: TextInputEditText
+    private lateinit var tvCustomerCredit: TextView
     private lateinit var layoutItems: LinearLayout
     private lateinit var tvNoItems: TextView
+    private lateinit var tvTotalEstimated: TextView
     private lateinit var btnSearchProduct: MaterialButton
-    private lateinit var btnSavePreOrder: MaterialButton
+    private lateinit var btnSaveCredit: MaterialButton
     private lateinit var securePrefs: SecurePreferences
 
     private var selectedCustomerId: String? = null
     private var selectedCustomerName: String? = null
-    private var selectedSalespersonName: String? = null
-    private var selectedDate: String? = null
-    private val items = mutableListOf<PreOrderItem>()
-    private val salespersons = mutableListOf<UserBrief>()
+
+    private data class CreditLine(
+        val barcode: String,
+        val productName: String,
+        var qty: Int,
+        val unit: String?,
+        val estimatedUnitValue: Double
+    )
+
+    private val lines = mutableListOf<CreditLine>()
 
     private companion object {
         const val DW_RESULT_ACTION = "com.symbol.datawedge.datawedge.ACTION_RESULT"
@@ -76,13 +75,14 @@ class CreatePreOrderActivity : BaseActivity() {
             selectedCustomerName = result.data?.getStringExtra("customer_name")
             tvSelectedCustomer.text = selectedCustomerName ?: getString(R.string.label_customer_selected)
             tvSelectedCustomer.setTextColor(getColor(R.color.text_primary))
+            selectedCustomerId?.let { refreshCustomerCredit(it) }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_create_pre_order)
+        setContentView(R.layout.activity_issue_credit)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(b.left, 0, b.right, b.bottom)
@@ -92,27 +92,22 @@ class CreatePreOrderActivity : BaseActivity() {
         securePrefs = SecurePreferences(this)
         RetrofitClient.initialize(securePrefs.getBackendUrl(), securePrefs, this)
 
-        cardCustomer      = findViewById(R.id.cardCustomer)
+        cardCustomer       = findViewById(R.id.cardCustomer)
         tvSelectedCustomer = findViewById(R.id.tvSelectedCustomer)
-        cardSalesperson   = findViewById(R.id.cardSalesperson)
-        tvSalesperson     = findViewById(R.id.tvSalesperson)
-        btnPickDate       = findViewById(R.id.btnPickDate)
-        tvSelectedDate    = findViewById(R.id.tvSelectedDate)
-        etNotes           = findViewById(R.id.etNotes)
-        layoutItems       = findViewById(R.id.layoutItems)
-        tvNoItems         = findViewById(R.id.tvNoItems)
-        btnSearchProduct  = findViewById(R.id.btnSearchProduct)
-        btnSavePreOrder   = findViewById(R.id.btnSavePreOrder)
+        tvCustomerCredit   = findViewById(R.id.tvCustomerCredit)
+        layoutItems        = findViewById(R.id.layoutItems)
+        tvNoItems          = findViewById(R.id.tvNoItems)
+        tvTotalEstimated   = findViewById(R.id.tvTotalEstimated)
+        btnSearchProduct   = findViewById(R.id.btnSearchProduct)
+        btnSaveCredit      = findViewById(R.id.btnSaveCredit)
 
-        // Pre-fill active customer if any
         securePrefs.getActiveCustomerId()?.let { id ->
             selectedCustomerId   = id
             selectedCustomerName = securePrefs.getActiveCustomerName()
             tvSelectedCustomer.text = selectedCustomerName ?: ""
             tvSelectedCustomer.setTextColor(getColor(R.color.text_primary))
+            refreshCustomerCredit(id)
         }
-
-        loadSalespersons()
 
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
 
@@ -120,10 +115,8 @@ class CreatePreOrderActivity : BaseActivity() {
             customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
         }
 
-        cardSalesperson.setOnClickListener { showSalespersonPicker() }
-        btnPickDate.setOnClickListener { showDatePicker() }
         btnSearchProduct.setOnClickListener { showProductSearchDialog() }
-        btnSavePreOrder.setOnClickListener { savePreOrder() }
+        btnSaveCredit.setOnClickListener { saveCredit() }
 
         registerDwReceiver()
     }
@@ -133,9 +126,25 @@ class CreatePreOrderActivity : BaseActivity() {
         try { unregisterReceiver(dwReceiver) } catch (_: Exception) {}
     }
 
+    private fun refreshCustomerCredit(customerId: String) {
+        tvCustomerCredit.visibility = View.GONE
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getCustomerCreditBalance(customerId)
+                if (resp.isSuccessful) {
+                    val balance = resp.body()?.balance ?: 0.0
+                    if (balance > 0) {
+                        tvCustomerCredit.text = getString(R.string.label_available_credit, balance)
+                        tvCustomerCredit.visibility = View.VISIBLE
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
     private fun registerDwReceiver() {
         val filter = IntentFilter(DW_RESULT_ACTION).apply {
-            addCategory(android.content.Intent.CATEGORY_DEFAULT)
+            addCategory(Intent.CATEGORY_DEFAULT)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(dwReceiver, filter, RECEIVER_EXPORTED)
@@ -144,55 +153,13 @@ class CreatePreOrderActivity : BaseActivity() {
         }
     }
 
-    private fun loadSalespersons() {
-        lifecycleScope.launch {
-            try {
-                val resp = RetrofitClient.getApi().listSalespersons()
-                if (resp.isSuccessful) {
-                    val list = resp.body()?.data ?: emptyList()
-                    salespersons.clear()
-                    salespersons.addAll(list)
-                }
-            } catch (_: Exception) {}
-        }
-    }
-
-    private fun showSalespersonPicker() {
-        if (salespersons.isEmpty()) {
-            Snackbar.make(findViewById(android.R.id.content), "No hay vendedores disponibles", Snackbar.LENGTH_SHORT).show()
-            return
-        }
-        val names = salespersons.map { it.name ?: "—" }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("Seleccionar vendedor")
-            .setItems(names) { _, index ->
-                val sp = salespersons[index]
-                selectedSalespersonName = sp.name
-                tvSalesperson.text = sp.name ?: "—"
-                tvSalesperson.setTextColor(getColor(R.color.text_primary))
-            }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
-    }
-
-    private fun showDatePicker() {
-        val cal = Calendar.getInstance()
-        DatePickerDialog(this, { _, y, m, d ->
-            selectedDate = String.format(Locale.US, "%04d-%02d-%02d", y, m + 1, d)
-            tvSelectedDate.text = getString(R.string.label_delivery_date, selectedDate)
-            tvSelectedDate.visibility = View.VISIBLE
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).also {
-            it.datePicker.minDate = cal.timeInMillis
-        }.show()
-    }
-
     private fun onBarcodeScanned(barcode: String) {
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().getProductByBarcode(barcode)
                 if (resp.isSuccessful) {
                     val product = resp.body()?.data ?: return@launch
-                    addDraftItem(barcode, product.name)
+                    askQtyThenAdd(product)
                 } else {
                     Snackbar.make(findViewById(android.R.id.content),
                         getString(R.string.error_product_not_found_barcode, barcode), Snackbar.LENGTH_SHORT).show()
@@ -206,15 +173,15 @@ class CreatePreOrderActivity : BaseActivity() {
 
     private fun showProductSearchDialog() {
         val ctx = this
-        val layout = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding(48, 16, 48, 0)
         }
         val etSearch = android.widget.EditText(ctx).apply {
             hint = getString(R.string.hint_product_name_search)
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
-        val tvStatus = android.widget.TextView(ctx).apply {
+        val tvStatus = TextView(ctx).apply {
             textSize = 13f
             setPadding(0, 12, 0, 0)
             setTextColor(getColor(R.color.text_secondary))
@@ -222,10 +189,10 @@ class CreatePreOrderActivity : BaseActivity() {
         }
         val listHeightPx = (240 * resources.displayMetrics.density).toInt()
         val lvResults = android.widget.ListView(ctx).apply {
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, listHeightPx
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, listHeightPx
             )
-            visibility = android.view.View.GONE
+            visibility = View.GONE
             divider = android.graphics.drawable.ColorDrawable(getColor(R.color.text_secondary))
             dividerHeight = 1
             clipToPadding = false
@@ -235,7 +202,7 @@ class CreatePreOrderActivity : BaseActivity() {
         layout.addView(tvStatus)
         layout.addView(lvResults)
 
-        var foundProducts: List<com.example.test.data.ProductDto> = emptyList()
+        var foundProducts: List<ProductDto> = emptyList()
         val resultsAdapter = android.widget.ArrayAdapter<String>(ctx, android.R.layout.simple_list_item_1, mutableListOf())
         lvResults.adapter = resultsAdapter
 
@@ -248,7 +215,7 @@ class CreatePreOrderActivity : BaseActivity() {
         lvResults.setOnItemClickListener { _, _, idx, _ ->
             foundProducts.getOrNull(idx)?.let { p ->
                 dialog.dismiss()
-                addDraftItem(p.barcode ?: "", p.name)
+                askQtyThenAdd(p)
             }
         }
 
@@ -259,11 +226,11 @@ class CreatePreOrderActivity : BaseActivity() {
                 val query = s?.toString()?.trim() ?: return
                 if (query.length < 2) {
                     tvStatus.text = getString(R.string.label_type_at_least_2)
-                    lvResults.visibility = android.view.View.GONE
+                    lvResults.visibility = View.GONE
                     return
                 }
                 tvStatus.text = getString(R.string.label_searching)
-                lvResults.visibility = android.view.View.GONE
+                lvResults.visibility = View.GONE
                 lifecycleScope.launch {
                     try {
                         val resp = RetrofitClient.getApi().searchProducts(query)
@@ -271,20 +238,20 @@ class CreatePreOrderActivity : BaseActivity() {
                             foundProducts = resp.body()?.data ?: emptyList()
                             if (foundProducts.isEmpty()) {
                                 tvStatus.text = getString(R.string.label_no_results, query)
-                                lvResults.visibility = android.view.View.GONE
+                                lvResults.visibility = View.GONE
                             } else {
                                 tvStatus.text = ""
                                 resultsAdapter.clear()
                                 foundProducts.forEach { p ->
-                                    resultsAdapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/${p.unit ?: "lb"}  ·  ${p.barcode ?: getString(R.string.no_barcode_label)}")
+                                    resultsAdapter.add("${p.name}  ·  $${String.format(Locale.US, "%.2f", p.price)}/${p.unit ?: "lb"}  ·  ${p.barcode ?: getString(R.string.no_barcode_label)}")
                                 }
-                                lvResults.visibility = android.view.View.VISIBLE
+                                lvResults.visibility = View.VISIBLE
                                 lvResults.post { lvResults.setSelection(0) }
                             }
                         }
                     } catch (_: Exception) {
                         tvStatus.text = getString(R.string.label_search_error)
-                        lvResults.visibility = android.view.View.GONE
+                        lvResults.visibility = View.GONE
                     }
                 }
             }
@@ -294,29 +261,50 @@ class CreatePreOrderActivity : BaseActivity() {
         dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
     }
 
-    private fun addDraftItem(barcode: String, name: String) {
-        if (barcode.isBlank() || barcode == "unknown") {
-            Snackbar.make(findViewById(android.R.id.content),
-                getString(R.string.error_no_barcode_preorder), Snackbar.LENGTH_SHORT).show()
-            return
+    // Espeja unitValueOf() del backend (creditCalculator.ts) solo para el
+    // estimado en pantalla — el backend recalcula la cifra autoritativa.
+    private fun estimatedUnitValueOf(product: ProductDto): Double =
+        if (product.unit.equals("Case", true) || product.unit.equals("Unit", true) || product.unit.equals("Bucket", true))
+            product.price
+        else
+            product.price * (product.weightPerUnit ?: 1.0)
+
+    private fun askQtyThenAdd(product: ProductDto) {
+        val barcode = product.barcode ?: return
+        val ctx = this
+        val etQty = android.widget.EditText(ctx).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.hint_credit_qty)
+            setText("1")
+            selectAll()
         }
-        if (items.any { it.barcode == barcode }) {
-            Snackbar.make(findViewById(android.R.id.content),
-                getString(R.string.error_already_in_preorder), Snackbar.LENGTH_SHORT).show()
-            return
-        }
-        addItem(PreOrderItem(barcode = barcode, productName = name))
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle(getString(R.string.title_credit_qty))
+            .setMessage(product.name)
+            .setView(etQty)
+            .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
+                val qty = etQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                addLine(barcode, product.name, qty, product.unit, estimatedUnitValueOf(product))
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 
-    private fun addItem(item: PreOrderItem) {
-        items.add(item)
-        tvNoItems.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+    private fun addLine(barcode: String, productName: String, qty: Int, unit: String?, estimatedUnitValue: Double) {
+        val existing = lines.find { it.barcode == barcode }
+        if (existing != null) {
+            existing.qty += qty
+        } else {
+            lines.add(CreditLine(barcode, productName, qty, unit, estimatedUnitValue))
+        }
         rebuildItemsList()
+        updateTotal()
     }
 
     private fun rebuildItemsList() {
         layoutItems.removeAllViews()
-        for ((idx, item) in items.withIndex()) {
+        tvNoItems.visibility = if (lines.isEmpty()) View.VISIBLE else View.GONE
+        for ((idx, line) in lines.withIndex()) {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -328,7 +316,7 @@ class CreatePreOrderActivity : BaseActivity() {
 
             val tvItem = TextView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${item.productName}\n${item.barcode}"
+                text = "${line.productName}\n${String.format(Locale.US, "%d %s ≈ $%.2f", line.qty, line.unit ?: "lb", line.qty * line.estimatedUnitValue)}"
                 textSize = 13f
                 setTextColor(getColor(R.color.text_primary))
             }
@@ -338,9 +326,9 @@ class CreatePreOrderActivity : BaseActivity() {
                 setIconResource(R.drawable.ic_remove)
                 iconTint = android.content.res.ColorStateList.valueOf(getColor(R.color.red))
                 setOnClickListener {
-                    items.removeAt(idx)
-                    tvNoItems.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+                    lines.removeAt(idx)
                     rebuildItemsList()
+                    updateTotal()
                 }
             }
 
@@ -350,47 +338,50 @@ class CreatePreOrderActivity : BaseActivity() {
         }
     }
 
-    private fun savePreOrder() {
+    private fun updateTotal() {
+        val total = lines.sumOf { it.qty * it.estimatedUnitValue }
+        tvTotalEstimated.text = String.format(Locale.US, "$%.2f", total)
+    }
+
+    private fun saveCredit() {
         if (selectedCustomerId == null || selectedCustomerName == null) {
             Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_select_customer_first), Snackbar.LENGTH_SHORT).show()
             return
         }
-        if (selectedDate == null) {
-            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_select_date), Snackbar.LENGTH_SHORT).show()
-            return
-        }
-        if (items.isEmpty()) {
+        if (lines.isEmpty()) {
             Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_add_at_least_one_product), Snackbar.LENGTH_SHORT).show()
             return
         }
 
-        btnSavePreOrder.isEnabled = false
-        btnSavePreOrder.text = getString(R.string.btn_saving)
+        btnSaveCredit.isEnabled = false
+        btnSaveCredit.text = getString(R.string.btn_saving)
 
-        val request = PreOrderRequest(
-            customerId      = selectedCustomerId!!,
-            customerName    = selectedCustomerName!!,
-            salespersonName = selectedSalespersonName,
-            scheduledDate   = selectedDate,
-            notes           = etNotes.text?.toString()?.trim()?.takeIf { it.isNotBlank() },
-            items           = items.toList()
+        val request = IssueCreditRequest(
+            customerId   = selectedCustomerId!!,
+            customerName = selectedCustomerName,
+            items = lines.map { CreditItemRequest(it.barcode, it.productName, it.qty) }
         )
 
         lifecycleScope.launch {
             try {
-                val resp = RetrofitClient.getApi().createPreOrder(request)
+                val resp = RetrofitClient.getApi().issueCredit(request)
                 if (resp.isSuccessful) {
+                    val body = resp.body()
+                    Snackbar.make(findViewById(android.R.id.content),
+                        getString(R.string.msg_credit_issued_success, body?.creditsTotal ?: 0.0, selectedCustomerName ?: ""), Snackbar.LENGTH_LONG).show()
                     setResult(Activity.RESULT_OK)
                     finish()
                 } else {
-                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_server_code, resp.code()), Snackbar.LENGTH_LONG).show()
-                    btnSavePreOrder.isEnabled = true
-                    btnSavePreOrder.text = getString(R.string.btn_save_pre_order)
+                    Snackbar.make(findViewById(android.R.id.content),
+                        getString(R.string.error_issue_credit_failed, resp.code().toString()), Snackbar.LENGTH_LONG).show()
+                    btnSaveCredit.isEnabled = true
+                    btnSaveCredit.text = getString(R.string.btn_save_credit)
                 }
             } catch (e: Exception) {
-                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_no_connection), Snackbar.LENGTH_LONG).show()
-                btnSavePreOrder.isEnabled = true
-                btnSavePreOrder.text = getString(R.string.btn_save_pre_order)
+                Snackbar.make(findViewById(android.R.id.content),
+                    e.localizedMessage ?: getString(R.string.error_no_connection), Snackbar.LENGTH_LONG).show()
+                btnSaveCredit.isEnabled = true
+                btnSaveCredit.text = getString(R.string.btn_save_credit)
             }
         }
     }

@@ -175,6 +175,15 @@
                             android:textColor="#FFFFFF"
                             android:textSize="15sp"
                             android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvCustomerCredit"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:textColor="#CCE0F0FF"
+                            android:textSize="12sp"
+                            android:visibility="gone" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -347,6 +356,21 @@
                 android:textColor="@color/primary"
                 android:textSize="13sp"
                 app:icon="@drawable/ic_schedule"
+                app:iconGravity="textStart"
+                app:iconSize="15dp"
+                app:iconTint="@color/primary" />
+
+            <!-- Agregar créditos shortcut -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddCredit"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginTop="4dp"
+                android:text="@string/btn_add_credit"
+                android:textColor="@color/primary"
+                android:textSize="13sp"
+                app:icon="@drawable/ic_credit_card"
                 app:iconGravity="textStart"
                 app:iconSize="15dp"
                 app:iconTint="@color/primary" />

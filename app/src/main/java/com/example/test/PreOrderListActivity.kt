@@ -202,8 +202,14 @@ class PreOrderListActivity : BaseActivity() {
             tvSalesperson.visibility = View.GONE
         }
 
-        view.findViewById<TextView>(R.id.tvPreOrderTotal).text =
+        // DRAFT/CONFIRMED/CANCELLED no tienen precio real todavía — el detalle
+        // (peso/case/precio) se captura recién al convertir (Fase 87). Mostrar
+        // "$0.00" ahí se lee como un error; solo CONVERTED tiene un total de verdad
+        // persistido en pre_order_items.
+        view.findViewById<TextView>(R.id.tvPreOrderTotal).text = if (po.status == "CONVERTED")
             String.format(Locale.US, "$%.2f", po.total)
+        else
+            getString(R.string.label_pre_order_not_priced)
 
         view.setOnClickListener {
             detailLauncher.launch(Intent(this, PreOrderDetailActivity::class.java).apply {

@@ -299,7 +299,9 @@ class HistoryActivity : BaseActivity() {
             tvCustomer.visibility = View.GONE
         }
 
-        val total = orders.sumOf { it.total }
+        val creditApplied = orders.firstOrNull()?.creditApplied ?: 0.0
+        val damageCredits = orders.firstOrNull()?.damageCredits ?: 0.0
+        val total = orders.sumOf { it.total } - damageCredits - creditApplied
         view.findViewById<TextView>(R.id.tvBatchTotal).text =
             String.format(Locale.US, "$%.2f", total)
 

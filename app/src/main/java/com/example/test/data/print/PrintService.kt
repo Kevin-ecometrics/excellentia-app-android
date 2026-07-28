@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.Base64
+import com.example.test.R
 import com.example.test.data.BatchItem
 import com.example.test.data.byTicketCategory
 import com.example.test.data.creditsTotalOf
@@ -50,12 +51,14 @@ object PrintService {
         // (para Lbs, el backend usa weight_per_unit, que el cliente no conoce). Si
         // es null (impresión offline, sin respuesta del servidor todavía), se cae a
         // la suma local vía creditsTotalOf().
-        creditsTotal: Double? = null
+        creditsTotal: Double? = null,
+        creditApplied: Double? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         if (!hasBtConnectPermission(context))
             return@withContext Result.failure(Exception("Bluetooth permission not granted"))
         val prefs = SecurePreferences(context)
         send(context, deviceAddress, buildCpcl(
+            context         = context,
             items           = items,
             customerName    = customerName,
             customerAddress = customerAddress,
@@ -71,8 +74,8 @@ object PrintService {
             paymentMethod   = paymentMethod,
             checkNumber     = checkNumber,
             signature       = signature,
-            disclaimer      = prefs.getDisclaimer(),
-            creditsTotal    = creditsTotal
+            creditsTotal    = creditsTotal,
+            creditApplied   = creditApplied
         ))
     }
 
@@ -137,6 +140,7 @@ object PrintService {
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun buildCpcl(
+        context: Context,
         items: List<BatchItem>,
         customerName: String?,
         customerAddress: String? = null,
@@ -152,8 +156,8 @@ object PrintService {
         paymentMethod: String? = null,
         checkNumber: String? = null,
         signature: String? = null,
-        disclaimer: String? = null,
-        creditsTotal: Double? = null
+        creditsTotal: Double? = null,
+        creditApplied: Double? = null
     ): String {
         val date = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
         val grandTotal = items.sumOf { it.total }
@@ -261,7 +265,13 @@ object PrintService {
             body.t(F4, 0, y, twoCol("Subtotal:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 4
             body.t(F4, 0, y, twoCol("Credits:", String.format(Locale.US, "-\$%.2f", credits), 28));    y += F4H + 4
         }
-        val finalTotal = grandTotal - credits
+        val creditAppliedVal = creditApplied ?: 0.0
+        val finalTotal = if (creditAppliedVal > 0) {
+            body.t(F4, 0, y, twoCol("Credit Applied:", String.format(Locale.US, "-\$%.2f", creditAppliedVal), 28)); y += F4H + 4
+            grandTotal - credits - creditAppliedVal
+        } else {
+            grandTotal - credits
+        }
         body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", finalTotal), 28)); y += F4H + 8
         // Con una sola categoría se puede sumar cantidad + unidad ("22.80 lb total").
         // Mezclando lb + case + unit no hay una suma que tenga sentido — se muestra
@@ -280,15 +290,20 @@ object PrintService {
         body.t(F4, 0, y, qtyLine);                                 y += F4H + 6
         body.t(F4, 0, y, companyName.take(32));                    y += F4H + 16
 
-        // ── Términos y condiciones ──────────────────────
-        // wrapText(28) = 476px — margen seguro para evitar corte en el borde físico
+        // ── Términos y condiciones (QR) ──────────────────
+        // Reemplaza el texto legal completo por un QR que apunta a la página
+        // web con el disclaimer — el texto ya no se imprime en el ticket.
         y += 8
-        body.left()
-        val terms = disclaimer ?: "Terms and Conditions:\n\n(1) Seller retains title to the goods until buyer performs the entire contract and goods have been paid for in full. Seller retains a security interest in the goods, including all additions and replacements, to secure performance of all buyer's obligations under this contract.\n\n(2) The buyer is responsible for any loss or damage to goods once they are in buyer's possession.\n\n(3) Any claim of immediately apparent defect against delivered goods must be made upon receipt. In the case of hidden defects, buyer shall have no more than 3 days to present seller with a claim of defect.\n\n(4) The goods sold in this invoice will only be used for resale.\n\n(5) In any action which may be brought to enforce payment under this contract, seller shall be entitled to recover from buyer all the attorney fees seller incurs, in addition to seller's actual, incidental, and consequential damages.\n\n(6) Buyer agrees to pay a fee of $30.00 for each check drawn on insufficient funds (NSF Check).\n\n(7) Buyer agrees that jurisdiction and venue for any dispute under this contract are proper in San Diego, CA."
-        for (line in wrapText(terms, 28)) {
-            body.t(F4, 0, y, line);                                y += F4H + 4
+        body.t(F4, 0, y, "Terms & Conditions:");                   y += F4H + 4
+        body.t(F4, 0, y, "Scan to view");                          y += F4H + 8
+        val qrWidth = 320
+        val qrX = (PW - qrWidth) / 2
+        val (qrCmd, qrNewY) = buildQrEg(context, qrWidth, qrX, y)
+        if (qrCmd.isNotEmpty()) {
+            body.append(qrCmd)
+            y = qrNewY
         }
-        y += 4
+        y += 8
 
         // ── Firma ──────────────────────────────────────
         if (!signature.isNullOrBlank()) {
@@ -328,45 +343,63 @@ object PrintService {
                "PRINT\r\n"
     }
 
-    // Convierte base64 PNG a comando CPCL EG (1-bit, MSB first).
+    // Convierte un Bitmap a comando CPCL EG (1-bit, MSB first), escalado a
+    // targetWidth. Retorna (comando, nuevaY). Compartido por la firma y el QR
+    // del disclaimer.
+    private fun bitmapToEg(bmp: android.graphics.Bitmap, targetWidth: Int, x: Int, startY: Int): Pair<String, Int> {
+        val scale = targetWidth.toFloat() / bmp.width
+        val newH = (bmp.height * scale).toInt().coerceAtLeast(1)
+        val scaled = android.graphics.Bitmap.createScaledBitmap(bmp, targetWidth, newH, true)
+
+        val widthBytes = (targetWidth + 7) / 8
+        val sb = StringBuilder()
+        sb.append("EG $widthBytes $newH $x $startY ")
+
+        for (row in 0 until newH) {
+            var acc = 0
+            var bits = 0
+            for (col in 0 until targetWidth) {
+                val px = scaled.getPixel(col, row)
+                val r = (px shr 16) and 0xFF
+                val g = (px shr 8) and 0xFF
+                val b = px and 0xFF
+                val lum = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
+                acc = (acc shl 1) or (if (lum < 128) 1 else 0)
+                bits++
+                if (bits == 8) {
+                    sb.append(String.format("%02X", acc))
+                    acc = 0; bits = 0
+                }
+            }
+            if (bits > 0) {
+                acc = acc shl (8 - bits)
+                sb.append(String.format("%02X", acc))
+            }
+        }
+        sb.append("\r\n")
+        return Pair(sb.toString(), startY + newH)
+    }
+
+    // Convierte base64 PNG (firma del cliente) a comando CPCL EG.
     // Retorna (comando, nuevaY). Si falla, retorna ("", startY).
     private fun buildSignatureEg(base64: String, targetWidth: Int, x: Int, startY: Int): Pair<String, Int> {
         return try {
             val raw = Base64.decode(base64, Base64.DEFAULT)
-            var bmp = BitmapFactory.decodeByteArray(raw, 0, raw.size)
+            val bmp = BitmapFactory.decodeByteArray(raw, 0, raw.size)
                 ?: return Pair("", startY)
+            bitmapToEg(bmp, targetWidth, x, startY)
+        } catch (_: Exception) {
+            Pair("", startY)
+        }
+    }
 
-            val scale = targetWidth.toFloat() / bmp.width
-            val newH = (bmp.height * scale).toInt().coerceAtLeast(1)
-            bmp = android.graphics.Bitmap.createScaledBitmap(bmp, targetWidth, newH, true)
-
-            val widthBytes = (targetWidth + 7) / 8
-            val sb = StringBuilder()
-            sb.append("EG $widthBytes $newH $x $startY ")
-
-            for (row in 0 until newH) {
-                var acc = 0
-                var bits = 0
-                for (col in 0 until targetWidth) {
-                    val px = bmp.getPixel(col, row)
-                    val r = (px shr 16) and 0xFF
-                    val g = (px shr 8) and 0xFF
-                    val b = px and 0xFF
-                    val lum = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
-                    acc = (acc shl 1) or (if (lum < 128) 1 else 0)
-                    bits++
-                    if (bits == 8) {
-                        sb.append(String.format("%02X", acc))
-                        acc = 0; bits = 0
-                    }
-                }
-                if (bits > 0) {
-                    acc = acc shl (8 - bits)
-                    sb.append(String.format("%02X", acc))
-                }
-            }
-            sb.append("\r\n")
-            Pair(sb.toString(), startY + newH)
+    // QR del disclaimer (drawable-nodpi/disclaimer_qr.png) a comando CPCL EG.
+    // Retorna (comando, nuevaY). Si falla, retorna ("", startY).
+    private fun buildQrEg(context: Context, targetWidth: Int, x: Int, startY: Int): Pair<String, Int> {
+        return try {
+            val bmp = BitmapFactory.decodeResource(context.resources, R.drawable.disclaimer_qr)
+                ?: return Pair("", startY)
+            bitmapToEg(bmp, targetWidth, x, startY)
         } catch (_: Exception) {
             Pair("", startY)
         }

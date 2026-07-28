@@ -179,6 +179,7 @@
     <string name="loading_invoice_qb">Factura QB: %1$s</string>
     <string name="loading_printing_ticket">Imprimiendo ticket…</string>
     <string name="loading_connecting_printer">Conectando con impresora</string>
+    <string name="loading_saving_payment">Guardando método de pago…</string>
     <string name="error_order_sent_print_fail">Pedido enviado · Error al imprimir: %1$s</string>
     <string name="error_send_order">Error al enviar: %1$s</string>
 
@@ -230,6 +231,7 @@
     <string name="label_delivery_prefix">Entrega: %1$s</string>
     <string name="label_created_prefix">Creado: %1$s</string>
     <string name="label_salesperson_prefix">Vendedor: %1$s</string>
+    <string name="label_pre_order_not_priced">Sin detallar</string>
     <string name="status_draft">BORRADOR</string>
     <string name="status_confirmed">CONFIRMADA</string>
     <string name="status_converted">CONVERTIDA</string>
@@ -252,6 +254,13 @@
     <string name="success_new_pre_order_created">Nueva pre-orden creada</string>
     <string name="error_converting_pre_order">Error al convertir: %1$d</string>
     <string name="error_print_after_send">Pedido enviado · Error al imprimir: %1$s</string>
+    <string name="btn_add_detail">Detallar</string>
+    <string name="btn_edit_detail">Editar</string>
+    <string name="label_items_detailed_progress">%1$d de %2$d detallados</string>
+    <string name="error_no_barcode_preorder">Este producto no tiene código de barras y no se puede agregar a una pre-orden</string>
+    <string name="error_already_in_preorder">Este producto ya está en la lista</string>
+    <string name="error_finish_detailing_items">Termina de detallar todos los productos antes de convertir</string>
+    <string name="error_finalizing_item">Error al guardar el detalle del producto</string>
 
     <!-- ProductDetailActivity -->
     <string name="label_unknown_product">Producto Desconocido</string>
@@ -324,8 +333,11 @@
     <string name="label_no_products_in_order">No hay productos en el pedido</string>
     <string name="label_scan_to_start">Escanea un producto para comenzar</string>
     <string name="label_order_total">TOTAL DEL PEDIDO</string>
+    <string name="label_order_credits">Créditos: -$%1$.2f</string>
     <string name="btn_view_ticket">Ver ticket</string>
     <string name="btn_finalize_order">Finalizar pedido</string>
+    <string name="btn_add_credit_item">+ Agregar crédito</string>
+    <string name="label_credit_item_tag">CRÉDITO</string>
     <string name="label_step_sending_qb">Enviando a QuickBooks</string>
     <string name="label_step_generating_invoice">Generando factura</string>
     <string name="label_step_printing">Imprimiendo ticket</string>
@@ -337,6 +349,7 @@
     <string name="label_invoice_qb">Factura QB</string>
     <string name="label_customer_field">Cliente</string>
     <string name="label_products_field">Productos</string>
+    <string name="label_credits_field">Créditos</string>
     <string name="label_total_field">Total</string>
     <string name="btn_new_order">NUEVO PEDIDO</string>
 
@@ -409,4 +422,17 @@
     <!-- Pre-Orders -->
     <string name="btn_search_product">Buscar producto</string>
     <string name="error_select_date">Seleccione una fecha de entrega</string>
+
+    <!-- IssueCreditActivity -->
+    <string name="btn_add_credit">Agregar crédito</string>
+    <string name="title_issue_credit">Agregar crédito</string>
+    <string name="msg_issue_credit_hint">Agenda crédito para un cliente por productos dañados/caducados, sin necesidad de una venta asociada.</string>
+    <string name="label_estimated_credit_total">Crédito estimado</string>
+    <string name="btn_save_credit">Guardar crédito</string>
+    <string name="title_credit_qty">Cantidad dañada/caducada</string>
+    <string name="hint_credit_qty">Cantidad</string>
+    <string name="msg_credit_issued_success">$%1$.2f acreditado a %2$s</string>
+    <string name="error_issue_credit_failed">No se pudo guardar el crédito: %1$s</string>
+    <string name="label_available_credit">Crédito disponible: $%1$.2f</string>
+    <string name="hint_credit_amount">Monto a aplicar</string>
 </resources>

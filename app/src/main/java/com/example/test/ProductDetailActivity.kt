@@ -560,7 +560,8 @@ class ProductDetailActivity : BaseActivity() {
                     price = pricePerLb,
                     quantity = units.toDouble(),
                     total = pricePerLb * units,
-                    unit = productUnit
+                    unit = productUnit,
+                    caseQty = caseQty
                 ))
                 isWeightBased -> for (weight in weights) {
                     items.add(PreOrderItem(

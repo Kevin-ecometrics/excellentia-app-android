@@ -17,6 +17,12 @@ interface ApiService {
     @POST("api/orders/batch")
     suspend fun createBatch(@Body request: BatchRequest): Response<BatchResponse>
 
+    @PUT("api/orders/batch/{batchId}/payment")
+    suspend fun updateBatchPayment(
+        @Path("batchId") batchId: String,
+        @Body request: UpdatePaymentRequest
+    ): Response<Unit>
+
     @GET("api/orders")
     suspend fun listOrders(
         @Query("page") page: Int = 1,
@@ -71,6 +77,14 @@ interface ApiService {
     suspend fun getBatchDamage(
         @Path("batchId") batchId: String
     ): Response<ApiResponse<List<DamageItem>>>
+
+    @GET("api/customers/{customerId}/credit-balance")
+    suspend fun getCustomerCreditBalance(
+        @Path("customerId") customerId: String
+    ): Response<CreditBalance>
+
+    @POST("api/credits/issue")
+    suspend fun issueCredit(@Body request: IssueCreditRequest): Response<IssueCreditResponse>
 
     @POST("api/orders/batch/{batchId}/retry")
     suspend fun retryBatchSync(

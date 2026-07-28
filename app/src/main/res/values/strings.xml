@@ -97,6 +97,10 @@
     <string name="tip_longpress">Tip: Long-press \"Enter code\" to search by name, or the last scan for the daily summary</string>
     <string name="btn_understood">Got it</string>
     <string name="btn_confirm">Confirm</string>
+    <string name="title_credit_available">Available Credit</string>
+    <string name="msg_credit_apply">This customer has $%1$s in available credit.\n\nYou can apply up to $%2$s to this order — enter how much to apply.</string>
+    <string name="hint_credit_amount">Amount to apply</string>
+    <string name="btn_no_apply_credit">Don\'t apply</string>
     <string name="hint_check_number">Check number</string>
     <string name="title_check_number">Check Number</string>
     <string name="msg_check_number">Enter the check number:</string>
@@ -180,6 +184,7 @@
     <string name="loading_invoice_qb">QB Invoice: %1$s</string>
     <string name="loading_printing_ticket">Printing ticket…</string>
     <string name="loading_connecting_printer">Connecting to printer</string>
+    <string name="loading_saving_payment">Saving payment method…</string>
     <string name="error_order_sent_print_fail">Order sent · Print error: %1$s</string>
     <string name="error_send_order">Error sending: %1$s</string>
 
@@ -231,6 +236,7 @@
     <string name="label_delivery_prefix">Delivery: %1$s</string>
     <string name="label_created_prefix">Created: %1$s</string>
     <string name="label_salesperson_prefix">Salesperson: %1$s</string>
+    <string name="label_pre_order_not_priced">Not detailed yet</string>
     <string name="status_draft">DRAFT</string>
     <string name="status_confirmed">CONFIRMED</string>
     <string name="status_converted">CONVERTED</string>
@@ -253,6 +259,13 @@
     <string name="success_new_pre_order_created">New pre-order created</string>
     <string name="error_converting_pre_order">Error converting: %1$d</string>
     <string name="error_print_after_send">Order sent · Print error: %1$s</string>
+    <string name="btn_add_detail">Detail</string>
+    <string name="btn_edit_detail">Edit</string>
+    <string name="label_items_detailed_progress">%1$d of %2$d detailed</string>
+    <string name="error_no_barcode_preorder">This product has no barcode and can\'t be added to a pre-order</string>
+    <string name="error_already_in_preorder">This product is already in the list</string>
+    <string name="error_finish_detailing_items">Finish detailing all products before converting</string>
+    <string name="error_finalizing_item">Error saving product detail</string>
 
     <!-- ProductDetailActivity -->
     <string name="label_unknown_product">Unknown Product</string>
@@ -337,8 +350,11 @@
     <string name="label_no_products_in_order">No products in the order</string>
     <string name="label_scan_to_start">Scan a product to start</string>
     <string name="label_order_total">ORDER TOTAL</string>
+    <string name="label_order_credits">Credits: -$%1$.2f</string>
     <string name="btn_view_ticket">View ticket</string>
     <string name="btn_finalize_order">Finalize order</string>
+    <string name="btn_add_credit_item">+ Add credit item</string>
+    <string name="label_credit_item_tag">CREDIT</string>
     <string name="label_step_sending_qb">Sending to QuickBooks</string>
     <string name="label_step_generating_invoice">Generating invoice</string>
     <string name="label_step_printing">Printing ticket</string>
@@ -350,6 +366,7 @@
     <string name="label_invoice_qb">QB Invoice</string>
     <string name="label_customer_field">Customer</string>
     <string name="label_products_field">Products</string>
+    <string name="label_credits_field">Credits</string>
     <string name="label_total_field">Total</string>
     <string name="btn_new_order">NEW ORDER</string>
 
@@ -426,4 +443,16 @@
     <string name="loading_saving_offline">Saving order locally…</string>
     <string name="label_order_saved_offline">Order saved (offline)</string>
     <string name="label_will_sync_when_online">Will be sent automatically when online</string>
+
+    <!-- IssueCreditActivity -->
+    <string name="btn_add_credit">Add credit</string>
+    <string name="title_issue_credit">Add credit</string>
+    <string name="msg_issue_credit_hint">Schedule credit for a customer for damaged/expired products, without an associated sale.</string>
+    <string name="label_estimated_credit_total">Estimated credit</string>
+    <string name="btn_save_credit">Save credit</string>
+    <string name="title_credit_qty">Damaged/expired quantity</string>
+    <string name="hint_credit_qty">Quantity</string>
+    <string name="msg_credit_issued_success">$%1$.2f credited to %2$s</string>
+    <string name="error_issue_credit_failed">Could not save credit: %1$s</string>
+    <string name="label_available_credit">Available credit: $%1$.2f</string>
 </resources>

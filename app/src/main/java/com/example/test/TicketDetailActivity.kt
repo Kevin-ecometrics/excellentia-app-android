@@ -70,6 +70,7 @@ class TicketDetailActivity : AppCompatActivity() {
         val customerAddress = intent.getStringExtra("customer_address")
         val paymentMethod   = orders.firstOrNull()?.paymentMethod
         val checkNumber     = orders.firstOrNull()?.checkNumber
+        val creditApplied   = orders.firstOrNull()?.creditApplied
         val rawDate         = orders.firstOrNull()?.createdAt
         val grandTotal      = orders.sumOf { it.total }
         val totalQty        = orders.sumOf { it.quantity }
@@ -95,8 +96,6 @@ class TicketDetailActivity : AppCompatActivity() {
 
         damageItemsForReprint = initialDamage
 
-        val disclaimerText = prefs.getDisclaimer()
-
         buildReceipt(
             companyName       = companyName,
             subtitle          = prefs.getCompanySubtitle(),
@@ -111,17 +110,18 @@ class TicketDetailActivity : AppCompatActivity() {
             customerAddress   = customerAddress,
             paymentMethod     = paymentMethod,
             checkNumber       = checkNumber,
+            creditApplied     = creditApplied,
             orders            = orders,
             grandTotal        = grandTotal,
             totalQty          = totalQty,
             companyNameFooter = companyName,
             signature         = signatureForReprint,
             damageItems       = initialDamage,
-            status            = orderStatus,
-            disclaimer        = disclaimerText
+            status            = orderStatus
         )
 
         // Si hay batchId, cargar firma + damage desde API y actualizar recibo
+
         if (batchId.isNotBlank()) {
             lifecycleScope.launch {
                 try {
@@ -155,14 +155,14 @@ class TicketDetailActivity : AppCompatActivity() {
                                 customerAddress   = customerAddress,
                                 paymentMethod     = paymentMethod,
                                 checkNumber       = checkNumber,
+                                creditApplied     = creditApplied,
                                 orders            = orders,
                                 grandTotal        = grandTotal,
                                 totalQty          = totalQty,
                                 companyNameFooter = companyName,
                                 signature         = signatureForReprint,
                                 damageItems       = damageItemsForReprint,
-                                status            = orderStatus,
-                                disclaimer        = disclaimerText
+                                status            = orderStatus
                             )
                         }
                     }
@@ -201,7 +201,8 @@ class TicketDetailActivity : AppCompatActivity() {
                         damageItems     = damageItemsForReprint,
                         paymentMethod   = paymentMethod,
                         checkNumber     = checkNumber,
-                        signature       = signatureForReprint
+                        signature       = signatureForReprint,
+                        creditApplied   = creditApplied
                     )
                     result.onSuccess {
                         Snackbar.make(findViewById(android.R.id.content),
@@ -249,14 +250,14 @@ class TicketDetailActivity : AppCompatActivity() {
                             customerAddress   = customerAddress,
                             paymentMethod     = paymentMethod,
                             checkNumber       = checkNumber,
+                            creditApplied     = creditApplied,
                             orders            = orders,
                             grandTotal        = grandTotal,
                             totalQty          = totalQty,
                             companyNameFooter = companyName,
                             signature         = signatureForReprint,
                             damageItems       = damageItemsForReprint,
-                            status            = orderStatus,
-                            disclaimer        = disclaimerText
+                            status            = orderStatus
                         )
                     }
                     result.onFailure { e ->
@@ -281,14 +282,13 @@ class TicketDetailActivity : AppCompatActivity() {
         date: String, batchId: String, invoiceId: String,
         invoiceNumber: Int? = null,
         customerName: String?, customerAddress: String?,
-        paymentMethod: String? = null, checkNumber: String? = null,
+        paymentMethod: String? = null, checkNumber: String? = null, creditApplied: Double? = null,
         orders: List<OrderDto>,
         grandTotal: Double, totalQty: Double,
         companyNameFooter: String,
         signature: String?,
         damageItems: List<DamageItem> = emptyList(),
-        status: String?,
-        disclaimer: String? = null
+        status: String?
     ) {
         // ── Cabecera empresa ────────────────────────────
         addLine(companyName, bold = true, sizeSp = 13f)
@@ -359,14 +359,21 @@ class TicketDetailActivity : AppCompatActivity() {
 
         // ── Total ───────────────────────────────────────
         val credits = creditsTotalOf(damageItems, authoritative = null)
+        val creditAppliedVal = creditApplied ?: 0.0
         addSep(heavy = true)
         if (credits > 0) {
             addTwoCol(left = "Subtotal:", right = String.format(Locale.US, "\$%.2f", grandTotal), sizeSp = 12f)
             addTwoCol(left = "Credits:", right = String.format(Locale.US, "-\$%.2f", credits), sizeSp = 12f)
         }
+        val displayTotal = if (creditAppliedVal > 0) {
+            addTwoCol(left = "Credit Applied:", right = String.format(Locale.US, "-\$%.2f", creditAppliedVal), sizeSp = 12f)
+            grandTotal - credits - creditAppliedVal
+        } else {
+            grandTotal - credits
+        }
         addTwoCol(
             left   = "TOTAL:",
-            right  = String.format(Locale.US, "\$%.2f", grandTotal - credits),
+            right  = String.format(Locale.US, "\$%.2f", displayTotal),
             bold   = true,
             sizeSp = 13f
         )
@@ -399,19 +406,20 @@ class TicketDetailActivity : AppCompatActivity() {
             }
         }
 
-        // ── Términos ────────────────────────────────────
+        // ── Términos (QR) ─────────────────────────────────
+        // El texto legal completo se reemplazó por un QR que apunta a la
+        // página web con el disclaimer — mismo criterio que el ticket impreso.
         addSep(heavy = false)
-        addLine(
-            disclaimer ?: "Terms and Conditions:\n\n" +
-            "(1) Seller retains title to the goods until buyer performs the entire contract and goods have been paid for in full. Seller retains a security interest in the goods, including all additions and replacements, to secure performance of all buyer's obligations under this contract.\n\n" +
-            "(2) The buyer is responsible for any loss or damage to goods once they are in buyer's possession.\n\n" +
-            "(3) Any claim of immediately apparent defect against delivered goods must be made upon receipt. In the case of hidden defects, buyer shall have no more than 3 days to present seller with a claim of defect.\n\n" +
-            "(4) The goods sold in this invoice will only be used for resale.\n\n" +
-            "(5) In any action which may be brought to enforce payment under this contract, seller shall be entitled to recover from buyer all the attorney fees seller incurs, in addition to seller's actual, incidental, and consequential damages.\n\n" +
-            "(6) Buyer agrees to pay a fee of $30.00 for each check drawn on insufficient funds (NSF Check).\n\n" +
-            "(7) Buyer agrees that jurisdiction and venue for any dispute under this contract are proper in San Diego, CA.",
-            sizeSp = 8f
-        )
+        addLine("Terms & Conditions: Scan to view", sizeSp = 10f)
+        ticketContent.addView(ImageView(this).apply {
+            setImageResource(R.drawable.disclaimer_qr)
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.FIT_START
+            layoutParams = LinearLayout.LayoutParams((110 * dp).toInt(), (110 * dp).toInt()).apply {
+                topMargin    = (6 * dp).toInt()
+                bottomMargin = (6 * dp).toInt()
+            }
+        })
 
         // ── Firma ───────────────────────────────────────
         addSep(heavy = false)
