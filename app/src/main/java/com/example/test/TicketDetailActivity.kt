@@ -3,6 +3,7 @@ package com.example.test
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Base64
@@ -329,8 +330,8 @@ class TicketDetailActivity : AppCompatActivity() {
         // "# Nombre del producto" (# corrido para todo el ticket, no se reinicia por
         // categoría) seguido de "Qty/Weight   Rate   Total" en 3 columnas.
         addSep(heavy = true)
-        addLine("#  Description", bold = true, sizeSp = 11f)
-        addThreeCol("Qty/Weight", "Rate", "Total", bold = true, sizeSp = 11f)
+        addLine("#  Desc", bold = true, sizeSp = 11f)
+        addThreeCol("Qty/W", "Rate", "Total", bold = true, sizeSp = 11f)
         val groupedByCategory = orders.groupedForTicket().byTicketCategory()
         val showCategoryHeaders = groupedByCategory.size > 1
         var itemNumber = 0
@@ -427,6 +428,15 @@ class TicketDetailActivity : AppCompatActivity() {
             scaleType = ImageView.ScaleType.FIT_START
             layoutParams = LinearLayout.LayoutParams((110 * dp).toInt(), (110 * dp).toInt()).apply {
                 topMargin    = (6 * dp).toInt()
+                bottomMargin = (2 * dp).toInt()
+            }
+        })
+        ticketContent.addView(TextView(this).apply {
+            text = "https://excellentiafoods.com/terms-and-conditions/"
+            textSize = 9f
+            setTextColor(Color.BLACK)
+            typeface = Typeface.MONOSPACE
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
                 bottomMargin = (6 * dp).toInt()
             }
         })
@@ -498,8 +508,14 @@ class TicketDetailActivity : AppCompatActivity() {
 
     // Fila de 3 columnas para el detalle de ítem (qty/weight, rate, total) —
     // mid/right con ancho fijo alineadas a la derecha, left toma el resto.
-    private fun addThreeCol(left: String, mid: String, right: String, bold: Boolean = false, sizeSp: Float = 12f) {
+    private fun addThreeCol(left: String, mid: String, right: String, bold: Boolean = false, sizeSp: Float = 12f, midWidth: Int = 8, rightWidth: Int = 9) {
         val tf = if (bold) Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) else Typeface.MONOSPACE
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.typeface = tf
+            this.textSize = sizeSp * resources.displayMetrics.scaledDensity
+        }
+        val midW = paint.measureText("M".repeat(midWidth)).toInt()
+        val rightW = paint.measureText("M".repeat(rightWidth)).toInt()
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
@@ -513,14 +529,14 @@ class TicketDetailActivity : AppCompatActivity() {
         row.addView(TextView(this).apply {
             text = mid; textSize = sizeSp; setTextColor(Color.BLACK); typeface = tf
             gravity = android.view.Gravity.END
-            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+            layoutParams = LinearLayout.LayoutParams(midW, WRAP_CONTENT).apply {
                 marginStart = (12 * dp).toInt()
             }
         })
         row.addView(TextView(this).apply {
             text = right; textSize = sizeSp; setTextColor(Color.BLACK); typeface = tf
             gravity = android.view.Gravity.END
-            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+            layoutParams = LinearLayout.LayoutParams(rightW, WRAP_CONTENT).apply {
                 marginStart = (12 * dp).toInt()
             }
         })

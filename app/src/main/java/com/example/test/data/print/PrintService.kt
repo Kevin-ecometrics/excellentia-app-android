@@ -237,8 +237,8 @@ object PrintService {
         // Última línea: "Qty/Weight   Rate   Total" en 3 columnas (threeCol).
         y += 4
         body.t(F4, 0, y, SEP);                                     y += F4H + 8
-        body.t(F4, 0, y, "#  Description");                        y += F4H + 3
-        body.t(F4, 4, y, threeCol("Qty/Weight", "Rate", "Total")); y += F4H + 6
+        body.t(F4, 0, y, "#  Desc");                                y += F4H + 3
+        body.t(F4, 0, y, threeCol("Qty/W", "Rate", "Total"));      y += F4H + 6
         val groupedByCategory = items.groupedForTicket().byTicketCategory()
         val showCategoryHeaders = groupedByCategory.size > 1
         var itemNumber = 0
@@ -272,10 +272,10 @@ object PrintService {
                     if (idx == 0) {
                         body.t(F4, 0, y, "$itemNumber  $line");     y += F4H + 3
                     } else {
-                        body.t(F4, 4, y, line);                    y += F4H + 3
+                        body.t(F4, 0, y, line);                    y += F4H + 3
                     }
                 }
-                body.t(F4, 4, y, threeCol(qtyStr, rateStr, totalStr)); y += F4H + 4
+                body.t(F4, 0, y, threeCol(qtyStr, rateStr, totalStr)); y += F4H + 4
                 y += 8
             }
         }
@@ -338,6 +338,9 @@ object PrintService {
         if (qrCmd.isNotEmpty()) {
             body.append(qrCmd)
             y = qrNewY
+        }
+        for (urlLine in "https://excellentiafoods.com/terms-and-conditions/".chunked(LINE_WIDTH)) {
+            body.t(F4, 0, y, urlLine); y += F4H + 4
         }
         y += 8
 
@@ -460,7 +463,7 @@ object PrintService {
     // "$9999.99"), left toma el resto del ancho y se trunca si no entra (caso
     // raro: "N - Case/Unit of Q" con Q de 2+ dígitos y N de 2+ dígitos a la vez).
     // `width` clampado contra MAX_LINE_CHARS, misma razón que twoCol().
-    private fun threeCol(left: String, mid: String, right: String, width: Int = LINE_WIDTH, midWidth: Int = 7, rightWidth: Int = 8): String {
+    private fun threeCol(left: String, mid: String, right: String, width: Int = LINE_WIDTH, midWidth: Int = 8, rightWidth: Int = 9): String {
         val w = width.coerceAtMost(MAX_LINE_CHARS)
         val r = right.padStart(rightWidth).takeLast(rightWidth)
         val m = mid.padStart(midWidth).takeLast(midWidth)
