@@ -4,6 +4,7 @@ data class PendingOrderEntity(
     val id: Int = 0,
     val barcode: String,
     val productName: String,
+    val shortName: String? = null,
     val price: Double,
     val quantity: Double,
     val deviceId: Int? = null,

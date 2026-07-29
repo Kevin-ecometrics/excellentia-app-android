@@ -14,5 +14,6 @@ data class CachedProductEntity(
     val qty: Int = 0,
     val qbItemId: String? = null,
     val qbActive: Boolean? = null,
+    val shortName: String? = null,
     val cachedAt: Long = System.currentTimeMillis()
 )

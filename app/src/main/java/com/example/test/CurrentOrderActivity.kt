@@ -466,7 +466,8 @@ class CurrentOrderActivity : BaseActivity() {
                     customerId = customerId,
                     customerName = customerName,
                     unit = order.unit,
-                    caseQty = order.caseQty
+                    caseQty = order.caseQty,
+                    shortName = order.shortName
                 )
             }
             // Si pendingDamageItems ya tiene contenido es porque askDamagedItems()
@@ -704,7 +705,8 @@ class CurrentOrderActivity : BaseActivity() {
                 quantity = order.quantity,
                 total = order.price * order.quantity,
                 unit = order.unit,
-                caseQty = order.caseQty
+                caseQty = order.caseQty,
+                shortName = order.shortName
             )
         }
 
@@ -1027,7 +1029,8 @@ class CurrentOrderActivity : BaseActivity() {
                                 caseQty = bi.caseQty,
                                 creditApplied = creditAppliedForTicket,
                                 paymentMethod = paymentForPrinting,
-                                checkNumber = checkForPrinting
+                                checkNumber = checkForPrinting,
+                                shortName = bi.shortName
                             )
                         }
                     ))

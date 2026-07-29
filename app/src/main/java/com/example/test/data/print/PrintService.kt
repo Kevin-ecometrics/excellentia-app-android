@@ -48,8 +48,9 @@ object PrintService {
     private const val F4_CHAR_PX = 17
     private val MAX_LINE_CHARS = PW / F4_CHAR_PX
     private val LINE_WIDTH = (MAX_LINE_CHARS - 4).coerceAtLeast(1)
-    // Nombre de producto — deja lugar para el prefijo "N  " (número de línea,
-    // hasta 2 dígitos + 2 espacios) antes del texto en la primera línea.
+    // Nombre de producto — deja lugar para el prefijo "N - " (cantidad
+    // seleccionada, hasta 2 dígitos + " - ") antes del texto en la primera línea
+    // (Fase 97).
     private val ITEM_NAME_WIDTH = (LINE_WIDTH - 4).coerceAtLeast(1)
 
     @SuppressLint("MissingPermission")
@@ -231,51 +232,62 @@ object PrintService {
         }
 
         // ── Ítems (agrupados por producto, y por categoría LBS/CASE-UNIT/BUCKET) ──
-        // Línea 1+: "# Nombre del producto" (con salto de línea si es largo, # solo
-        // en la primera línea) — # es un número de línea corrido para todo el ticket,
-        // no se reinicia por categoría.
-        // Última línea: "Qty/Weight   Rate   Total" en 3 columnas (threeCol).
+        // Línea 1: "N - Nombre del producto" — N = cantidad de veces que se
+        // seleccionó/escaneó este producto (cajas/buckets elegidos, o pesadas
+        // individuales agrupadas para Lbs) — pedido explícito del usuario (Fase 97,
+        // no es la misma cantidad que Qty/W, que ya viene multiplicada/expandida).
+        // Líneas siguientes (si el nombre no entra en una sola): solo texto, sin
+        // repetir el prefijo. Última línea: "Qty/Weight   Rate   Total" en 3
+        // columnas (threeCol).
         y += 4
         body.t(F4, 0, y, SEP);                                     y += F4H + 8
-        body.t(F4, 0, y, "#  Desc");                                y += F4H + 3
+        body.t(F4, 0, y, "Desc");                                   y += F4H + 3
         body.t(F4, 0, y, threeCol("Qty/W", "Rate", "Total"));      y += F4H + 6
         val groupedByCategory = items.groupedForTicket().byTicketCategory()
-        val showCategoryHeaders = groupedByCategory.size > 1
-        var itemNumber = 0
         for ((category, group) in groupedByCategory) {
-            if (showCategoryHeaders) {
-                body.t(F4, 0, y, category);                        y += F4H + 4
-            }
+            // Header de categoría (Fase 98, siempre visible; Fase 100, enmarcado
+            // con DASH arriba/abajo) — antes el nombre de categoría (ej. "LBS")
+            // quedaba pegado al resto del texto y se perdía visualmente; ahora
+            // queda enmarcado como su propia sección, imposible de confundir con
+            // el nombre de un producto.
+            body.t(F4, 0, y, DASH);                                y += F4H + 3
+            body.t(F4, 0, y, category);                            y += F4H + 3
+            body.t(F4, 0, y, DASH);                                y += F4H + 6
             for (g in group) {
-                itemNumber++
-                val avgPrice  = if (g.quantity != 0.0) g.total / g.quantity else 0.0
+                // Qty/W = cantidad total real seleccionada (Fase 96, pedido del
+                // usuario): Case/Unit multiplica por unidades por caja (caseQty) —
+                // 3 cajas de 12 = 36; Lbs/Bucket ya traen el total real en
+                // `quantity` (peso sumado / conteo de buckets), sin multiplicar. El
+                // rate se recalcula sobre esta cantidad (no sobre el número de
+                // cajas/pesadas) para que rate × qty siga dando el total de la línea.
+                val displayQty = if (category == "CASE/UNIT") {
+                    g.quantity * (g.caseQty?.takeIf { it > 0 } ?: 1)
+                } else {
+                    g.quantity
+                }
+                val avgPrice  = if (displayQty != 0.0) g.total / displayQty else 0.0
                 val totalStr  = String.format(Locale.US, "\$%.2f", g.total)
                 val rateStr   = String.format(Locale.US, "\$%.2f", avgPrice)
-                val unitLabel = unitLabel(g.unit)
-                val qtyStr = when {
-                    // "N - X.XX lb" — N = cantidad de unidades pesadas por separado y
-                    // agrupadas en esta línea (ej. 2 chicharrones = 2.00 lb); se omite
-                    // cuando es una sola pesada (N=1), no aporta nada.
-                    isWeightTicketCategory(category) ->
-                        if (g.count > 1) String.format(Locale.US, "%d - %.2f %s", g.count, g.quantity, unitLabel)
-                        else String.format(Locale.US, "%.2f %s", g.quantity, unitLabel)
-                    // "N - Case/Unit of Q" — Q = unidades por paquete (products.qty).
-                    // Con Q<=1 (paquete de un solo artículo, o dato no disponible en
-                    // pedidos viejos) no tiene sentido desglosar "of 1" — cae al else.
-                    category == "CASE/UNIT" && (g.caseQty ?: 0) > 1 ->
-                        String.format(Locale.US, "%d - %s of %d", g.quantity.toInt(), unitLabel, g.caseQty)
-                    else ->
-                        String.format(Locale.US, "%d - %s", g.quantity.toInt(), unitLabel)
-                }
+                // Fase 100/101 — indicador corto de unidad en Qty/W, un número puro
+                // ("105", "36") se prestaba a confusión sin contexto.
+                val qtyStr = if (isWeightTicketCategory(category))
+                    String.format(Locale.US, "%.2f lb", displayQty)
+                else
+                    String.format(Locale.US, "%d %s", displayQty.toInt(), shortQtyUnit(category))
+                // Cantidad seleccionada (para el prefijo del nombre, no confundir con
+                // displayQty de arriba): Lbs = cuántas pesadas individuales se
+                // agruparon en esta línea; Case/Unit y Bucket = cuántas unidades se
+                // eligieron (antes de multiplicar por unidades por caja).
+                val pickCount = if (isWeightTicketCategory(category)) g.count else g.quantity.toInt()
                 val nameLines = wrapText(g.productName, ITEM_NAME_WIDTH)
                 for ((idx, line) in nameLines.withIndex()) {
                     if (idx == 0) {
-                        body.t(F4, 0, y, "$itemNumber  $line");     y += F4H + 3
+                        body.t(F4, 0, y, "$pickCount - $line");    y += F4H + 3
                     } else {
                         body.t(F4, 0, y, line);                    y += F4H + 3
                     }
                 }
-                body.t(F4, 0, y, threeCol(qtyStr, rateStr, totalStr)); y += F4H + 4
+                body.t(F4, 0, y, threeCol(qtyStr, rateStr, totalStr )); y += F4H + 4
                 y += 8
             }
         }
@@ -528,6 +540,17 @@ object PrintService {
         unit.isNullOrBlank() || unit == "Lbs" -> "lb"
         com.example.test.data.isCaseUnitType(unit) -> "Case/Unit"
         else -> unit
+    }
+
+    // Indicador corto de unidad para la columna Qty/W (Fase 101) — a diferencia
+    // de unitLabel() (nombre completo, usado en el header de categoría y el pie
+    // del ticket), acá va abreviado porque comparte línea con rate/total en un
+    // ancho angosto. Basado en `ticketCategoryFor()` (ya normalizado a mayúsculas),
+    // no en el `unit` crudo del producto.
+    private fun shortQtyUnit(category: String): String = when (category) {
+        "CASE/UNIT" -> "cs/unt"
+        "BUCKET" -> "bkt"
+        else -> category.take(3).lowercase(Locale.US)
     }
 
     // Parte una dirección en líneas más naturales que el wrap por ancho solo.

@@ -592,6 +592,7 @@ class MainActivity : BaseActivity() {
                 Intent(this@MainActivity, ProductDetailActivity::class.java).apply {
                     putExtra("BARCODE", barcode)
                     putExtra("PRODUCT_NAME", product.name)
+                    putExtra("SHORT_NAME", product.shortName)
                     putExtra("PRODUCT_PRICE", product.price)
                     putExtra("QUANTITY", initialQty)
                     putExtra("STOCK", product.stock)
@@ -616,7 +617,8 @@ class MainActivity : BaseActivity() {
         val qty: Int = 0,
         val caseQty: Int = 0,
         val qbItemId: String? = null,
-        val qbActive: Boolean? = null
+        val qbActive: Boolean? = null,
+        val shortName: String? = null
     )
 
     // Abre el detalle directo desde un resultado de búsqueda ya cargado (sin volver a
@@ -631,6 +633,7 @@ class MainActivity : BaseActivity() {
                 Intent(this, ProductDetailActivity::class.java).apply {
                     putExtra("BARCODE", barcode)
                     putExtra("PRODUCT_NAME", item.name)
+                    putExtra("SHORT_NAME", item.shortName)
                     putExtra("PRODUCT_PRICE", item.price)
                     putExtra("QUANTITY", if (item.qty > 0) item.qty.toDouble() else item.weightPerUnit?.takeIf { it > 0 } ?: 1.0)
                     putExtra("STOCK", item.stock)
@@ -705,7 +708,7 @@ class MainActivity : BaseActivity() {
                             results.isEmpty() -> runOnUiThread { showProductNotFound(query) }
                             results.size == 1 -> runOnUiThread {
                                 openSuggestion(
-                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty, results[0].caseQty ?: 0, results[0].qbItemId, results[0].qbActive)
+                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty, results[0].caseQty ?: 0, results[0].qbItemId, results[0].qbActive, results[0].shortName)
                                 )
                             }
                             // Varios resultados: se listan en el mismo lvSuggestions (un solo
@@ -713,7 +716,7 @@ class MainActivity : BaseActivity() {
                             // evita el bug de "primer click no abre, segundo abre el anterior".
                             else -> runOnUiThread {
                                 showSuggestions(results.map {
-                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive)
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive, it.shortName)
                                 })
                             }
                         }
@@ -758,7 +761,7 @@ class MainActivity : BaseActivity() {
                                 val products = resp.body()?.data ?: emptyList()
                                 runOnUiThread {
                                     showSuggestions(products.map {
-                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive)
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive, it.shortName)
                                 })
                                 }
                             }
@@ -819,7 +822,7 @@ class MainActivity : BaseActivity() {
         lvResults.setOnItemClickListener { _, _, idx, _ ->
             foundProducts.getOrNull(idx)?.let { p ->
                 dialog.dismiss()
-                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty, p.caseQty ?: 0, p.qbItemId, p.qbActive))
+                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty, p.caseQty ?: 0, p.qbItemId, p.qbActive, p.shortName))
             }
         }
 

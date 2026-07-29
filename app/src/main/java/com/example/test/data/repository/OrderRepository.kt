@@ -73,7 +73,8 @@ class OrderRepository(
         deviceId: Int? = null,
         unit: String? = null,
         caseQty: Int? = null,
-        merge: Boolean = true
+        merge: Boolean = true,
+        shortName: String? = null
     ) {
         val existing = if (merge) orderDao.findActiveByBarcodeAndPrice(barcode, price) else null
         if (existing != null) {
@@ -90,7 +91,8 @@ class OrderRepository(
                 customerId = securePrefs.getActiveCustomerId(),
                 customerName = securePrefs.getActiveCustomerName(),
                 unit = unit,
-                caseQty = caseQty
+                caseQty = caseQty,
+                shortName = shortName
             )
         )
     }
@@ -305,7 +307,8 @@ class OrderRepository(
                             caseQty = dto.caseQty,
                             qty = dto.qty,
                             qbItemId = dto.qbItemId,
-                            qbActive = dto.qbActive
+                            qbActive = dto.qbActive,
+                            shortName = dto.shortName
                         )
                     )
                 }

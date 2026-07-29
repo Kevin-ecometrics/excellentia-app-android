@@ -15,7 +15,8 @@ data class Product(
     val qty: Int = 0,
     val caseQty: Int? = null,
     val qbItemId: String? = null,
-    val qbActive: Boolean? = null
+    val qbActive: Boolean? = null,
+    val shortName: String? = null
 )
 
 enum class SyncStatus { PENDING, SENT, FAILED }
@@ -55,6 +56,7 @@ data class ProductDto(
     val id: Int,
     val barcode: String?,
     val name: String,
+    @SerializedName("short_name") val shortName: String? = null,
     val price: Double,
     @SerializedName("min_price") val minPrice: Double? = null,
     @SerializedName("qb_item_id") val qbItemId: String? = null,
@@ -77,7 +79,8 @@ data class ProductDto(
         qty = qty,
         caseQty = caseQty,
         qbItemId = qbItemId,
-        qbActive = qbActive
+        qbActive = qbActive,
+        shortName = shortName
     )
 }
 
@@ -116,7 +119,8 @@ data class OrderDto(
     @SerializedName("payment_method") val paymentMethod: String? = null,
     @SerializedName("check_number") val checkNumber: String? = null,
     @SerializedName("credit_applied") val creditApplied: Double? = null,
-    @SerializedName("damage_credits") val damageCredits: Double? = null
+    @SerializedName("damage_credits") val damageCredits: Double? = null,
+    @SerializedName("short_name") val shortName: String? = null
 )
 
 data class DeviceRegisterRequest(
@@ -161,7 +165,8 @@ data class BatchItem(
     val quantity: Double,
     val total: Double,
     val unit: String? = null,
-    @SerializedName("case_qty") val caseQty: Int? = null
+    @SerializedName("case_qty") val caseQty: Int? = null,
+    @Transient val shortName: String? = null
 )
 
 // ── Ticket grouping (consolida líneas repetidas del mismo producto) ──
@@ -190,7 +195,8 @@ fun List<OrderDto>.groupedForTicket(): List<GroupedTicketItem> {
         val key = o.barcode.ifBlank { o.productName }
         val existing = groups[key]
         groups[key] = if (existing == null) {
-            GroupedTicketItem(o.barcode, o.productName, o.quantity, o.total, o.unit, o.caseQty)
+            val displayName = o.shortName?.takeIf { it.isNotBlank() } ?: o.productName
+            GroupedTicketItem(o.barcode, displayName, o.quantity, o.total, o.unit, o.caseQty)
         } else {
             existing.copy(quantity = existing.quantity + o.quantity, total = existing.total + o.total, count = existing.count + 1)
         }
@@ -205,7 +211,8 @@ fun List<BatchItem>.groupedForTicket(): List<GroupedTicketItem> {
         val key = i.barcode.ifBlank { i.productName }
         val existing = groups[key]
         groups[key] = if (existing == null) {
-            GroupedTicketItem(i.barcode, i.productName, i.quantity, i.total, i.unit, i.caseQty)
+            val displayName = i.shortName?.takeIf { it.isNotBlank() } ?: i.productName
+            GroupedTicketItem(i.barcode, displayName, i.quantity, i.total, i.unit, i.caseQty)
         } else {
             existing.copy(quantity = existing.quantity + i.quantity, total = existing.total + i.total, count = existing.count + 1)
         }
@@ -431,7 +438,8 @@ data class PreOrderItem(
     val quantity: Double? = null,
     val total: Double? = null,
     val unit: String? = null,
-    @SerializedName("case_qty") val caseQty: Int? = null
+    @SerializedName("case_qty") val caseQty: Int? = null,
+    @SerializedName("short_name") val shortName: String? = null
 )
 
 data class PreOrderRequest(

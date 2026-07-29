@@ -390,6 +390,7 @@ class PreOrderDetailActivity : BaseActivity() {
                 finalizeItemLauncher.launch(Intent(this@PreOrderDetailActivity, ProductDetailActivity::class.java).apply {
                     putExtra("BARCODE", draft.barcode)
                     putExtra("PRODUCT_NAME", product.name)
+                    putExtra("SHORT_NAME", product.shortName)
                     putExtra("PRODUCT_PRICE", product.price)
                     putExtra("QUANTITY", initialQty)
                     putExtra("STOCK", product.stock)
@@ -664,7 +665,8 @@ class PreOrderDetailActivity : BaseActivity() {
                             quantity    = item.quantity ?: 0.0,
                             total       = item.total ?: 0.0,
                             unit        = item.unit,
-                            caseQty     = item.caseQty
+                            caseQty     = item.caseQty,
+                            shortName   = item.shortName
                         )
                     }
 
@@ -807,7 +809,8 @@ class PreOrderDetailActivity : BaseActivity() {
                                 customerId   = po.customerId,
                                 customerName = po.customerName,
                                 unit         = bi.unit,
-                                caseQty      = bi.caseQty
+                                caseQty      = bi.caseQty,
+                                shortName    = bi.shortName
                             )
                         }
                     ))

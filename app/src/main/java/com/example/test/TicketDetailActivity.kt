@@ -187,7 +187,7 @@ class TicketDetailActivity : AppCompatActivity() {
                 val items = orders.map { o ->
                     BatchItem(barcode = o.barcode, productName = o.productName,
                               price = o.price, quantity = o.quantity, total = o.total,
-                              unit = o.unit)
+                              unit = o.unit, caseQty = o.caseQty, shortName = o.shortName)
                 }
                 lifecycleScope.launch {
                     val result = PrintService.printTicket(
@@ -327,37 +327,47 @@ class TicketDetailActivity : AppCompatActivity() {
         }
 
         // ── Ítems (agrupados por producto, y por categoría LBS/CASE-UNIT/BUCKET) ──
-        // "# Nombre del producto" (# corrido para todo el ticket, no se reinicia por
-        // categoría) seguido de "Qty/Weight   Rate   Total" en 3 columnas.
+        // "N - Nombre del producto" — N = cantidad de veces que se seleccionó/
+        // escaneó este producto (cajas/buckets elegidos, o pesadas individuales
+        // agrupadas para Lbs) — pedido explícito del usuario (Fase 97, no es la
+        // misma cantidad que Qty/W, que ya viene multiplicada/expandida). Seguido
+        // de "Qty/Weight   Rate   Total" en 3 columnas.
         addSep(heavy = true)
-        addLine("#  Desc", bold = true, sizeSp = 11f)
+        addLine("Desc", bold = true, sizeSp = 11f)
         addThreeCol("Qty/W", "Rate", "Total", bold = true, sizeSp = 11f)
         val groupedByCategory = orders.groupedForTicket().byTicketCategory()
-        val showCategoryHeaders = groupedByCategory.size > 1
-        var itemNumber = 0
         for ((category, group) in groupedByCategory) {
-            if (showCategoryHeaders) {
-                addLine(category, bold = true, sizeSp = 11f)
-            }
+            // Header de categoría (Fase 98, siempre visible; Fase 100, enmarcado
+            // con separador arriba/abajo) — antes el nombre de categoría (ej. "LBS")
+            // quedaba pegado al resto del texto y se perdía visualmente; ahora
+            // queda enmarcado como su propia sección.
+            addSep(heavy = false)
+            addLine(category, bold = true, sizeSp = 11f)
+            addSep(heavy = false)
             for (g in group) {
-                itemNumber++
-                val avgPrice = if (g.quantity != 0.0) g.total / g.quantity else 0.0
-                val unitLabel = unitLabel(g.unit)
-                addLine("$itemNumber  ${g.productName}", sizeSp = 12f)
-                val qtyStr = when {
-                    // "N - X.XX lb" — N = cantidad de unidades pesadas por separado y
-                    // agrupadas en esta línea (ej. 2 chicharrones = 2.00 lb); se omite
-                    // cuando es una sola pesada (N=1), no aporta nada.
-                    isWeightTicketCategory(category) ->
-                        if (g.count > 1) String.format(Locale.US, "%d - %.2f %s", g.count, g.quantity, unitLabel)
-                        else String.format(Locale.US, "%.2f %s", g.quantity, unitLabel)
-                    // "N - Case/Unit of Q" — Q = unidades por paquete (products.qty).
-                    // Con Q<=1 no tiene sentido desglosar "of 1" — cae al else.
-                    category == "CASE/UNIT" && (g.caseQty ?: 0) > 1 ->
-                        String.format(Locale.US, "%d - %s of %d", g.quantity.toInt(), unitLabel, g.caseQty)
-                    else ->
-                        String.format(Locale.US, "%d - %s", g.quantity.toInt(), unitLabel)
+                // Qty/W = cantidad total real seleccionada (Fase 96, pedido del
+                // usuario): Case/Unit multiplica por unidades por caja (caseQty) —
+                // 3 cajas de 12 = 36; Lbs/Bucket ya traen el total real en
+                // `quantity` (peso sumado / conteo de buckets), sin multiplicar. El
+                // rate se recalcula sobre esta cantidad (no sobre el número de
+                // cajas/pesadas) para que rate × qty siga dando el total de la línea.
+                val displayQty = if (category == "CASE/UNIT") {
+                    g.quantity * (g.caseQty?.takeIf { it > 0 } ?: 1)
+                } else {
+                    g.quantity
                 }
+                val avgPrice = if (displayQty != 0.0) g.total / displayQty else 0.0
+                // Cantidad seleccionada (prefijo del nombre, no confundir con
+                // displayQty de arriba): Lbs = cuántas pesadas individuales se
+                // agruparon en esta línea; Case/Unit y Bucket = cuántas unidades se
+                // eligieron (antes de multiplicar por unidades por caja).
+                val pickCount = if (isWeightTicketCategory(category)) g.count else g.quantity.toInt()
+                addLine("$pickCount - ${g.productName}", sizeSp = 12f)
+                // Fase 100/101 — indicador corto de unidad en Qty/W.
+                val qtyStr = if (isWeightTicketCategory(category))
+                    String.format(Locale.US, "%.2f lb", displayQty)
+                else
+                    String.format(Locale.US, "%d %s", displayQty.toInt(), shortQtyUnit(category))
                 addThreeCol(
                     left  = qtyStr,
                     mid   = String.format(Locale.US, "\$%.2f", avgPrice),
@@ -480,6 +490,16 @@ class TicketDetailActivity : AppCompatActivity() {
         unit.isNullOrBlank() || unit == "Lbs" -> "lb"
         com.example.test.data.isCaseUnitType(unit) -> "Case/Unit"
         else -> unit
+    }
+
+    // Indicador corto de unidad para la columna Qty/W (Fase 101) — a diferencia
+    // de unitLabel() (nombre completo, usado en el header de categoría), acá va
+    // abreviado porque comparte fila con rate/total. Basado en
+    // `ticketCategoryFor()` (ya normalizado a mayúsculas), no en el `unit` crudo.
+    private fun shortQtyUnit(category: String): String = when (category) {
+        "CASE/UNIT" -> "cs/unt"
+        "BUCKET" -> "bkt"
+        else -> category.take(3).lowercase(Locale.US)
     }
 
     // ── View helpers ──────────────────────────────────────────────────────────

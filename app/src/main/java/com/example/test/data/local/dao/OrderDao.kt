@@ -11,6 +11,7 @@ class OrderDao(private val db: AppDatabase) {
         val values = ContentValues().apply {
             put("barcode", order.barcode)
             put("product_name", order.productName)
+            order.shortName?.let { put("short_name", it) }
             put("price", order.price)
             put("quantity", order.quantity)
             put("device_id", order.deviceId)
@@ -142,6 +143,8 @@ class OrderDao(private val db: AppDatabase) {
         id = c.getInt(c.getColumnIndexOrThrow("id")),
         barcode = c.getString(c.getColumnIndexOrThrow("barcode")),
         productName = c.getString(c.getColumnIndexOrThrow("product_name")),
+        shortName = c.getColumnIndex("short_name").takeIf { it >= 0 }
+            ?.let { if (c.isNull(it)) null else c.getString(it) },
         price = c.getDouble(c.getColumnIndexOrThrow("price")),
         quantity = c.getDouble(c.getColumnIndexOrThrow("quantity")),
         deviceId = if (c.isNull(c.getColumnIndexOrThrow("device_id"))) null

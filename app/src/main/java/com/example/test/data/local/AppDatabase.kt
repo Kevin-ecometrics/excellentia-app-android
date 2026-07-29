@@ -13,6 +13,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 barcode TEXT NOT NULL UNIQUE,
                 name TEXT NOT NULL,
+                short_name TEXT,
                 price REAL NOT NULL,
                 category TEXT,
                 brand TEXT,
@@ -42,6 +43,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 barcode TEXT NOT NULL,
                 product_name TEXT NOT NULL,
+                short_name TEXT,
                 price REAL NOT NULL,
                 quantity REAL NOT NULL,
                 device_id INTEGER,
@@ -144,11 +146,15 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
         if (oldVersion < 13) {
             try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN is_credit INTEGER DEFAULT 0") } catch (_: Exception) {}
         }
+        if (oldVersion < 14) {
+            try { db.execSQL("ALTER TABLE cached_products ADD COLUMN short_name TEXT") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN short_name TEXT") } catch (_: Exception) {}
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 13
+        private const val DATABASE_VERSION = 14
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

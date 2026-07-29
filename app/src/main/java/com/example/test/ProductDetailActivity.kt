@@ -26,6 +26,7 @@ class ProductDetailActivity : BaseActivity() {
     companion object {
         private const val KEY_BARCODE = "BARCODE"
         private const val KEY_NAME = "PRODUCT_NAME"
+        private const val KEY_SHORT_NAME = "SHORT_NAME"
         private const val KEY_PRICE = "PRODUCT_PRICE"
         private const val KEY_QUANTITY = "QUANTITY"
         private const val KEY_CUSTOMER_ID = "CUSTOMER_ID"
@@ -58,6 +59,7 @@ class ProductDetailActivity : BaseActivity() {
 
     private var barcode = ""
     private var productName = ""
+    private var productShortName: String? = null
     private var productPrice = 0.0
     private var defaultWeight = 1.0
     private var baseTotal = 0.0
@@ -95,6 +97,7 @@ class ProductDetailActivity : BaseActivity() {
 
         barcode = intent.getStringExtra(KEY_BARCODE) ?: ""
         productName = intent.getStringExtra(KEY_NAME) ?: getString(R.string.label_unknown_product)
+        productShortName = intent.getStringExtra(KEY_SHORT_NAME)
         productPrice = intent.getDoubleExtra(KEY_PRICE, 0.0)
         defaultWeight = intent.getDoubleExtra(KEY_QUANTITY, 1.0).coerceAtLeast(0.1)
         customerId = intent.getStringExtra(KEY_CUSTOMER_ID)
@@ -553,7 +556,8 @@ class ProductDetailActivity : BaseActivity() {
                     quantity = units.toDouble(),
                     total = pricePerLb * units,
                     unit = productUnit,
-                    caseQty = caseQty
+                    caseQty = caseQty,
+                    shortName = productShortName
                 ))
                 isWeightBased -> for (weight in weights) {
                     items.add(PreOrderItem(
@@ -562,7 +566,8 @@ class ProductDetailActivity : BaseActivity() {
                         price = pricePerLb,
                         quantity = weight,
                         total = pricePerLb * weight,
-                        unit = productUnit
+                        unit = productUnit,
+                        shortName = productShortName
                     ))
                 }
                 else -> items.add(PreOrderItem(
@@ -571,7 +576,8 @@ class ProductDetailActivity : BaseActivity() {
                     price = pricePerLb,
                     quantity = units.toDouble(),
                     total = pricePerLb * units,
-                    unit = productUnit
+                    unit = productUnit,
+                    shortName = productShortName
                 ))
             }
             val resultIntent = android.content.Intent().apply {
@@ -597,7 +603,8 @@ class ProductDetailActivity : BaseActivity() {
                     price = pricePerLb,
                     quantity = units.toDouble(),
                     unit = productUnit,
-                    caseQty = caseQty
+                    caseQty = caseQty,
+                    shortName = productShortName
                 )
                 isWeightBased -> for (weight in weights) {
                     orderRepository.savePendingOrder(
@@ -606,7 +613,8 @@ class ProductDetailActivity : BaseActivity() {
                         price = pricePerLb,
                         quantity = weight,
                         unit = productUnit,
-                        merge = false
+                        merge = false,
+                        shortName = productShortName
                     )
                 }
                 else -> orderRepository.savePendingOrder(
@@ -614,7 +622,8 @@ class ProductDetailActivity : BaseActivity() {
                     productName = productName,
                     price = pricePerLb,
                     quantity = units.toDouble(),
-                    unit = productUnit
+                    unit = productUnit,
+                    shortName = productShortName
                 )
             }
         }
