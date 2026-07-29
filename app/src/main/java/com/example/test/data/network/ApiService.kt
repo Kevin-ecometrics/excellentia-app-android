@@ -46,6 +46,9 @@ interface ApiService {
     @GET("api/customers")
     suspend fun getCustomers(): Response<QbCustomersResponse>
 
+    @GET("api/customers/{id}")
+    suspend fun getCustomer(@Path("id") customerId: String): Response<QbCustomer>
+
     @GET("api/settings")
     suspend fun getCompanySettings(): Response<CompanySettingsResponse>
 

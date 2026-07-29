@@ -60,6 +60,10 @@ class PreOrderDetailActivity : BaseActivity() {
 
     private var preOrderId = 0
     private var currentPreOrder: PreOrderDto? = null
+    // pre_orders no guarda dirección (solo customer_id) — se resuelve al vuelo
+    // contra el cliente de QB para que el ticket impreso al convertir sí la
+    // incluya (antes viajaba null/"" siempre).
+    private var resolvedCustomerAddress: String? = null
 
     private var pendingSignature: String? = null
     private var pendingDamageItems: List<DamageItem> = emptyList()
@@ -171,7 +175,16 @@ class PreOrderDetailActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().getPreOrder(preOrderId)
                 if (resp.isSuccessful) {
                     val po = resp.body()?.data
-                    if (po != null) { currentPreOrder = po; renderPreOrder(po) }
+                    if (po != null) {
+                        currentPreOrder = po
+                        renderPreOrder(po)
+                        if (!po.customerId.isNullOrBlank()) {
+                            try {
+                                val custResp = RetrofitClient.getApi().getCustomer(po.customerId)
+                                resolvedCustomerAddress = custResp.takeIf { it.isSuccessful }?.body()?.fullAddress
+                            } catch (_: Exception) { }
+                        }
+                    }
                 } else {
                     showError("Error ${resp.code()}")
                 }
@@ -691,7 +704,7 @@ class PreOrderDetailActivity : BaseActivity() {
                             batchId         = body.batchId,
                             invoiceId       = body.invoiceId,
                             invoiceNumber   = body.invoiceNumber,
-                            customerAddress = null,
+                            customerAddress = resolvedCustomerAddress,
                             damageItems     = damageForPrinting,
                             paymentMethod   = null,
                             signature       = sigForPrinting,
@@ -765,7 +778,7 @@ class PreOrderDetailActivity : BaseActivity() {
                     batchId         = sent.response.batchId,
                     invoiceId       = sent.response.invoiceId,
                     invoiceNumber   = sent.response.invoiceNumber,
-                    customerAddress = null,
+                    customerAddress = resolvedCustomerAddress,
                     damageItems     = sent.damageItems,
                     paymentMethod   = paymentForPrinting,
                     signature       = sent.signature,
@@ -789,7 +802,7 @@ class PreOrderDetailActivity : BaseActivity() {
                     putExtra("invoice_id",        sent.response.invoiceId ?: "")
                     putExtra("invoice_number",    sent.response.invoiceNumber ?: 0)
                     putExtra("customer_name",     po.customerName)
-                    putExtra("customer_address",  "")
+                    putExtra("customer_address",  resolvedCustomerAddress)
                     putExtra("signature",         sent.signature)
                     putExtra("damage_items_json", Gson().toJson(sent.damageItems))
                     putExtra("total",             grandTotal)

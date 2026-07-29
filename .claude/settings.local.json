@@ -96,7 +96,10 @@
       "Bash(./node_modules/.bin/tsc.exe --noEmit -p tsconfig.json)",
       "Bash(./gradlew compileDebugKotlin processDebugResources --console=plain)",
       "Bash(JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\" ./gradlew compileDebugKotlin --console=plain)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\" ./gradlew compileDebugKotlin -q)",
+      "Bash(bun build *)",
+      "Bash(powershell -Command \"Get-Process node,bun -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,StartTime\")"
     ]
   }
 }

@@ -219,15 +219,17 @@ object PrintService {
             val clientLines = wrapText("Customer: $customerName")
             for (line in clientLines) { body.t(F4, 0, y, line);   y += F4H + 3 }
             y += 1
-            if (!paymentMethod.isNullOrBlank()) {
-                body.t(F4, 0, y, if ("Check".equals(paymentMethod, ignoreCase = true) && !checkNumber.isNullOrBlank())
-                    "Payment: $paymentMethod (#$checkNumber)" else "Payment: $paymentMethod");       y += F4H + 4
-            }
             if (!customerAddress.isNullOrBlank()) {
                 for (part in splitAddress(customerAddress)) {
                     y = body.tWrapped(4, y, part, lineGap = 3)
                 }
                 y += 1
+            }
+            if (!paymentMethod.isNullOrBlank()) {
+                body.t(F4, 0, y, "Payment: $paymentMethod");          y += F4H + 4
+                if ("Check".equals(paymentMethod, ignoreCase = true) && !checkNumber.isNullOrBlank()) {
+                    y = body.tWrapped(4, y, "Check #: $checkNumber", lineGap = 3)
+                }
             }
         }
 

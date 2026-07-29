@@ -68,7 +68,7 @@ class TicketDetailActivity : AppCompatActivity() {
         val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
         val invoiceNumber   = intent.getIntExtra("invoice_number", 0).takeIf { it > 0 }
         val customerName    = intent.getStringExtra("customer_name") ?: orders.firstOrNull()?.customerName
-        val customerAddress = intent.getStringExtra("customer_address")
+        var customerAddress = intent.getStringExtra("customer_address")
         val paymentMethod   = orders.firstOrNull()?.paymentMethod
         val checkNumber     = orders.firstOrNull()?.checkNumber
         val creditApplied   = orders.firstOrNull()?.creditApplied
@@ -130,42 +130,61 @@ class TicketDetailActivity : AppCompatActivity() {
                         RetrofitClient.initialize(prefs.getBackendUrl(), prefs, this@TicketDetailActivity)
                     }
                     val resp = RetrofitClient.getApi().getBatchDamage(batchId)
+                    var damageChanged = false
+                    var signatureChanged = false
                     if (resp.isSuccessful) {
                         val body = resp.body()
                         val apiDamage = body?.data ?: emptyList()
                         val apiSignature = body?.signature
 
-                        val damageChanged = apiDamage.isNotEmpty() && apiDamage != damageItemsForReprint
-                        val signatureChanged = !apiSignature.isNullOrBlank() && apiSignature != signatureForReprint
+                        damageChanged = apiDamage.isNotEmpty() && apiDamage != damageItemsForReprint
+                        signatureChanged = !apiSignature.isNullOrBlank() && apiSignature != signatureForReprint
 
-                        if (damageChanged || signatureChanged) {
-                            if (damageChanged)   damageItemsForReprint = apiDamage
-                            if (signatureChanged) signatureForReprint  = apiSignature
-                            ticketContent.removeAllViews()
-                            buildReceipt(
-                                companyName       = companyName,
-                                subtitle          = prefs.getCompanySubtitle(),
-                                city              = prefs.getCompanyCity(),
-                                address           = prefs.getCompanyAddress(),
-                                phone             = prefs.getCompanyPhone(),
-                                date              = formatDate(rawDate),
-                                batchId           = batchId,
-                                invoiceId         = invoiceId,
-                                invoiceNumber     = invoiceNumber,
-                                customerName      = customerName,
-                                customerAddress   = customerAddress,
-                                paymentMethod     = paymentMethod,
-                                checkNumber       = checkNumber,
-                                creditApplied     = creditApplied,
-                                orders            = orders,
-                                grandTotal        = grandTotal,
-                                totalQty          = totalQty,
-                                companyNameFooter = companyName,
-                                signature         = signatureForReprint,
-                                damageItems       = damageItemsForReprint,
-                                status            = orderStatus
-                            )
+                        if (damageChanged)    damageItemsForReprint = apiDamage
+                        if (signatureChanged) signatureForReprint  = apiSignature
+                    }
+
+                    // La dirección del cliente no se persiste en `orders` (solo
+                    // customer_id) — si no vino en el intent (reprint desde
+                    // Historial/ClientHistory, que no la pasan), se resuelve al
+                    // vuelo contra el cliente de QB para que el reprint sí la
+                    // incluya.
+                    var addressChanged = false
+                    val customerId = orders.firstOrNull()?.customerId
+                    if (customerAddress.isNullOrBlank() && !customerId.isNullOrBlank()) {
+                        val custResp = RetrofitClient.getApi().getCustomer(customerId)
+                        val fetchedAddress = custResp.takeIf { it.isSuccessful }?.body()?.fullAddress
+                        if (!fetchedAddress.isNullOrBlank()) {
+                            customerAddress = fetchedAddress
+                            addressChanged = true
                         }
+                    }
+
+                    if (damageChanged || signatureChanged || addressChanged) {
+                        ticketContent.removeAllViews()
+                        buildReceipt(
+                            companyName       = companyName,
+                            subtitle          = prefs.getCompanySubtitle(),
+                            city              = prefs.getCompanyCity(),
+                            address           = prefs.getCompanyAddress(),
+                            phone             = prefs.getCompanyPhone(),
+                            date              = formatDate(rawDate),
+                            batchId           = batchId,
+                            invoiceId         = invoiceId,
+                            invoiceNumber     = invoiceNumber,
+                            customerName      = customerName,
+                            customerAddress   = customerAddress,
+                            paymentMethod     = paymentMethod,
+                            checkNumber       = checkNumber,
+                            creditApplied     = creditApplied,
+                            orders            = orders,
+                            grandTotal        = grandTotal,
+                            totalQty          = totalQty,
+                            companyNameFooter = companyName,
+                            signature         = signatureForReprint,
+                            damageItems       = damageItemsForReprint,
+                            status            = orderStatus
+                        )
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("TicketDetail", "Error cargando batch desde API: ${e.message}", e)
@@ -321,9 +340,10 @@ class TicketDetailActivity : AppCompatActivity() {
 
         // ── Payment ─────────────────────────────────────
         if (!paymentMethod.isNullOrBlank()) {
-            val pmLine = if ("Check".equals(paymentMethod, ignoreCase = true) && !checkNumber.isNullOrBlank())
-                "Payment: $paymentMethod (#$checkNumber)" else "Payment: $paymentMethod"
-            addLine(pmLine, sizeSp = 12f)
+            addLine("Payment: $paymentMethod", sizeSp = 12f)
+            if ("Check".equals(paymentMethod, ignoreCase = true) && !checkNumber.isNullOrBlank()) {
+                addLine("Check #: $checkNumber", sizeSp = 12f, indent = true)
+            }
         }
 
         // ── Ítems (agrupados por producto, y por categoría LBS/CASE-UNIT/BUCKET) ──
