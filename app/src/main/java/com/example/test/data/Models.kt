@@ -213,14 +213,26 @@ fun List<BatchItem>.groupedForTicket(): List<GroupedTicketItem> {
     return groups.values.toList()
 }
 
-// ── Ticket: agrupación por categoría de unidad (LBS / CASE / UNIT / BUCKET) ──
+// ── Case/Unit — tipos fusionados (antes dos tipos separados) ───────────────
+// "Case" y "Unit" se fusionaron en un solo tipo, "Case/Unit": products.price es
+// el precio total del paquete/caja, products.qty las unidades que trae. Se
+// aceptan igual los valores viejos "Case"/"Unit" (datos históricos en
+// orders/pre_order_items que no se migraron, y catálogo hasta que corra la
+// migración del backend) — todos se tratan como el mismo tipo en toda la app.
+fun isCaseUnitType(unit: String?): Boolean =
+    unit.equals("Case/Unit", true) || unit.equals("Case", true) || unit.equals("Unit", true)
+
+// ── Ticket: agrupación por categoría de unidad (LBS / CASE/UNIT / BUCKET) ──
 // Usado por PrintService.buildCpcl() y TicketDetailActivity.buildReceipt() — misma
 // lógica en los dos para que el ticket impreso y la vista en pantalla coincidan.
 
-private val TICKET_CATEGORY_ORDER = listOf("LBS", "CASE", "UNIT", "BUCKET")
+private val TICKET_CATEGORY_ORDER = listOf("LBS", "CASE/UNIT", "BUCKET")
 
-fun ticketCategoryFor(unit: String?): String =
-    if (unit.isNullOrBlank() || unit == "Lbs") "LBS" else unit.uppercase(Locale.US)
+fun ticketCategoryFor(unit: String?): String = when {
+    unit.isNullOrBlank() || unit.equals("Lbs", true) -> "LBS"
+    isCaseUnitType(unit) -> "CASE/UNIT"
+    else -> unit.uppercase(Locale.US)
+}
 
 fun isWeightTicketCategory(category: String): Boolean = category == "LBS"
 

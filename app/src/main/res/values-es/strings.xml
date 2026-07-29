@@ -155,7 +155,7 @@
     <string name="error_min_price">Mínimo: $%1$s</string>
     <string name="error_invalid_values">Valores inválidos</string>
     <string name="title_damaged_items">¿Artículos dañados o vencidos?</string>
-    <string name="msg_damaged_items_hint">Indica la cantidad a descontar por producto (0 = ninguno). Cada unidad = 1 pieza para Case/Unit/Bucket, 1 lb para productos por peso.</string>
+    <string name="msg_damaged_items_hint">Indica la cantidad a descontar por producto (0 = ninguno). Cada unidad = 1 pieza para Case/Unit o Bucket, 1 lb para productos por peso.</string>
     <string name="btn_continue">Continuar</string>
     <string name="btn_none">Ninguno</string>
     <string name="title_payment_method">Método de pago</string>

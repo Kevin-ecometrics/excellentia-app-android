@@ -91,7 +91,10 @@
       "Bash(export JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\")",
       "Bash(git status *)",
       "Bash(xxd)",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(./gradlew compileDebugKotlin --console=plain)",
+      "Bash(./node_modules/.bin/tsc.exe --noEmit -p tsconfig.json)",
+      "Bash(./gradlew compileDebugKotlin processDebugResources --console=plain)"
     ]
   }
 }

@@ -279,17 +279,15 @@ class CurrentOrderActivity : BaseActivity() {
     // Reabre la misma pantalla que se usa al escanear/agregar, precargada con los
     // datos de esta fila — reemplaza el diálogo genérico anterior (que solo
     // manejaba "cantidad + precio/lb" y no tenía sentido para Case/Unit/Bucket).
-    // KEY_PRICE se manda como precio POR UNIDAD (no por caja): para Case se
-    // reconstruye dividiendo por caseQty, así ProductDetailActivity puede volver a
-    // multiplicar por caseQty con su lógica normal sin casos especiales.
+    // KEY_PRICE se manda tal cual: order.price ya es el precio de la caja
+    // completa (para Case) o de la unidad (resto), igual que ProductDetailActivity
+    // lo espera sin ningún ajuste por caseQty.
     private fun editItem(order: com.example.test.data.local.entities.PendingOrderEntity) {
-        val isCaseBased = order.unit.equals("Case", ignoreCase = true) && (order.caseQty ?: 0) > 0
-        val perUnitPrice = if (isCaseBased) order.price / (order.caseQty ?: 1) else order.price
         startActivity(
             Intent(this, ProductDetailActivity::class.java).apply {
                 putExtra("BARCODE", order.barcode)
                 putExtra("PRODUCT_NAME", order.productName)
-                putExtra("PRODUCT_PRICE", perUnitPrice)
+                putExtra("PRODUCT_PRICE", order.price)
                 putExtra("QUANTITY", order.quantity)
                 putExtra("UNIT", order.unit)
                 putExtra("CASE_QTY", order.caseQty ?: 0)
@@ -411,13 +409,21 @@ class CurrentOrderActivity : BaseActivity() {
 
     // Espeja unitValueOf() del backend (creditCalculator.ts) — mismo criterio
     // que IssueCreditActivity, para un producto recién buscado (no viene de
-    // una fila del carrito, así que no aplica el ajuste por caseQty que usa
-    // unitValueOf(order: PendingOrderEntity) más abajo).
-    private fun estimatedUnitValueOf(product: ProductDto): Double =
-        if (product.unit.equals("Case", true) || product.unit.equals("Unit", true) || product.unit.equals("Bucket", true))
+    // una fila del carrito). Case/Unit: product.price es el precio del
+    // paquete completo, se divide por el tamaño de paquete para obtener el
+    // valor de una sola unidad dañada (mismo ajuste que
+    // unitValueOf(order: PendingOrderEntity) más abajo). products.case_qty no
+    // existe en MySQL — product.caseQty siempre llega null/0, el tamaño real
+    // de paquete viaja en product.qty (ver MainActivity.openDetail()).
+    private fun estimatedUnitValueOf(product: ProductDto): Double {
+        val caseSize = product.caseQty?.takeIf { it > 0 } ?: product.qty.takeIf { it > 0 }
+        return if (com.example.test.data.isCaseUnitType(product.unit) && caseSize != null)
+            product.price / caseSize
+        else if (product.unit.equals("Bucket", true))
             product.price
         else
             product.price * (product.weightPerUnit ?: 1.0)
+    }
 
     private fun askCreditQtyThenAdd(product: ProductDto) {
         val barcode = product.barcode ?: return
@@ -523,13 +529,14 @@ class CurrentOrderActivity : BaseActivity() {
 
     // Valor por unidad de un producto en el carrito, para la estimación LOCAL
     // del crédito (preview antes de finalizar, y ticket offline). Espeja la
-    // regla autoritativa del backend (creditCalculator.ts): para Case,
-    // order.price ya es el precio de la caja completa (price/unit × caseQty,
-    // per ProductDetailActivity) — se divide para volver al valor de una sola
-    // unidad. Para Lbs/Unit/Bucket, order.price ya es efectivamente el valor
-    // por unidad.
+    // regla autoritativa del backend (creditCalculator.ts): para Case/Unit,
+    // order.price ya es el precio del paquete completo — se divide por
+    // caseQty para volver al valor de una sola unidad. Para Lbs/Bucket,
+    // order.price ya es efectivamente el valor por unidad. Filas viejas de
+    // "Unit" guardadas antes de la fusión Case+Unit no tienen caseQty — caen
+    // al fallback `order.price` tal cual, igual que se comportaba "Unit" antes.
     private fun unitValueOf(order: com.example.test.data.local.entities.PendingOrderEntity): Double =
-        if (order.unit.equals("Case", ignoreCase = true) && (order.caseQty ?: 0) > 0)
+        if (com.example.test.data.isCaseUnitType(order.unit) && (order.caseQty ?: 0) > 0)
             order.price / order.caseQty!!
         else
             order.price
@@ -610,9 +617,13 @@ class CurrentOrderActivity : BaseActivity() {
                     ).apply { topMargin = (4 * density).toInt() }
                 }
 
-                val unitLabel = if (order.unit.isNullOrBlank() || order.unit == "Lbs") "lb" else order.unit
+                val unitLabel = when {
+                    order.unit.isNullOrBlank() || order.unit == "Lbs" -> "lb"
+                    com.example.test.data.isCaseUnitType(order.unit) -> "Case/Unit"
+                    else -> order.unit
+                }
                 val tvDetail = android.widget.TextView(ctx).apply {
-                    val detailText = if (order.unit.equals("Case", ignoreCase = true) && (order.caseQty ?: 0) > 0) {
+                    val detailText = if (com.example.test.data.isCaseUnitType(order.unit) && (order.caseQty ?: 0) > 1) {
                         val perUnitPrice = order.price / order.caseQty!!
                         String.format(Locale.US, "%.0f %s of %d · \$%.2f/unit", order.quantity, unitLabel, order.caseQty, perUnitPrice)
                     } else if (order.unit.isNullOrBlank() || order.unit == "Lbs") {

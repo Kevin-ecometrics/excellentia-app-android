@@ -160,7 +160,7 @@
     <string name="error_min_price">Minimum: $%1$s</string>
     <string name="error_invalid_values">Invalid values</string>
     <string name="title_damaged_items">Damaged or expired items?</string>
-    <string name="msg_damaged_items_hint">Enter quantity to deduct per product (0 = none). Each unit = 1 piece for Case/Unit/Bucket, 1 lb for weight products.</string>
+    <string name="msg_damaged_items_hint">Enter quantity to deduct per product (0 = none). Each unit = 1 piece for Case/Unit or Bucket, 1 lb for weight products.</string>
     <string name="btn_continue">Continue</string>
     <string name="btn_none">None</string>
     <string name="title_payment_method">Payment method</string>

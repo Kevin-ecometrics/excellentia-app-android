@@ -325,31 +325,41 @@ class TicketDetailActivity : AppCompatActivity() {
             addLine(pmLine, sizeSp = 12f)
         }
 
-        // ── Ítems (agrupados por producto, y por categoría LBS/CASE/UNIT/BUCKET) ──
+        // ── Ítems (agrupados por producto, y por categoría LBS/CASE-UNIT/BUCKET) ──
+        // "# Nombre del producto" (# corrido para todo el ticket, no se reinicia por
+        // categoría) seguido de "Qty/Weight   Rate   Total" en 3 columnas.
         addSep(heavy = true)
+        addLine("#  Description", bold = true, sizeSp = 11f)
+        addThreeCol("Qty/Weight", "Rate", "Total", bold = true, sizeSp = 11f)
         val groupedByCategory = orders.groupedForTicket().byTicketCategory()
         val showCategoryHeaders = groupedByCategory.size > 1
+        var itemNumber = 0
         for ((category, group) in groupedByCategory) {
             if (showCategoryHeaders) {
                 addLine(category, bold = true, sizeSp = 11f)
             }
             for (g in group) {
+                itemNumber++
                 val avgPrice = if (g.quantity != 0.0) g.total / g.quantity else 0.0
                 val unitLabel = unitLabel(g.unit)
-                addLine(g.productName, sizeSp = 12f)
-                val detailStr = when {
-                    // "N - X.XX lb x $X.XX/lb" — N = cantidad de unidades pesadas por
-                    // separado y agrupadas en esta línea (ej. 2 chicharrones = 2.00 lb).
+                addLine("$itemNumber  ${g.productName}", sizeSp = 12f)
+                val qtyStr = when {
+                    // "N - X.XX lb" — N = cantidad de unidades pesadas por separado y
+                    // agrupadas en esta línea (ej. 2 chicharrones = 2.00 lb); se omite
+                    // cuando es una sola pesada (N=1), no aporta nada.
                     isWeightTicketCategory(category) ->
-                        String.format(Locale.US, "%d - %.2f %s x \$%.2f/%s", g.count, g.quantity, unitLabel, avgPrice, unitLabel)
-                    // "N - Case of Q x $XX.XX" — Q = unidades por caja (products.qty cuando unit=Case).
-                    category == "CASE" && (g.caseQty ?: 0) > 0 ->
-                        String.format(Locale.US, "%d - %s of %d x \$%.2f", g.quantity.toInt(), unitLabel, g.caseQty, avgPrice)
+                        if (g.count > 1) String.format(Locale.US, "%d - %.2f %s", g.count, g.quantity, unitLabel)
+                        else String.format(Locale.US, "%.2f %s", g.quantity, unitLabel)
+                    // "N - Case/Unit of Q" — Q = unidades por paquete (products.qty).
+                    // Con Q<=1 no tiene sentido desglosar "of 1" — cae al else.
+                    category == "CASE/UNIT" && (g.caseQty ?: 0) > 1 ->
+                        String.format(Locale.US, "%d - %s of %d", g.quantity.toInt(), unitLabel, g.caseQty)
                     else ->
-                        String.format(Locale.US, "%d - %s x \$%.2f", g.quantity.toInt(), unitLabel, avgPrice)
+                        String.format(Locale.US, "%d - %s", g.quantity.toInt(), unitLabel)
                 }
-                addTwoCol(
-                    left  = detailStr,
+                addThreeCol(
+                    left  = qtyStr,
+                    mid   = String.format(Locale.US, "\$%.2f", avgPrice),
                     right = String.format(Locale.US, "\$%.2f", g.total),
                     sizeSp = 12f
                 )
@@ -456,8 +466,11 @@ class TicketDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun unitLabel(unit: String?): String =
-        if (unit.isNullOrBlank() || unit == "Lbs") "lb" else unit
+    private fun unitLabel(unit: String?): String = when {
+        unit.isNullOrBlank() || unit == "Lbs" -> "lb"
+        com.example.test.data.isCaseUnitType(unit) -> "Case/Unit"
+        else -> unit
+    }
 
     // ── View helpers ──────────────────────────────────────────────────────────
 
@@ -481,6 +494,37 @@ class TicketDetailActivity : AppCompatActivity() {
             }
         }
         ticketContent.addView(tv)
+    }
+
+    // Fila de 3 columnas para el detalle de ítem (qty/weight, rate, total) —
+    // mid/right con ancho fijo alineadas a la derecha, left toma el resto.
+    private fun addThreeCol(left: String, mid: String, right: String, bold: Boolean = false, sizeSp: Float = 12f) {
+        val tf = if (bold) Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) else Typeface.MONOSPACE
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
+                bottomMargin = (2 * dp).toInt()
+            }
+        }
+        row.addView(TextView(this).apply {
+            text = left; textSize = sizeSp; setTextColor(Color.BLACK); typeface = tf
+            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
+        })
+        row.addView(TextView(this).apply {
+            text = mid; textSize = sizeSp; setTextColor(Color.BLACK); typeface = tf
+            gravity = android.view.Gravity.END
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+                marginStart = (12 * dp).toInt()
+            }
+        })
+        row.addView(TextView(this).apply {
+            text = right; textSize = sizeSp; setTextColor(Color.BLACK); typeface = tf
+            gravity = android.view.Gravity.END
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+                marginStart = (12 * dp).toInt()
+            }
+        })
+        ticketContent.addView(row)
     }
 
     private fun addTwoCol(left: String, right: String, bold: Boolean = false, sizeSp: Float = 12f) {

@@ -78,7 +78,7 @@ class ProductDetailActivity : BaseActivity() {
     private lateinit var orderRepository: OrderRepository
 
     private val isCaseBased: Boolean
-        get() = productUnit.equals("Case", true) && (caseQty ?: 0) > 0
+        get() = com.example.test.data.isCaseUnitType(productUnit) && (caseQty ?: 0) > 0
 
     private val isWeightBased: Boolean
         get() = !isCaseBased && (productUnit == null || productUnit == "" || productUnit == "Lbs")
@@ -100,17 +100,13 @@ class ProductDetailActivity : BaseActivity() {
         customerId = intent.getStringExtra(KEY_CUSTOMER_ID)
         productUnit = intent.getStringExtra(KEY_UNIT)
         caseQty = intent.getIntExtra("CASE_QTY", 0).takeIf { it > 0 }
-            ?: (if (productUnit.equals("Case", true)) defaultWeight.toInt().coerceAtLeast(1) else null)
+            ?: (if (com.example.test.data.isCaseUnitType(productUnit)) defaultWeight.toInt().coerceAtLeast(1) else null)
         isPreOrderMode = intent.getBooleanExtra(PRE_ORDER_MODE, false)
         editOrderId = intent.getIntExtra(KEY_EDIT_ORDER_ID, -1).takeIf { it >= 0 }
+        // productPrice ya es el precio de la caja completa (no el de una unidad
+        // dentro de la caja) — no se multiplica por caseQty.
         baseTotal = productPrice
-        if (isCaseBased) {
-            val cq = caseQty
-            if (cq != null) {
-                baseTotal = productPrice * cq
-                pricePerLb = baseTotal
-            }
-        }
+        pricePerLb = productPrice
 
         val db = AppDatabase.getInstance(this)
         val securePrefs = SecurePreferences(this)
@@ -366,22 +362,15 @@ class ProductDetailActivity : BaseActivity() {
 
     private fun showProduct() {
         pricePerLb = productPrice
-        if (isCaseBased) {
-            val cq = caseQty
-            if (cq != null) {
-                pricePerLb = productPrice * cq
-                baseTotal = pricePerLb
-            }
-        }
         tvBarcode.text = barcode
         tvProductName.text = productName
         when {
             isCaseBased -> {
                 val cq = caseQty ?: 0
-                tvPrice.text = if (cq > 0)
-                    String.format(Locale.US, "$%.2f / Case of %d ($%.2f/unit)", baseTotal, cq, productPrice)
+                tvPrice.text = if (cq > 1)
+                    String.format(Locale.US, "$%.2f / Case/Unit of %d ($%.2f/unit)", baseTotal, cq, productPrice / cq)
                 else
-                    String.format(Locale.US, "$%.2f / Case", baseTotal)
+                    String.format(Locale.US, "$%.2f / Case/Unit", baseTotal)
             }
             isWeightBased -> tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
             else -> tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
@@ -401,13 +390,16 @@ class ProductDetailActivity : BaseActivity() {
             isCaseBased -> {
                 val total = units * pricePerLb
                 val cq = caseQty ?: 0
-                tvTotalWeight.text = if (cq > 0) {
+                // cq <= 1 cubre tanto "case" real de tamaño 1 como los productos que
+                // antes eran "Unit" puro (se venden de a uno) — no tiene sentido
+                // desglosar "1 pack × 1 = 1 units" para esos.
+                tvTotalWeight.text = if (cq > 1) {
                     val totalUnits = units * cq
-                    val unitPrice = productPrice
-                    val cases = if (units > 1) "$units cases" else "1 case"
-                    "$cases × $cq = $totalUnits units · ${String.format(Locale.US, "$%.2f", unitPrice)}/unit"
+                    val unitPrice = productPrice / cq
+                    val packs = if (units > 1) "$units packs" else "1 pack"
+                    "$packs × $cq = $totalUnits units · ${String.format(Locale.US, "$%.2f", unitPrice)}/unit"
                 } else {
-                    "$units Case"
+                    "$units Case/Unit"
                 }
                 tvTotal.text = String.format(Locale.US, "$%.2f", total)
             }
@@ -465,7 +457,7 @@ class ProductDetailActivity : BaseActivity() {
                     baseTotal = newTotal
                     pricePerLb = baseTotal
                     when {
-                        isCaseBased -> tvPrice.text = String.format(Locale.US, "$%.2f / Case", baseTotal)
+                        isCaseBased -> tvPrice.text = String.format(Locale.US, "$%.2f / Case/Unit", baseTotal)
                         isWeightBased -> tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
                         else -> tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
                     }

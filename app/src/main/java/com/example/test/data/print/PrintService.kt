@@ -32,6 +32,26 @@ object PrintService {
     private const val BOTTOM  = 200  // espacio para cortar (~1")
     private const val DRAIN_MS = 2000L
 
+    // ── Ancho de línea — fuente única, todo el ticket lo usa ────────────────
+    // F4_CHAR_PX = ancho real de un carácter en Font 4 (17px, ver doc de fuentes
+    // arriba). MAX_LINE_CHARS = cuántos caracteres entran físicamente en
+    // PAGE-WIDTH sin desbordar — límite duro, no ajustable. LINE_WIDTH es el
+    // ancho que de verdad usan wrapText/twoCol/threeCol en todo el ticket: se
+    // deja un colchón de seguridad bajo MAX_LINE_CHARS a propósito (texto justo
+    // al borde se corta feo en la impresora física). Para "que entre más info"
+    // se sube este único número — todos los campos se ajustan juntos, ninguno
+    // puede quedar desincronizado como pasaba antes con anchos sueltos por
+    // campo. wrapText/twoCol/threeCol además clampan internamente contra
+    // MAX_LINE_CHARS por las dudas, así que aunque alguien pase a mano un ancho
+    // más grande en una llamada puntual, nunca se desborda la página — siempre
+    // hace salto de línea real en vez de superponerse con lo que sigue.
+    private const val F4_CHAR_PX = 17
+    private val MAX_LINE_CHARS = PW / F4_CHAR_PX
+    private val LINE_WIDTH = (MAX_LINE_CHARS - 4).coerceAtLeast(1)
+    // Nombre de producto — deja lugar para el prefijo "N  " (número de línea,
+    // hasta 2 dígitos + 2 espacios) antes del texto en la primera línea.
+    private val ITEM_NAME_WIDTH = (LINE_WIDTH - 4).coerceAtLeast(1)
+
     @SuppressLint("MissingPermission")
     suspend fun printTicket(
         context: Context,
@@ -169,16 +189,18 @@ object PrintService {
         var y = 20
 
         // ── Cabecera empresa ────────────────────────────
-        // Todo LEFT — nombre y subtítulo sin truncar
+        // Todo LEFT — nombre y subtítulo con wrap real (nunca se trunca en
+        // silencio: si es largo, hace salto de línea y sigue en la próxima).
         body.left()
-        body.t(F4, 0, y, companyName.take(33));                    y += F4H + 4
-        body.t(F4, 0, y, subtitle.take(32));                       y += F4H + 4
-        if (!address.isNullOrBlank())
-            { body.t(F4, 0, y, address.take(32));                  y += F4H + 2 }
-        if (!city.isNullOrBlank())
-            { body.t(F4, 0, y, city.take(32));                     y += F4H + 2 }
-        if (!phone.isNullOrBlank())
-            { body.t(F4, 0, y, phone.take(32));                    y += F4H + 2 }
+        y = body.tWrapped(0, y, companyName, lineGap = 4)
+        y = body.tWrapped(0, y, subtitle, lineGap = 4)
+        if (!address.isNullOrBlank()) {
+            for (part in splitAddress(address)) { y = body.tWrapped(0, y, part, lineGap = 2) }
+        }
+        if (!city.isNullOrBlank()) {
+            for (part in splitAddress(city)) { y = body.tWrapped(0, y, part, lineGap = 2) }
+        }
+        if (!phone.isNullOrBlank())   y = body.tWrapped(0, y, phone, lineGap = 2)
 
         // ── Info del pedido ─────────────────────────────
         y += 6
@@ -193,7 +215,7 @@ object PrintService {
         if (!customerName.isNullOrBlank()) {
             y += 4
             body.t(F4, 0, y, DASH);                                y += F4H + 6
-            val clientLines = wrapText("Customer: $customerName", 28)
+            val clientLines = wrapText("Customer: $customerName")
             for (line in clientLines) { body.t(F4, 0, y, line);   y += F4H + 3 }
             y += 1
             if (!paymentMethod.isNullOrBlank()) {
@@ -201,45 +223,59 @@ object PrintService {
                     "Payment: $paymentMethod (#$checkNumber)" else "Payment: $paymentMethod");       y += F4H + 4
             }
             if (!customerAddress.isNullOrBlank()) {
-                for (l in wrapText(customerAddress, 28)) {
-                    body.t(F4, 4, y, l);                           y += F4H + 3
+                for (part in splitAddress(customerAddress)) {
+                    y = body.tWrapped(4, y, part, lineGap = 3)
                 }
                 y += 1
             }
         }
 
-        // ── Ítems (agrupados por producto, y por categoría LBS/CASE/UNIT/BUCKET) ──
-        // Línea 1+: nombre del producto (con salto de línea si es largo)
-        // Última línea, por peso: "X.XX lb x $X.XX/lb      $XX.XX"  (twoCol)
-        // Última línea, por caja/unidad: "N - Case x $XX.XX      $XX.XX"  (sin decimales)
+        // ── Ítems (agrupados por producto, y por categoría LBS/CASE-UNIT/BUCKET) ──
+        // Línea 1+: "# Nombre del producto" (con salto de línea si es largo, # solo
+        // en la primera línea) — # es un número de línea corrido para todo el ticket,
+        // no se reinicia por categoría.
+        // Última línea: "Qty/Weight   Rate   Total" en 3 columnas (threeCol).
         y += 4
         body.t(F4, 0, y, SEP);                                     y += F4H + 8
+        body.t(F4, 0, y, "#  Description");                        y += F4H + 3
+        body.t(F4, 4, y, threeCol("Qty/Weight", "Rate", "Total")); y += F4H + 6
         val groupedByCategory = items.groupedForTicket().byTicketCategory()
         val showCategoryHeaders = groupedByCategory.size > 1
+        var itemNumber = 0
         for ((category, group) in groupedByCategory) {
             if (showCategoryHeaders) {
                 body.t(F4, 0, y, category);                        y += F4H + 4
             }
             for (g in group) {
+                itemNumber++
                 val avgPrice  = if (g.quantity != 0.0) g.total / g.quantity else 0.0
                 val totalStr  = String.format(Locale.US, "\$%.2f", g.total)
+                val rateStr   = String.format(Locale.US, "\$%.2f", avgPrice)
                 val unitLabel = unitLabel(g.unit)
-                val detailStr = when {
-                    // "N - X.XX lb x $X.XX/lb" — N = cantidad de unidades pesadas por
-                    // separado y agrupadas en esta línea (ej. 2 chicharrones = 2.00 lb).
+                val qtyStr = when {
+                    // "N - X.XX lb" — N = cantidad de unidades pesadas por separado y
+                    // agrupadas en esta línea (ej. 2 chicharrones = 2.00 lb); se omite
+                    // cuando es una sola pesada (N=1), no aporta nada.
                     isWeightTicketCategory(category) ->
-                        String.format(Locale.US, "%d - %.2f %s x \$%.2f/%s", g.count, g.quantity, unitLabel, avgPrice, unitLabel)
-                    // "N - Case of Q x $XX.XX" — Q = unidades por caja (products.qty cuando unit=Case).
-                    // Una caja puede traer 1 o varios artículos; sin este dato no se distingue.
-                    category == "CASE" && (g.caseQty ?: 0) > 0 ->
-                        String.format(Locale.US, "%d - %s of %d x \$%.2f", g.quantity.toInt(), unitLabel, g.caseQty, avgPrice)
+                        if (g.count > 1) String.format(Locale.US, "%d - %.2f %s", g.count, g.quantity, unitLabel)
+                        else String.format(Locale.US, "%.2f %s", g.quantity, unitLabel)
+                    // "N - Case/Unit of Q" — Q = unidades por paquete (products.qty).
+                    // Con Q<=1 (paquete de un solo artículo, o dato no disponible en
+                    // pedidos viejos) no tiene sentido desglosar "of 1" — cae al else.
+                    category == "CASE/UNIT" && (g.caseQty ?: 0) > 1 ->
+                        String.format(Locale.US, "%d - %s of %d", g.quantity.toInt(), unitLabel, g.caseQty)
                     else ->
-                        String.format(Locale.US, "%d - %s x \$%.2f", g.quantity.toInt(), unitLabel, avgPrice)
+                        String.format(Locale.US, "%d - %s", g.quantity.toInt(), unitLabel)
                 }
-                for (line in wrapText(g.productName, 28)) {
-                    body.t(F4, 0, y, line);                        y += F4H + 3
+                val nameLines = wrapText(g.productName, ITEM_NAME_WIDTH)
+                for ((idx, line) in nameLines.withIndex()) {
+                    if (idx == 0) {
+                        body.t(F4, 0, y, "$itemNumber  $line");     y += F4H + 3
+                    } else {
+                        body.t(F4, 4, y, line);                    y += F4H + 3
+                    }
                 }
-                body.t(F4, 0, y, twoCol(detailStr, totalStr, 28)); y += F4H + 4
+                body.t(F4, 4, y, threeCol(qtyStr, rateStr, totalStr)); y += F4H + 4
                 y += 8
             }
         }
@@ -252,7 +288,7 @@ object PrintService {
             body.t(F4, 0, y, "Negative Sale Summary:");            y += F4H + 4
             for (dmg in damageItems.filter { it.qty > 0 }) {
                 val lineAmount = String.format(Locale.US, "\$%.2f", dmg.qty * dmg.unitPrice)
-                for (line in wrapText("${dmg.productName}: ${dmg.qty} unit(s) · -$lineAmount", 28)) {
+                for (line in wrapText("${dmg.productName}: ${dmg.qty} unit(s) · -$lineAmount")) {
                     body.t(F4, 4, y, line);                        y += F4H + 3
                 }
             }
@@ -262,17 +298,17 @@ object PrintService {
         // ── Total ──────────────────────────────────────
         body.t(F4, 0, y, SEP);                                     y += F4H + 10
         if (credits > 0) {
-            body.t(F4, 0, y, twoCol("Subtotal:", String.format(Locale.US, "\$%.2f", grandTotal), 28)); y += F4H + 4
-            body.t(F4, 0, y, twoCol("Credits:", String.format(Locale.US, "-\$%.2f", credits), 28));    y += F4H + 4
+            body.t(F4, 0, y, twoCol("Subtotal:", String.format(Locale.US, "\$%.2f", grandTotal))); y += F4H + 4
+            body.t(F4, 0, y, twoCol("Credits:", String.format(Locale.US, "-\$%.2f", credits)));    y += F4H + 4
         }
         val creditAppliedVal = creditApplied ?: 0.0
         val finalTotal = if (creditAppliedVal > 0) {
-            body.t(F4, 0, y, twoCol("Credit Applied:", String.format(Locale.US, "-\$%.2f", creditAppliedVal), 28)); y += F4H + 4
+            body.t(F4, 0, y, twoCol("Credit Applied:", String.format(Locale.US, "-\$%.2f", creditAppliedVal))); y += F4H + 4
             grandTotal - credits - creditAppliedVal
         } else {
             grandTotal - credits
         }
-        body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", finalTotal), 28)); y += F4H + 8
+        body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", finalTotal))); y += F4H + 8
         // Con una sola categoría se puede sumar cantidad + unidad ("22.80 lb total").
         // Mezclando lb + case + unit no hay una suma que tenga sentido — se muestra
         // cantidad de productos en su lugar.
@@ -288,7 +324,7 @@ object PrintService {
             "$itemCount items total"
         }
         body.t(F4, 0, y, qtyLine);                                 y += F4H + 6
-        body.t(F4, 0, y, companyName.take(32));                    y += F4H + 16
+        y = body.tWrapped(0, y, companyName, lineGap = 4);          y += 12
 
         // ── Términos y condiciones (QR) ──────────────────
         // Reemplaza el texto legal completo por un QR que apunta a la página
@@ -407,12 +443,30 @@ object PrintService {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    // Devuelve una cadena de `width` chars con `left` a la izquierda y `right` a la derecha
-    private fun twoCol(left: String, right: String, width: Int = 32): String {
-        val maxLeft = (width - right.length - 1).coerceAtLeast(0)
+    // Devuelve una cadena de `width` chars con `left` a la izquierda y `right` a la derecha.
+    // `width` se clampa contra MAX_LINE_CHARS — no importa qué se le pase, nunca
+    // desborda la página físicamente (evita el bug de que una fila se corra a la
+    // derecha del borde y la impresora la envuelva sola, pisando la línea siguiente).
+    private fun twoCol(left: String, right: String, width: Int = LINE_WIDTH): String {
+        val w = width.coerceAtMost(MAX_LINE_CHARS)
+        val maxLeft = (w - right.length - 1).coerceAtLeast(0)
         val l = left.take(maxLeft)
-        val padding = (width - l.length - right.length).coerceAtLeast(1)
+        val padding = (w - l.length - right.length).coerceAtLeast(1)
         return l + " ".repeat(padding) + right
+    }
+
+    // Fila de 3 columnas para el detalle de ítem (qty/weight, rate, total) —
+    // mid/right van pegadas a la derecha en un ancho fijo (alcanza para
+    // "$9999.99"), left toma el resto del ancho y se trunca si no entra (caso
+    // raro: "N - Case/Unit of Q" con Q de 2+ dígitos y N de 2+ dígitos a la vez).
+    // `width` clampado contra MAX_LINE_CHARS, misma razón que twoCol().
+    private fun threeCol(left: String, mid: String, right: String, width: Int = LINE_WIDTH, midWidth: Int = 7, rightWidth: Int = 8): String {
+        val w = width.coerceAtMost(MAX_LINE_CHARS)
+        val r = right.padStart(rightWidth).takeLast(rightWidth)
+        val m = mid.padStart(midWidth).takeLast(midWidth)
+        val leftWidth = (w - midWidth - rightWidth).coerceAtLeast(1)
+        val l = left.take(leftWidth).padEnd(leftWidth)
+        return l + m + r
     }
 
     // Respeta saltos de línea reales del texto original (ej. el disclaimer guardado
@@ -420,7 +474,13 @@ object PrintService {
     // "\n" — si no, una "palabra" podía terminar arrastrando un salto de línea crudo
     // metido en medio del texto (ej. "...contrato.\n(2) The buyer..."), lo que rompía
     // el comando CPCL de esa línea al imprimir (T requiere una sola línea de texto).
-    private fun wrapText(text: String, maxChars: Int = 30): List<String> {
+    // `maxChars` se clampa contra MAX_LINE_CHARS — una palabra individual más
+    // larga que eso también se corta a la fuerza (`.take()`) en vez de mandarla
+    // tal cual: dejarla pasar entera desbordaría la página igual que un `width`
+    // de columna mal puesto, y la impresora la envolvería por su cuenta sin que
+    // el `y` del comando stream se entere (la línea siguiente se pisa encima).
+    private fun wrapText(text: String, maxChars: Int = LINE_WIDTH): List<String> {
+        val max = maxChars.coerceAtMost(MAX_LINE_CHARS).coerceAtLeast(1)
         val lines = mutableListOf<String>()
         for (paragraph in text.split("\n")) {
             if (paragraph.isBlank()) {
@@ -428,11 +488,12 @@ object PrintService {
                 continue
             }
             val current = StringBuilder()
-            for (word in paragraph.split(" ")) {
-                if (word.isEmpty()) continue
+            for (rawWord in paragraph.split(" ")) {
+                if (rawWord.isEmpty()) continue
+                val word = if (rawWord.length > max) rawWord.take(max) else rawWord
                 when {
                     current.isEmpty() -> current.append(word)
-                    current.length + 1 + word.length <= maxChars -> current.append(" $word")
+                    current.length + 1 + word.length <= max -> current.append(" $word")
                     else -> { lines.add(current.toString()); current.clear(); current.append(word) }
                 }
             }
@@ -444,9 +505,52 @@ object PrintService {
     private fun StringBuilder.t(font: Int, x: Int, y: Int, data: String) =
         append("T $font 0 $x $y $data\r\n")
 
+    // Imprime `text` en font 4, envolviendo con wrapText en vez de truncar —
+    // usado en los campos de la cabecera/pie (nombre de empresa, subtítulo,
+    // dirección, etc.) que antes usaban `.take()` y perdían texto en silencio
+    // si eran largos. Devuelve el `y` después de la última línea.
+    private fun StringBuilder.tWrapped(x: Int, startY: Int, text: String, maxChars: Int = LINE_WIDTH, lineGap: Int = 4): Int {
+        var y = startY
+        for (line in wrapText(text, maxChars)) {
+            t(F4, x, y, line)
+            y += F4H + lineGap
+        }
+        return y
+    }
+
     private fun StringBuilder.left()   = append("LEFT\r\n")
     private fun StringBuilder.center() = append("CENTER\r\n")
 
-    private fun unitLabel(unit: String?): String =
-        if (unit.isNullOrBlank() || unit == "Lbs") "lb" else unit
+    private fun unitLabel(unit: String?): String = when {
+        unit.isNullOrBlank() || unit == "Lbs" -> "lb"
+        com.example.test.data.isCaseUnitType(unit) -> "Case/Unit"
+        else -> unit
+    }
+
+    // Parte una dirección en líneas más naturales que el wrap por ancho solo.
+    // 1. Primera coma → separa calle de ciudad/estado (ej. "123 Main St, Springfield, IL")
+    // 2. Palabras clave (Suite/Unit/Apt/Ste/Apart) → parte antes de la palabra
+    // 3. # → parte antes del hash (ej. "123 Main St #4B")
+    // Si no encuentra nada, devuelve el texto completo sin partir — wrapText
+    // (vía tWrapped) se encarga del ancho después.
+    private fun splitAddress(text: String): List<String> {
+        if (text.isBlank()) return listOf(text)
+        val a = text.trim()
+        if (a.length <= 28) return listOf(a)
+
+        val ci = a.indexOf(", ")
+        if (ci > 0) return listOf(a.substring(0, ci), a.substring(ci + 2))
+
+        val keywords = listOf("Suite", "Unit", "Apt", "Ste", "Apart")
+        val regex = Regex("""\b(?:${keywords.joinToString("|")})\b""", RegexOption.IGNORE_CASE)
+        val match = regex.find(a, startIndex = 4)
+        if (match != null && match.range.first >= 4) {
+            return listOf(a.substring(0, match.range.first).trimEnd(), a.substring(match.range.first))
+        }
+
+        val hi = a.indexOf(" #", startIndex = 4)
+        if (hi > 0) return listOf(a.substring(0, hi), a.substring(hi + 1))
+
+        return listOf(a)
+    }
 }
