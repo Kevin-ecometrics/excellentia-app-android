@@ -261,6 +261,11 @@
     <string name="error_already_in_preorder">Este producto ya está en la lista</string>
     <string name="error_finish_detailing_items">Termina de detallar todos los productos antes de convertir</string>
     <string name="error_finalizing_item">Error al guardar el detalle del producto</string>
+    <string name="title_confirm_saved_quantity">Cantidad guardada</string>
+    <string name="msg_confirm_saved_quantity">%1$s — Cantidad guardada: %2$s. ¿Sigue siendo correcta?</string>
+    <string name="btn_confirm_quantity">Confirmar</string>
+    <string name="btn_change_quantity">Cambiar</string>
+    <string name="label_saved_quantity">%1$s (guardada)</string>
 
     <!-- ProductDetailActivity -->
     <string name="label_unknown_product">Producto Desconocido</string>

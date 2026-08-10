@@ -428,9 +428,13 @@ data class PriceHistoryResponse(
 
 // ── Pre-Order Models ──
 
-// price/quantity/total quedan null mientras la pre-orden está sin detallar (recién
-// creada — solo barcode+productName) y se llenan al finalizar cada ítem el día de la
-// entrega (ver PreOrderDetailActivity.finalizeItem()).
+// quantity/unit/caseQty ahora se capturan al crear la pre-orden (mismo stepper de
+// ProductDetailActivity, reusado desde CreatePreOrderActivity) — pero price/total son
+// solo un preview en ese momento: el precio se vuelve a consultar del catálogo recién
+// al convertir (ver PreOrderDetailActivity.finalizeItem()/quickFinalizeItem()), porque
+// una pre-orden puede quedar semanas en DRAFT antes de la entrega. Pre-órdenes viejas
+// (o creadas vía "Reusar pre-orden") pueden seguir llegando con todos estos campos en
+// null — sigue siendo válido y usa el fallback de siempre (stepper completo).
 data class PreOrderItem(
     val barcode: String,
     @SerializedName("product_name") val productName: String,

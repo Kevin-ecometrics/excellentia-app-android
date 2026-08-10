@@ -28,6 +28,8 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
@@ -76,6 +78,28 @@ class CreatePreOrderActivity : BaseActivity() {
             selectedCustomerName = result.data?.getStringExtra("customer_name")
             tvSelectedCustomer.text = selectedCustomerName ?: getString(R.string.label_customer_selected)
             tvSelectedCustomer.setTextColor(getColor(R.color.text_primary))
+        }
+    }
+
+    // Captura cantidad/unidad al agregar el producto (mismo stepper que usa
+    // PreOrderDetailActivity.finalizeItem() para detallar al convertir) — el
+    // precio que trae acá es solo un preview, se vuelve a consultar fresco al
+    // convertir (ver PreOrderDetailActivity.quickFinalizeItem()).
+    private val addItemLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val itemsJson = result.data?.getStringExtra(ProductDetailActivity.RESULT_ITEMS_JSON)
+            if (itemsJson != null) {
+                try {
+                    val type = object : TypeToken<List<PreOrderItem>>() {}.type
+                    val newItems: List<PreOrderItem> = Gson().fromJson(itemsJson, type)
+                    addItems(newItems)
+                } catch (_: Exception) {
+                    Snackbar.make(findViewById(android.R.id.content),
+                        getString(R.string.error_finalizing_item), Snackbar.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -192,7 +216,7 @@ class CreatePreOrderActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().getProductByBarcode(barcode)
                 if (resp.isSuccessful) {
                     val product = resp.body()?.data ?: return@launch
-                    addDraftItem(barcode, product.name)
+                    openAddItemStepper(barcode, product)
                 } else {
                     Snackbar.make(findViewById(android.R.id.content),
                         getString(R.string.error_product_not_found_barcode, barcode), Snackbar.LENGTH_SHORT).show()
@@ -248,7 +272,7 @@ class CreatePreOrderActivity : BaseActivity() {
         lvResults.setOnItemClickListener { _, _, idx, _ ->
             foundProducts.getOrNull(idx)?.let { p ->
                 dialog.dismiss()
-                addDraftItem(p.barcode ?: "", p.name)
+                openAddItemStepper(p.barcode ?: "", p)
             }
         }
 
@@ -294,7 +318,12 @@ class CreatePreOrderActivity : BaseActivity() {
         dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
     }
 
-    private fun addDraftItem(barcode: String, name: String) {
+    // Abre el mismo stepper que PreOrderDetailActivity.finalizeItem() usa para
+    // detallar al convertir — ahora también se usa acá para capturar cantidad/
+    // unidad ya al crear la pre-orden. El precio que devuelve es solo un
+    // preview (se recalcula fresco al convertir), pero cantidad/unidad sí
+    // quedan guardados desde este momento.
+    private fun openAddItemStepper(barcode: String, product: com.example.test.data.ProductDto) {
         if (barcode.isBlank() || barcode == "unknown") {
             Snackbar.make(findViewById(android.R.id.content),
                 getString(R.string.error_no_barcode_preorder), Snackbar.LENGTH_SHORT).show()
@@ -305,11 +334,28 @@ class CreatePreOrderActivity : BaseActivity() {
                 getString(R.string.error_already_in_preorder), Snackbar.LENGTH_SHORT).show()
             return
         }
-        addItem(PreOrderItem(barcode = barcode, productName = name))
+        // Igual que PreOrderDetailActivity.finalizeItem(): QUANTITY acá es el
+        // tamaño de la caja (o el peso default), no una cantidad previamente
+        // elegida — es la primera vez que se agrega este producto.
+        val initialQty = if (product.qty > 0) product.qty.toDouble()
+            else product.weightPerUnit?.takeIf { it > 0 } ?: 1.0
+        addItemLauncher.launch(Intent(this, ProductDetailActivity::class.java).apply {
+            putExtra("BARCODE", barcode)
+            putExtra("PRODUCT_NAME", product.name)
+            putExtra("SHORT_NAME", product.shortName)
+            putExtra("PRODUCT_PRICE", product.price)
+            putExtra("QUANTITY", initialQty)
+            putExtra("STOCK", product.stock)
+            putExtra("CUSTOMER_ID", selectedCustomerId)
+            putExtra("CUSTOMER_NAME", selectedCustomerName)
+            putExtra("UNIT", product.unit)
+            putExtra("CASE_QTY", product.caseQty ?: 0)
+            putExtra(ProductDetailActivity.PRE_ORDER_MODE, true)
+        })
     }
 
-    private fun addItem(item: PreOrderItem) {
-        items.add(item)
+    private fun addItems(newItems: List<PreOrderItem>) {
+        items.addAll(newItems)
         tvNoItems.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
         rebuildItemsList()
     }
@@ -326,9 +372,12 @@ class CreatePreOrderActivity : BaseActivity() {
                 gravity = Gravity.CENTER_VERTICAL
             }
 
+            val unitLabel = item.unit?.let { if (it.isBlank() || it == "Lbs") "lb" else it } ?: "lb"
             val tvItem = TextView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${item.productName}\n${item.barcode}"
+                text = "${item.productName}\n" + String.format(
+                    Locale.US, "%.2f %s · \$%.2f", item.quantity ?: 0.0, unitLabel, item.total ?: 0.0
+                )
                 textSize = 13f
                 setTextColor(getColor(R.color.text_primary))
             }

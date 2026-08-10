@@ -86,12 +86,15 @@ class PreOrderDetailActivity : BaseActivity() {
     )
     private var sentConversion: SentConversion? = null
 
-    // Fase 87 — finalize-at-conversion: una pre-orden DRAFT/CONFIRMED trae items sin
-    // precio/peso/case (solo barcode+nombre, ver PreOrderItem). Antes de poder
-    // convertir, cada uno debe "detallarse" individualmente reusando
-    // ProductDetailActivity en PRE_ORDER_MODE — la misma UI del stepper que antes se
-    // usaba al crear la pre-orden (CreatePreOrderActivity), ahora se usa acá,
-    // producto por producto, con el precio/catálogo actual del día de la entrega.
+    // Fase 87 → captura temprana: una pre-orden DRAFT/CONFIRMED puede traer items ya
+    // con quantity/unit/caseQty (capturados en CreatePreOrderActivity con el mismo
+    // stepper de ProductDetailActivity), pero el precio nunca se considera definitivo
+    // hasta acá — antes de convertir, cada item debe "finalizarse" con el precio
+    // FRESCO del catálogo: si ya hay cantidad guardada, con un diálogo de
+    // confirmación rápida (quickFinalizeItem, sin reabrir el stepper) o "Cambiar"
+    // (reabre el stepper precargado); si no hay cantidad guardada (pre-órdenes viejas
+    // sin este dato, o creadas vía "Reusar pre-orden", que descarta el detalle),
+    // reabriendo el stepper completo (finalizeItem) como en el diseño original.
     private var draftItems: List<PreOrderItem> = emptyList()
     private val finalizedByIndex = mutableMapOf<Int, List<PreOrderItem>>()
     private var pendingFinalizeIndex: Int = -1
@@ -340,6 +343,7 @@ class PreOrderDetailActivity : BaseActivity() {
                 setTextColor(getColor(R.color.text_primary))
             })
             if (rows != null) {
+                // (c) ya finalizado en esta sesión — sin cambios.
                 finalizedCount++
                 val qtySum = rows.sumOf { it.quantity ?: 0.0 }
                 val totalSum = rows.sumOf { it.total ?: 0.0 }
@@ -350,7 +354,20 @@ class PreOrderDetailActivity : BaseActivity() {
                     textSize = 12f
                     setTextColor(getColor(R.color.text_secondary))
                 })
+            } else if (draft.quantity != null) {
+                // (a) tiene cantidad guardada desde la creación, todavía no
+                // finalizado en esta sesión — mostrarla para que el usuario la
+                // vea antes de tocar el botón (que abrirá el diálogo de confirmación).
+                val unitLabel = draft.unit?.let { if (it.isBlank() || it == "Lbs") "lb" else it } ?: "lb"
+                info.addView(TextView(this).apply {
+                    text = getString(R.string.label_saved_quantity,
+                        String.format(Locale.US, "%.2f %s", draft.quantity ?: 0.0, unitLabel))
+                    textSize = 12f
+                    setTextColor(getColor(R.color.text_secondary))
+                })
             } else {
+                // (b) fallback — pre-orden vieja sin cantidad guardada, o creada vía
+                // "Reusar pre-orden" (descarta el detalle). Sin cambios.
                 info.addView(TextView(this).apply {
                     text = draft.barcode
                     textSize = 12f
@@ -361,7 +378,13 @@ class PreOrderDetailActivity : BaseActivity() {
             row.addView(MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
                 text = if (rows != null) getString(R.string.btn_edit_detail) else getString(R.string.btn_add_detail)
                 textSize = 12f
-                setOnClickListener { finalizeItem(idx) }
+                setOnClickListener {
+                    if (rows == null && draft.quantity != null) {
+                        showConfirmSavedQuantityDialog(idx, draft)
+                    } else {
+                        finalizeItem(idx)
+                    }
+                }
             })
             layoutDetailItems.addView(row)
         }
@@ -377,7 +400,7 @@ class PreOrderDetailActivity : BaseActivity() {
     // Pide el producto FRESCO del catálogo (precio/unit/caseQty pueden haber cambiado
     // desde que se creó el borrador — es el punto de este feature) y relanza el mismo
     // stepper que usaba CreatePreOrderActivity, ahora acá.
-    private fun finalizeItem(index: Int) {
+    private fun finalizeItem(index: Int, prefillUnits: Double? = null) {
         val po = currentPreOrder ?: return
         val draft = draftItems.getOrNull(index) ?: return
         if (draft.barcode.isBlank() || draft.barcode == "unknown") {
@@ -397,8 +420,18 @@ class PreOrderDetailActivity : BaseActivity() {
                 // en `qty` y ProductDetailActivity lo recupera del extra QUANTITY (su
                 // fallback interno usa QUANTITY como caseQty cuando CASE_QTY llega en 0).
                 // Mandar 1.0 fijo acá hacía que toda caja se tratara como "caja de 1".
-                val initialQty = if (product.qty > 0) product.qty.toDouble()
-                    else product.weightPerUnit?.takeIf { it > 0 } ?: 1.0
+                //
+                // "Cambiar" en el diálogo de confirmación manda prefillUnits (la
+                // cantidad ya guardada). Para case-based, QUANTITY ya está ocupado con
+                // el tamaño de la caja, así que la cantidad elegida viaja aparte por
+                // PREFILL_UNITS; para peso/unidad simple no hay conflicto y puede
+                // reemplazar directo el seed de QUANTITY.
+                val isCaseBasedProduct = com.example.test.data.isCaseUnitType(product.unit) && (product.caseQty ?: 0) > 0
+                val initialQty = when {
+                    prefillUnits != null && !isCaseBasedProduct -> prefillUnits
+                    product.qty > 0 -> product.qty.toDouble()
+                    else -> product.weightPerUnit?.takeIf { it > 0 } ?: 1.0
+                }
                 pendingFinalizeIndex = index
                 finalizeItemLauncher.launch(Intent(this@PreOrderDetailActivity, ProductDetailActivity::class.java).apply {
                     putExtra("BARCODE", draft.barcode)
@@ -411,8 +444,62 @@ class PreOrderDetailActivity : BaseActivity() {
                     putExtra("CUSTOMER_NAME", po.customerName)
                     putExtra("UNIT", product.unit)
                     putExtra("CASE_QTY", product.caseQty ?: 0)
+                    if (prefillUnits != null && isCaseBasedProduct) {
+                        putExtra("PREFILL_UNITS", prefillUnits)
+                    }
                     putExtra(ProductDetailActivity.PRE_ORDER_MODE, true)
                 })
+            } catch (e: Exception) {
+                showError(e.localizedMessage ?: getString(R.string.error_no_connection))
+            }
+        }
+    }
+
+    // Diálogo de confirmación rápida sobre una cantidad ya capturada en
+    // CreatePreOrderActivity. "Confirmar" finaliza sin reabrir el stepper (solo
+    // re-consulta el precio fresco); "Cambiar" reabre el stepper de siempre,
+    // precargado con la cantidad guardada como punto de partida.
+    private fun showConfirmSavedQuantityDialog(index: Int, draft: PreOrderItem) {
+        val unitLabel = draft.unit?.let { if (it.isBlank() || it == "Lbs") "lb" else it } ?: "lb"
+        val qtyStr = String.format(Locale.US, "%.2f %s", draft.quantity ?: 0.0, unitLabel)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.title_confirm_saved_quantity))
+            .setMessage(getString(R.string.msg_confirm_saved_quantity, draft.productName, qtyStr))
+            .setPositiveButton(getString(R.string.btn_confirm_quantity)) { _, _ -> quickFinalizeItem(index, draft) }
+            .setNegativeButton(getString(R.string.btn_change_quantity)) { _, _ -> finalizeItem(index, prefillUnits = draft.quantity) }
+            .show()
+    }
+
+    // "Confirmar" — no reabre el stepper: solo re-consulta el precio fresco del
+    // catálogo (mismo fetch que finalizeItem()) y recalcula el total con la
+    // cantidad/unit/caseQty YA guardados en el draft desde CreatePreOrderActivity.
+    private fun quickFinalizeItem(index: Int, draft: PreOrderItem) {
+        val quantity = draft.quantity
+        if (draft.barcode.isBlank() || draft.barcode == "unknown" || quantity == null) {
+            showError(getString(R.string.error_no_barcode_preorder))
+            return
+        }
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getProductByBarcode(draft.barcode)
+                val product = if (resp.isSuccessful) resp.body()?.data else null
+                if (product == null) {
+                    showError(getString(R.string.error_product_not_found_barcode, draft.barcode))
+                    return@launch
+                }
+                val freshPrice = product.price
+                val finalized = PreOrderItem(
+                    barcode = draft.barcode,
+                    productName = product.name,
+                    price = freshPrice,
+                    quantity = quantity,
+                    total = freshPrice * quantity,
+                    unit = draft.unit ?: product.unit,
+                    caseQty = draft.caseQty ?: product.caseQty,
+                    shortName = product.shortName ?: draft.shortName
+                )
+                finalizedByIndex[index] = listOf(finalized)
+                renderItemsSection()
             } catch (e: Exception) {
                 showError(e.localizedMessage ?: getString(R.string.error_no_connection))
             }

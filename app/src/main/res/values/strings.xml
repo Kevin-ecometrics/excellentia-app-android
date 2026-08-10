@@ -266,6 +266,11 @@
     <string name="error_already_in_preorder">This product is already in the list</string>
     <string name="error_finish_detailing_items">Finish detailing all products before converting</string>
     <string name="error_finalizing_item">Error saving product detail</string>
+    <string name="title_confirm_saved_quantity">Saved quantity</string>
+    <string name="msg_confirm_saved_quantity">%1$s — Saved quantity: %2$s. Is it still correct?</string>
+    <string name="btn_confirm_quantity">Confirm</string>
+    <string name="btn_change_quantity">Change</string>
+    <string name="label_saved_quantity">%1$s (saved)</string>
 
     <!-- ProductDetailActivity -->
     <string name="label_unknown_product">Unknown Product</string>

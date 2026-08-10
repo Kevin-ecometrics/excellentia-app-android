@@ -35,6 +35,7 @@ class ProductDetailActivity : BaseActivity() {
         private const val KEY_QB_ITEM_ID = "QB_ITEM_ID"
         private const val KEY_QB_ACTIVE = "QB_ACTIVE"
         private const val KEY_EDIT_ORDER_ID = "EDIT_ORDER_ID"
+        private const val KEY_PREFILL_UNITS = "PREFILL_UNITS"
         const val PRE_ORDER_MODE = "pre_order_mode"
         const val RESULT_ITEMS_JSON = "items_json"
     }
@@ -77,6 +78,12 @@ class ProductDetailActivity : BaseActivity() {
     // del producto (Case/Unit/Bucket/Lbs) en vez del diálogo genérico que solo
     // hablaba de "lb".
     private var editOrderId: Int? = null
+    // Cantidad previamente elegida por el usuario a precargar (viene de
+    // PreOrderDetailActivity cuando toca "Cambiar" sobre una cantidad ya
+    // guardada) — distinto de defaultWeight/QUANTITY, que para productos
+    // case-based representa el tamaño de la caja, no cuántas cajas ya se
+    // habían elegido. Null en el resto de los flujos (no cambia nada ahí).
+    private var prefillUnits: Double? = null
     private lateinit var orderRepository: OrderRepository
 
     private val isCaseBased: Boolean
@@ -106,6 +113,8 @@ class ProductDetailActivity : BaseActivity() {
             ?: (if (com.example.test.data.isCaseUnitType(productUnit)) defaultWeight.toInt().coerceAtLeast(1) else null)
         isPreOrderMode = intent.getBooleanExtra(PRE_ORDER_MODE, false)
         editOrderId = intent.getIntExtra(KEY_EDIT_ORDER_ID, -1).takeIf { it >= 0 }
+        prefillUnits = if (intent.hasExtra(KEY_PREFILL_UNITS))
+            intent.getDoubleExtra(KEY_PREFILL_UNITS, 0.0).takeIf { it > 0 } else null
         // productPrice ya es el precio de la caja completa (no el de una unidad
         // dentro de la caja) — no se multiplica por caseQty.
         baseTotal = productPrice
@@ -251,8 +260,16 @@ class ProductDetailActivity : BaseActivity() {
 
     private fun resetCount() {
         // Editando una fila existente: arrancar con la cantidad que ya tenía (viene
-        // en defaultWeight vía el extra QUANTITY), no reiniciar a 1.
-        units = if (editOrderId != null || !isCaseBased) defaultWeight.toInt().coerceAtLeast(1) else 1
+        // en defaultWeight vía el extra QUANTITY), no reiniciar a 1. Si no se está
+        // editando una fila del carrito pero sí llega prefillUnits (caso "Cambiar"
+        // en PreOrderDetailActivity sobre una cantidad ya guardada), arrancar desde
+        // ahí — solo aplica a case-based, que es donde QUANTITY ya está ocupado con
+        // el tamaño de la caja y no puede llevar también la cantidad elegida.
+        units = when {
+            editOrderId != null || !isCaseBased -> defaultWeight.toInt().coerceAtLeast(1)
+            prefillUnits != null -> prefillUnits!!.toInt().coerceAtLeast(1)
+            else -> 1
+        }
         cardWeights.visibility = View.GONE
         recalcTotal()
     }
