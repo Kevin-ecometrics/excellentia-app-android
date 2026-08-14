@@ -568,8 +568,12 @@ class PreOrderDetailActivity : BaseActivity() {
                 setTextColor(getColor(R.color.text_secondary))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
+            val isLbs = com.example.test.data.isLbsUnit(item.unit)
             val etQty = EditText(this).apply {
-                inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                inputType = if (isLbs)
+                    android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                else
+                    android.text.InputType.TYPE_CLASS_NUMBER
                 setText("0")
                 textSize = 15f
                 gravity = Gravity.CENTER
@@ -594,8 +598,8 @@ class PreOrderDetailActivity : BaseActivity() {
             .setView(wrapper)
             .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
                 pendingDamageItems = inputs.mapNotNull { (item, et) ->
-                    val qty = et.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
-                    if (qty > 0) DamageItem(barcode = item.barcode, productName = item.productName, qty = qty)
+                    val qty = et.text.toString().toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
+                    if (qty > 0) DamageItem(barcode = item.barcode, productName = item.productName, qty = qty, unit = item.unit)
                     else null
                 }
                 pendingApplyCredit = null

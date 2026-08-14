@@ -302,7 +302,8 @@ object PrintService {
             body.t(F4, 0, y, "Negative Sale Summary:");            y += F4H + 4
             for (dmg in damageItems.filter { it.qty > 0 }) {
                 val lineAmount = String.format(Locale.US, "\$%.2f", dmg.qty * dmg.unitPrice)
-                for (line in wrapText("${dmg.productName}: ${dmg.qty} unit(s) · -$lineAmount")) {
+                val dmgQtyStr = com.example.test.data.formatDamageQty(dmg.qty, dmg.unit)
+                for (line in wrapText("${dmg.productName}: $dmgQtyStr · -$lineAmount")) {
                     body.t(F4, 4, y, line);                        y += F4H + 3
                 }
             }

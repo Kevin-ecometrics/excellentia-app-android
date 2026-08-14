@@ -46,7 +46,7 @@ class IssueCreditActivity : BaseActivity() {
     private data class CreditLine(
         val barcode: String,
         val productName: String,
-        var qty: Int,
+        var qty: Double,
         val unit: String?,
         val estimatedUnitValue: Double
     )
@@ -271,17 +271,22 @@ class IssueCreditActivity : BaseActivity() {
         val caseSize = product.caseQty?.takeIf { it > 0 } ?: product.qty.takeIf { it > 0 }
         return if (com.example.test.data.isCaseUnitType(product.unit) && caseSize != null)
             product.price / caseSize
-        else if (product.unit.equals("Bucket", true))
-            product.price
         else
-            product.price * (product.weightPerUnit ?: 1.0)
+            // Bucket y Lbs: product.price ya es el valor por unidad/lb, directo
+            // (para Lbs, qty ya es el peso real, no hace falta estimar con
+            // weightPerUnit).
+            product.price
     }
 
     private fun askQtyThenAdd(product: ProductDto) {
         val barcode = product.barcode ?: return
         val ctx = this
+        val isLbs = com.example.test.data.isLbsUnit(product.unit)
         val etQty = android.widget.EditText(ctx).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            inputType = if (isLbs)
+                android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            else
+                android.text.InputType.TYPE_CLASS_NUMBER
             hint = getString(R.string.hint_credit_qty)
             setText("1")
             selectAll()
@@ -291,14 +296,14 @@ class IssueCreditActivity : BaseActivity() {
             .setMessage(product.name)
             .setView(etQty)
             .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
-                val qty = etQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: 1.0
                 addLine(barcode, product.name, qty, product.unit, estimatedUnitValueOf(product))
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
-    private fun addLine(barcode: String, productName: String, qty: Int, unit: String?, estimatedUnitValue: Double) {
+    private fun addLine(barcode: String, productName: String, qty: Double, unit: String?, estimatedUnitValue: Double) {
         val existing = lines.find { it.barcode == barcode }
         if (existing != null) {
             existing.qty += qty
@@ -324,7 +329,8 @@ class IssueCreditActivity : BaseActivity() {
 
             val tvItem = TextView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${line.productName}\n${String.format(Locale.US, "%d %s ≈ $%.2f", line.qty, line.unit ?: "lb", line.qty * line.estimatedUnitValue)}"
+                val qtyLabel = com.example.test.data.formatDamageQty(line.qty, line.unit)
+                text = "${line.productName}\n$qtyLabel ≈ ${String.format(Locale.US, "$%.2f", line.qty * line.estimatedUnitValue)}"
                 textSize = 13f
                 setTextColor(getColor(R.color.text_primary))
             }

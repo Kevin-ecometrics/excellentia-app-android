@@ -419,17 +419,22 @@ class CurrentOrderActivity : BaseActivity() {
         val caseSize = product.caseQty?.takeIf { it > 0 } ?: product.qty.takeIf { it > 0 }
         return if (com.example.test.data.isCaseUnitType(product.unit) && caseSize != null)
             product.price / caseSize
-        else if (product.unit.equals("Bucket", true))
-            product.price
         else
-            product.price * (product.weightPerUnit ?: 1.0)
+            // Bucket y Lbs: product.price ya es el valor por unidad/lb, directo
+            // (para Lbs, qty ya es el peso real dañado, no hace falta estimar
+            // con weightPerUnit).
+            product.price
     }
 
     private fun askCreditQtyThenAdd(product: ProductDto) {
         val barcode = product.barcode ?: return
         val ctx = this
+        val isLbs = com.example.test.data.isLbsUnit(product.unit)
         val etQty = android.widget.EditText(ctx).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            inputType = if (isLbs)
+                android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            else
+                android.text.InputType.TYPE_CLASS_NUMBER
             hint = getString(R.string.hint_credit_qty)
             setText("1")
             selectAll()
@@ -439,9 +444,9 @@ class CurrentOrderActivity : BaseActivity() {
             .setMessage(product.name)
             .setView(etQty)
             .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
-                val qty = etQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: 1.0
                 lifecycleScope.launch {
-                    orderRepository.saveCreditItem(barcode, product.name, qty, estimatedUnitValueOf(product))
+                    orderRepository.saveCreditItem(barcode, product.name, qty, estimatedUnitValueOf(product), product.unit)
                     loadOrder()
                 }
             }
@@ -551,7 +556,8 @@ class CurrentOrderActivity : BaseActivity() {
         com.example.test.data.DamageItem(
             barcode     = barcode,
             productName = productName,
-            qty         = quantity.toInt(),
+            qty         = quantity,
+            unit        = unit,
             unitPrice   = price
         )
 
@@ -639,12 +645,16 @@ class CurrentOrderActivity : BaseActivity() {
                         android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
 
+                val isLbs = com.example.test.data.isLbsUnit(order.unit)
                 val etQty = android.widget.EditText(ctx).apply {
-                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    inputType = if (isLbs)
+                        android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                    else
+                        android.text.InputType.TYPE_CLASS_NUMBER
                     // Prellena si este barcode ya tiene qty de un crédito
                     // agregado a mano (btnAddCreditItem) para el mismo producto.
-                    setText((pendingDamageItems.firstOrNull { it.barcode == order.barcode }?.qty
-                        ?: 0).toString())
+                    val prefillQty = pendingDamageItems.firstOrNull { it.barcode == order.barcode }?.qty ?: 0.0
+                    setText(if (isLbs) String.format(Locale.US, "%.2f", prefillQty) else prefillQty.toInt().toString())
                     textSize = 15f
                     gravity = android.view.Gravity.CENTER
                     layoutParams = android.widget.LinearLayout.LayoutParams(
@@ -677,11 +687,12 @@ class CurrentOrderActivity : BaseActivity() {
                     // se agregan siempre, sin importar lo que se marque acá
                     // para los productos del carrito.
                     val fromCart = inputs.mapNotNull { (order, et) ->
-                        val qty = et.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
+                        val qty = et.text.toString().toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
                         if (qty > 0) com.example.test.data.DamageItem(
                             barcode     = order.barcode,
                             productName = order.productName,
                             qty         = qty,
+                            unit        = order.unit,
                             unitPrice   = unitValueOf(order)
                         ) else null
                     }

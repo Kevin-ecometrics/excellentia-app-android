@@ -229,6 +229,17 @@ fun List<BatchItem>.groupedForTicket(): List<GroupedTicketItem> {
 fun isCaseUnitType(unit: String?): Boolean =
     unit.equals("Case/Unit", true) || unit.equals("Case", true) || unit.equals("Unit", true)
 
+// ── Créditos/daños: cantidad como peso real (Lbs) vs conteo de piezas ──────
+// Espeja isLbsUnit()/formatDamageQty() del backend (creditCalculator.ts) —
+// mismo criterio en los dos para que el input en pantalla, el ticket impreso
+// y la factura de QBO coincidan. Solo Lbs necesita decimales: Case/Unit y
+// Bucket siguen siendo conteos enteros de piezas.
+fun isLbsUnit(unit: String?): Boolean = unit.isNullOrBlank() || unit.equals("Lbs", true)
+
+fun formatDamageQty(qty: Double, unit: String?): String =
+    if (isLbsUnit(unit)) String.format(Locale.US, "%.2f lb", qty)
+    else String.format(Locale.US, "%d unit(s)", qty.toInt())
+
 // ── Ticket: agrupación por categoría de unidad (LBS / CASE/UNIT / BUCKET) ──
 // Usado por PrintService.buildCpcl() y TicketDetailActivity.buildReceipt() — misma
 // lógica en los dos para que el ticket impreso y la vista en pantalla coincidan.
@@ -283,7 +294,14 @@ data class UpdatePaymentRequest(
 data class DamageItem(
     val barcode: String,
     @SerializedName("product_name") val productName: String,
-    val qty: Int,
+    // Double, no Int: para productos Lbs esta cantidad es el peso real dañado
+    // (ej. 2.35), no un conteo de piezas. Case/Unit y Bucket siguen siendo
+    // conteos enteros en la práctica, pero viajan igual como Double.
+    val qty: Double,
+    // Tipo de venta del producto al momento del daño (Lbs/Case-Unit/Bucket) —
+    // determina si `qty` se interpreta como peso o como conteo, tanto para el
+    // input en pantalla como para el texto del ticket impreso.
+    val unit: String? = null,
     // Valor por unidad usado para estimar el crédito localmente (preview antes
     // de finalizar, y ticket impreso en modo offline). El backend recalcula su
     // propia cifra autoritativa desde el catálogo — este campo nunca se usa
@@ -297,7 +315,10 @@ data class DamageItem(
 data class CreditItemRequest(
     val barcode: String,
     @SerializedName("product_name") val productName: String,
-    val qty: Int
+    // Double por la misma razón que DamageItem.qty — el backend ya acepta
+    // decimales (Number(i.qty) en routes/credits.ts) y re-resuelve el unit
+    // fresco desde products, no hace falta mandarlo acá.
+    val qty: Double
 )
 
 data class IssueCreditRequest(

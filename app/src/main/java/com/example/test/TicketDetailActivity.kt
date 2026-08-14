@@ -24,6 +24,7 @@ import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
 import com.example.test.data.byTicketCategory
 import com.example.test.data.creditsTotalOf
+import com.example.test.data.formatDamageQty
 import com.example.test.data.groupedForTicket
 import com.example.test.data.isWeightTicketCategory
 import com.example.test.data.local.AppDatabase
@@ -440,8 +441,9 @@ class TicketDetailActivity : AppCompatActivity() {
             addSep(heavy = false)
             addLine("Negative Sale Summary:", bold = true, sizeSp = 12f)
             for (dmg in damageItems.filter { it.qty > 0 }) {
+                val dmgQtyStr = formatDamageQty(dmg.qty, dmg.unit)
                 addLine(
-                    "${dmg.productName}: ${dmg.qty} unit(s) · ${String.format(Locale.US, "-\$%.2f", dmg.qty * dmg.unitPrice)}",
+                    "${dmg.productName}: $dmgQtyStr · ${String.format(Locale.US, "-\$%.2f", dmg.qty * dmg.unitPrice)}",
                     sizeSp = 12f, indent = true
                 )
             }

@@ -106,7 +106,7 @@ class OrderRepository(
     // (is_credit = true), para que sobreviva el cierre de la app igual que
     // los productos normales. Mergea por barcode si ya había un crédito
     // activo del mismo producto (suma qty, mantiene el precio ya guardado).
-    suspend fun saveCreditItem(barcode: String, productName: String, qty: Int, unitPrice: Double) = withContext(Dispatchers.IO) {
+    suspend fun saveCreditItem(barcode: String, productName: String, qty: Double, unitPrice: Double, unit: String? = null) = withContext(Dispatchers.IO) {
         val existing = orderDao.findActiveCreditByBarcode(barcode)
         if (existing != null) {
             orderDao.update(existing.id, existing.price, existing.quantity + qty)
@@ -116,9 +116,10 @@ class OrderRepository(
                     barcode = barcode,
                     productName = productName,
                     price = unitPrice,
-                    quantity = qty.toDouble(),
+                    quantity = qty,
                     customerId = securePrefs.getActiveCustomerId(),
                     customerName = securePrefs.getActiveCustomerName(),
+                    unit = unit,
                     isCredit = true
                 )
             )
