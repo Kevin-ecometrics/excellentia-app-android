@@ -12,6 +12,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             CREATE TABLE IF NOT EXISTS cached_products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 barcode TEXT NOT NULL UNIQUE,
+                sku TEXT,
                 name TEXT NOT NULL,
                 short_name TEXT,
                 price REAL NOT NULL,
@@ -150,11 +151,14 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             try { db.execSQL("ALTER TABLE cached_products ADD COLUMN short_name TEXT") } catch (_: Exception) {}
             try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN short_name TEXT") } catch (_: Exception) {}
         }
+        if (oldVersion < 15) {
+            try { db.execSQL("ALTER TABLE cached_products ADD COLUMN sku TEXT") } catch (_: Exception) {}
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 14
+        private const val DATABASE_VERSION = 15
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

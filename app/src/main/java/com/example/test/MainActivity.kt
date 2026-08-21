@@ -618,7 +618,8 @@ class MainActivity : BaseActivity() {
         val caseQty: Int = 0,
         val qbItemId: String? = null,
         val qbActive: Boolean? = null,
-        val shortName: String? = null
+        val shortName: String? = null,
+        val sku: String? = null
     )
 
     // Abre el detalle directo desde un resultado de búsqueda ya cargado (sin volver a
@@ -677,7 +678,8 @@ class MainActivity : BaseActivity() {
         fun labelFor(item: SuggestionItem): String {
             val unitLabel = if (item.unit.isNullOrBlank() || item.unit == "Lbs") "lb" else item.unit
             val priceStr = "$${String.format(java.util.Locale.US, "%.2f", item.price)}/$unitLabel"
-            return if (item.barcode != null) "${item.name}  ·  $priceStr" else "${item.name}  ·  $priceStr  ·  ${getString(R.string.no_barcode_label)}"
+            val skuPart = item.sku?.let { "  ·  $it" } ?: ""
+            return if (item.barcode != null) "${item.name}  ·  $priceStr$skuPart" else "${item.name}  ·  $priceStr$skuPart  ·  ${getString(R.string.no_barcode_label)}"
         }
 
         fun showSuggestions(items: List<SuggestionItem>) {
@@ -708,7 +710,7 @@ class MainActivity : BaseActivity() {
                             results.isEmpty() -> runOnUiThread { showProductNotFound(query) }
                             results.size == 1 -> runOnUiThread {
                                 openSuggestion(
-                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty, results[0].caseQty ?: 0, results[0].qbItemId, results[0].qbActive, results[0].shortName)
+                                    SuggestionItem(results[0].barcode, results[0].name, results[0].price, results[0].weightPerUnit, results[0].stock, results[0].unit, results[0].qty, results[0].caseQty ?: 0, results[0].qbItemId, results[0].qbActive, results[0].shortName, sku = results[0].sku)
                                 )
                             }
                             // Varios resultados: se listan en el mismo lvSuggestions (un solo
@@ -716,7 +718,7 @@ class MainActivity : BaseActivity() {
                             // evita el bug de "primer click no abre, segundo abre el anterior".
                             else -> runOnUiThread {
                                 showSuggestions(results.map {
-                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive, it.shortName)
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive, it.shortName, sku = it.sku)
                                 })
                             }
                         }
@@ -749,7 +751,7 @@ class MainActivity : BaseActivity() {
                         val results = productRepository.searchOffline(query)
                         runOnUiThread {
                             showSuggestions(results.map {
-                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive)
+                                SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive, sku = it.sku)
                             })
                         }
                     }
@@ -761,7 +763,7 @@ class MainActivity : BaseActivity() {
                                 val products = resp.body()?.data ?: emptyList()
                                 runOnUiThread {
                                     showSuggestions(products.map {
-                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive, it.shortName)
+                                    SuggestionItem(it.barcode, it.name, it.price, it.weightPerUnit, it.stock, it.unit, it.qty, it.caseQty ?: 0, it.qbItemId, it.qbActive, it.shortName, sku = it.sku)
                                 })
                                 }
                             }
@@ -822,7 +824,7 @@ class MainActivity : BaseActivity() {
         lvResults.setOnItemClickListener { _, _, idx, _ ->
             foundProducts.getOrNull(idx)?.let { p ->
                 dialog.dismiss()
-                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty, p.caseQty ?: 0, p.qbItemId, p.qbActive, p.shortName))
+                openSuggestion(SuggestionItem(p.barcode, p.name, p.price, p.weightPerUnit, p.stock, p.unit, p.qty, p.caseQty ?: 0, p.qbItemId, p.qbActive, p.shortName, sku = p.sku))
             }
         }
 
@@ -850,7 +852,7 @@ class MainActivity : BaseActivity() {
                                 tvStatus.text = ""
                                 resultsAdapter.clear()
                                 foundProducts.forEach { p ->
-                                    resultsAdapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/lb  ·  ${p.barcode ?: getString(R.string.no_barcode_label)}")
+                                    resultsAdapter.add("${p.name}  ·  $${String.format(java.util.Locale.US, "%.2f", p.price)}/lb  ·  ${p.barcode ?: getString(R.string.no_barcode_label)}${p.sku?.let { "  ·  $it" } ?: ""}")
                                 }
                                 lvResults.visibility = android.view.View.VISIBLE
                                 // Resetear scroll al tope en cada búsqueda nueva — si no, queda

@@ -22,6 +22,7 @@ class ProductDao(private val db: AppDatabase) {
     fun upsert(product: CachedProductEntity) {
         val values = ContentValues().apply {
             put("barcode", product.barcode)
+            product.sku?.let { put("sku", it) } ?: putNull("sku")
             put("name", product.name)
             put("price", product.price)
             put("category", product.category)
@@ -59,8 +60,8 @@ class ProductDao(private val db: AppDatabase) {
     fun searchByQuery(query: String): List<CachedProductEntity> {
         val like = "%$query%"
         val cursor = db.readableDatabase.rawQuery(
-            "SELECT * FROM cached_products WHERE barcode LIKE ? OR name LIKE ? ORDER BY name ASC LIMIT 30",
-            arrayOf(like, like)
+            "SELECT * FROM cached_products WHERE barcode LIKE ? OR name LIKE ? OR sku LIKE ? ORDER BY name ASC LIMIT 30",
+            arrayOf(like, like, like)
         )
         return cursor.use {
             val list = mutableListOf<CachedProductEntity>()
@@ -91,9 +92,11 @@ class ProductDao(private val db: AppDatabase) {
         val qbItemIdIdx = try { c.getColumnIndexOrThrow("qb_item_id") } catch (_: Exception) { -1 }
         val qbActiveIdx = try { c.getColumnIndexOrThrow("qb_active") } catch (_: Exception) { -1 }
         val shortNameIdx = try { c.getColumnIndexOrThrow("short_name") } catch (_: Exception) { -1 }
+        val skuIdx = try { c.getColumnIndexOrThrow("sku") } catch (_: Exception) { -1 }
         return CachedProductEntity(
             id = c.getInt(c.getColumnIndexOrThrow("id")),
             barcode = c.getString(c.getColumnIndexOrThrow("barcode")),
+            sku = if (skuIdx >= 0 && !c.isNull(skuIdx)) c.getString(skuIdx) else null,
             name = c.getString(c.getColumnIndexOrThrow("name")),
             price = c.getDouble(c.getColumnIndexOrThrow("price")),
             category = c.getString(c.getColumnIndexOrThrow("category")),

@@ -3,6 +3,7 @@ package com.example.test.data.local.entities
 data class CachedProductEntity(
     val id: Int = 0,
     val barcode: String,
+    val sku: String? = null,
     val name: String,
     val price: Double,
     val category: String? = null,

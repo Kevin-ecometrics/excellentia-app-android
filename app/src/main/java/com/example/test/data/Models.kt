@@ -55,6 +55,7 @@ data class PaginationMeta(
 data class ProductDto(
     val id: Int,
     val barcode: String?,
+    val sku: String? = null,
     val name: String,
     @SerializedName("short_name") val shortName: String? = null,
     val price: Double,
@@ -473,7 +474,11 @@ data class PreOrderRequest(
     @SerializedName("salesperson_name") val salespersonName: String? = null,
     @SerializedName("scheduled_date") val scheduledDate: String? = null,
     val notes: String? = null,
-    val items: List<PreOrderItem>
+    val items: List<PreOrderItem>,
+    // id real del vendedor elegido en el picker (no solo su nombre) — el backend lo
+    // usa como assigned_user_id: junto con el creador, es el único no-admin que
+    // puede ver esta pre-orden (ver CreatePreOrderActivity.showSalespersonPicker()).
+    @SerializedName("assigned_user_id") val assignedUserId: Int? = null
 )
 
 data class PreOrderDto(

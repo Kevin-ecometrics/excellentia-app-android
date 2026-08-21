@@ -29,6 +29,7 @@ class ProductRepository(
                     productDao.upsert(
                         CachedProductEntity(
                             barcode = dto.barcode ?: barcode,
+                            sku = dto.sku,
                             name = dto.name,
                             price = dto.price,
                             category = dto.category,

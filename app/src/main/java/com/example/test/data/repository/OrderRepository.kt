@@ -298,6 +298,7 @@ class OrderRepository(
                     dao.upsert(
                         CachedProductEntity(
                             barcode = dto.barcode ?: "QBO-${dto.id}",
+                            sku = dto.sku,
                             name = dto.name,
                             price = dto.price,
                             category = dto.category,

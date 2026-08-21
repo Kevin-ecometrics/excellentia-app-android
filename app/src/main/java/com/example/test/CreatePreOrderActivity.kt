@@ -52,6 +52,10 @@ class CreatePreOrderActivity : BaseActivity() {
     private var selectedCustomerId: String? = null
     private var selectedCustomerName: String? = null
     private var selectedSalespersonName: String? = null
+    // El vendedor elegido en el picker de abajo no es solo texto para el ticket — su
+    // id determina quién puede ver esta pre-orden (junto con los admins, ver
+    // canAccessPreOrder en el backend). No hay un campo separado de "asignar".
+    private var selectedSalespersonUserId: Int? = null
     private var selectedDate: String? = null
     private val items = mutableListOf<PreOrderItem>()
     private val salespersons = mutableListOf<UserBrief>()
@@ -181,6 +185,10 @@ class CreatePreOrderActivity : BaseActivity() {
         }
     }
 
+    // El vendedor elegido acá es tanto el texto que va al ticket (salesperson_name)
+    // como el usuario real cuya cuenta queda habilitada para ver esta pre-orden
+    // (selectedSalespersonUserId → assigned_user_id en el backend) — un solo picker,
+    // sin un campo de "asignar" separado.
     private fun showSalespersonPicker() {
         if (salespersons.isEmpty()) {
             Snackbar.make(findViewById(android.R.id.content), "No hay vendedores disponibles", Snackbar.LENGTH_SHORT).show()
@@ -192,6 +200,7 @@ class CreatePreOrderActivity : BaseActivity() {
             .setItems(names) { _, index ->
                 val sp = salespersons[index]
                 selectedSalespersonName = sp.name
+                selectedSalespersonUserId = sp.id
                 tvSalesperson.text = sp.name ?: "—"
                 tvSalesperson.setTextColor(getColor(R.color.text_primary))
             }
@@ -422,7 +431,8 @@ class CreatePreOrderActivity : BaseActivity() {
             salespersonName = selectedSalespersonName,
             scheduledDate   = selectedDate,
             notes           = etNotes.text?.toString()?.trim()?.takeIf { it.isNotBlank() },
-            items           = items.toList()
+            items           = items.toList(),
+            assignedUserId  = selectedSalespersonUserId
         )
 
         lifecycleScope.launch {
