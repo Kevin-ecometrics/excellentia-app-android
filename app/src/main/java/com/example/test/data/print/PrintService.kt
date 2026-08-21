@@ -22,19 +22,35 @@ import java.util.UUID
 object PrintService {
 
     private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    private const val PW  = 576
+    // Papel 102mm ≈ 816 dots. PW=800 deja ~1mm de holgura física por lado. El
+    // padding visible lo pone X_LEFT: el origen x=0 de CPCL queda pegado al borde
+    // físico izquierdo (verificado imprimiendo: cero margen a la izquierda y aire
+    // solo a la derecha), así que todo el contenido se desplaza X_LEFT dots y los
+    // anchos de texto se derivan del ancho INTERIOR (PW - 2*X_LEFT) para que el
+    // ticket quede centrado con padding simétrico.
+    private const val PW  = 800
+    private const val X_LEFT = 48   // 6mm de padding a cada lado (el borde físico izquierdo suma ~3mm propios)
 
-    // Solo font 4 (17×27px) y font 7 (28×44px) — siempre disponibles en ZQ630 Plus
-    // Font 3 no disponible en este firmware.
-    private const val F7 = 7;  private const val F7H = 52   // 44px + 8px gap
-    private const val F4 = 4;  private const val F4H = 34   // 27px + 7px gap
+    // Fuente única del cuerpo del ticket: Font 7 del ZQ630 Plus. Medición física
+    // con el probe de fuentes (ago 2026): en este firmware la Font 7 es una
+    // condensada MÁS CHICA que la Font 4 (~40 dígitos entran en PAGE-WIDTH vs 33,
+    // glifos más bajos) — las tablas de Zebra que listan la Font 7 como 28×44px NO
+    // aplican a este firmware, y SETMAG no la afecta (con y sin SETMAG 1 1 se ve
+    // igual). BODY_CHAR_PX = 15 es conservador a propósito: el dígito midió ≈14.4px
+    // (cross-check del probe de ancho: 56 "=" entraban en 816 dots ≈ 14.5px) pero
+    // si la fuente es proporcional hay letras más anchas que un dígito, y una
+    // línea que desborda PAGE-WIDTH la envuelve la impresora pisando la siguiente.
+    // Si un ticket real deja margen derecho de sobra, bajar a 14 gana ~3 chars/línea.
+    private const val BODY_FONT = 7;  private const val BODY_H = 28   // alto estimado (Font 4 era 34) — afinar con ticket físico
+    private const val BODY_CHAR_PX = 15
 
     private const val BOTTOM  = 200  // espacio para cortar (~1")
     private const val DRAIN_MS = 2000L
 
     // ── Ancho de línea — fuente única, todo el ticket lo usa ────────────────
-    // F4_CHAR_PX = ancho real de un carácter en Font 4 (17px, ver doc de fuentes
-    // arriba). MAX_LINE_CHARS = cuántos caracteres entran físicamente en
+    // BODY_CHAR_PX = ancho real estimado de un carácter en la fuente del cuerpo
+    // (Font 7, medido con el probe: ~40 dígitos por línea — ver comentario arriba).
+    // MAX_LINE_CHARS = cuántos caracteres entran físicamente en
     // PAGE-WIDTH sin desbordar — límite duro, no ajustable. LINE_WIDTH es el
     // ancho que de verdad usan wrapText/twoCol/threeCol en todo el ticket: se
     // deja un colchón de seguridad bajo MAX_LINE_CHARS a propósito (texto justo
@@ -45,8 +61,7 @@ object PrintService {
     // MAX_LINE_CHARS por las dudas, así que aunque alguien pase a mano un ancho
     // más grande en una llamada puntual, nunca se desborda la página — siempre
     // hace salto de línea real en vez de superponerse con lo que sigue.
-    private const val F4_CHAR_PX = 17
-    private val MAX_LINE_CHARS = PW / F4_CHAR_PX
+    private val MAX_LINE_CHARS = (PW - 2 * X_LEFT) / BODY_CHAR_PX
     private val LINE_WIDTH = (MAX_LINE_CHARS - 4).coerceAtLeast(1)
     // Nombre de producto — deja lugar para el prefijo "N - " (cantidad
     // seleccionada, hasta 2 dígitos + " - ") antes del texto en la primera línea
@@ -137,27 +152,27 @@ object PrintService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Ticket — solo font 4 y 7, todo CENTER o LEFT, sin RIGHT
+    // Ticket — fuente única BODY_FONT (Font 7), todo CENTER o LEFT, sin RIGHT
     //
     //    ═══════════════════
-    //       EXCELLENTIA        F7 center
-    //      Ticket de Venta     F4 center
-    //     14/05/2026 10:30     F4 center
-    //     Pedido #XXXXXXXX     F4 center  (si aplica)
-    //      Factura #XXXXX      F4 center  (si aplica)
-    //    Cliente: Cool Cars    F4 center  (si aplica)
+    //       EXCELLENTIA        BODY center
+    //      Ticket de Venta     BODY center
+    //     14/05/2026 10:30     BODY center
+    //     Pedido #XXXXXXXX     BODY center  (si aplica)
+    //      Factura #XXXXX      BODY center  (si aplica)
+    //    Cliente: Cool Cars    BODY center  (si aplica)
     //    ═══════════════════
-    //    Queso Fresco          F4 left
-    //    1.50lb x $33.33       F4 left
-    //    Subtotal: $50.00      F4 left
+    //    Queso Fresco          BODY left
+    //    1.50lb x $33.33       BODY left
+    //    Subtotal: $50.00      BODY left
     //    ───────────────────
     //    ═══════════════════
-    //        TOTAL             F4 center
-    //        $50.00            F7 center
+    //        TOTAL             BODY center
+    //        $50.00            BODY center
     //    ═══════════════════
-    //     Total: 1.50 lb       F4 center
+    //     Total: 1.50 lb       BODY center
     //    ───────────────────
-    //  Excellentia Scanner     F4 center
+    //  Excellentia Scanner     BODY center
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun buildCpcl(
@@ -183,8 +198,14 @@ object PrintService {
         val date = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
         val grandTotal = items.sumOf { it.total }
         val totalQty   = items.sumOf { it.quantity }
-        val SEP  = "================================"   // 32 chars — separador principal
-        val DASH = "--------------------------------"   // 32 chars — separador secundario
+        // 56 chars: el "=" real mide ~11.5-12px (el gap derecho observado en el
+        // ticket con separadores de 52 lo confirma) → 56×12=672px entran sobrado
+        // en el ancho interior (PW - 2*X_LEFT = 704) y cruzan casi todo el papel.
+        // Desacoplados de LINE_WIDTH a propósito — las líneas de TEXTO usan un
+        // ancho más conservador porque la Font 7 es proporcional y hay letras
+        // (dígitos ~14.2px) más anchas que el "=".
+        val SEP  = "========================================================"   // 56 chars
+        val DASH = "--------------------------------------------------------"   // 56 chars
 
         val body = StringBuilder()
         var y = 20
@@ -193,42 +214,42 @@ object PrintService {
         // Todo LEFT — nombre y subtítulo con wrap real (nunca se trunca en
         // silencio: si es largo, hace salto de línea y sigue en la próxima).
         body.left()
-        y = body.tWrapped(0, y, companyName, lineGap = 4)
-        y = body.tWrapped(0, y, subtitle, lineGap = 4)
+        y = body.tWrapped(X_LEFT, y, companyName, lineGap = 4)
+        y = body.tWrapped(X_LEFT, y, subtitle, lineGap = 4)
         if (!address.isNullOrBlank()) {
-            for (part in splitAddress(address)) { y = body.tWrapped(0, y, part, lineGap = 2) }
+            for (part in splitAddress(address)) { y = body.tWrapped(X_LEFT, y, part, lineGap = 2) }
         }
         if (!city.isNullOrBlank()) {
-            for (part in splitAddress(city)) { y = body.tWrapped(0, y, part, lineGap = 2) }
+            for (part in splitAddress(city)) { y = body.tWrapped(X_LEFT, y, part, lineGap = 2) }
         }
-        if (!phone.isNullOrBlank())   y = body.tWrapped(0, y, phone, lineGap = 2)
+        if (!phone.isNullOrBlank())   y = body.tWrapped(X_LEFT, y, phone, lineGap = 2)
 
         // ── Info del pedido ─────────────────────────────
         y += 6
-        body.t(F4, 0, y, SEP);                                     y += F4H + 6
-        body.t(F4, 0, y, date);                                    y += F4H + 4
+        body.t(BODY_FONT, X_LEFT, y, SEP);                                     y += BODY_H + 6
+        body.t(BODY_FONT, X_LEFT, y, date);                                    y += BODY_H + 4
         val displayInvoice = invoiceNumber ?: invoiceId?.take(20)
         if (displayInvoice != null) {
-            body.t(F4, 0, y, "Invoice #$displayInvoice");          y += F4H + 4
+            body.t(BODY_FONT, X_LEFT, y, "Invoice #$displayInvoice");          y += BODY_H + 4
         }
 
         // ── Cliente ─────────────────────────────────────
         if (!customerName.isNullOrBlank()) {
             y += 4
-            body.t(F4, 0, y, DASH);                                y += F4H + 6
+            body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 6
             val clientLines = wrapText("Customer: $customerName")
-            for (line in clientLines) { body.t(F4, 0, y, line);   y += F4H + 3 }
+            for (line in clientLines) { body.t(BODY_FONT, X_LEFT, y, line);   y += BODY_H + 3 }
             y += 1
             if (!customerAddress.isNullOrBlank()) {
                 for (part in splitAddress(customerAddress)) {
-                    y = body.tWrapped(4, y, part, lineGap = 3)
+                    y = body.tWrapped(X_LEFT + 4, y, part, lineGap = 3)
                 }
                 y += 1
             }
             if (!paymentMethod.isNullOrBlank()) {
-                body.t(F4, 0, y, "Payment: $paymentMethod");          y += F4H + 4
+                body.t(BODY_FONT, X_LEFT, y, "Payment: $paymentMethod");          y += BODY_H + 4
                 if ("Check".equals(paymentMethod, ignoreCase = true) && !checkNumber.isNullOrBlank()) {
-                    y = body.tWrapped(4, y, "Check #: $checkNumber", lineGap = 3)
+                    y = body.tWrapped(X_LEFT + 4, y, "Check #: $checkNumber", lineGap = 3)
                 }
             }
         }
@@ -242,9 +263,9 @@ object PrintService {
         // repetir el prefijo. Última línea: "Qty/Weight   Rate   Total" en 3
         // columnas (threeCol).
         y += 4
-        body.t(F4, 0, y, SEP);                                     y += F4H + 8
-        body.t(F4, 0, y, "Desc");                                   y += F4H + 3
-        body.t(F4, 0, y, threeCol("Qty/W", "Rate", "Total"));      y += F4H + 6
+        body.t(BODY_FONT, X_LEFT, y, SEP);                                     y += BODY_H + 8
+        body.t(BODY_FONT, X_LEFT, y, "Desc");                                   y += BODY_H + 3
+        body.t(BODY_FONT, X_LEFT, y, threeCol("Qty/W", "Rate", "Total"));      y += BODY_H + 6
         val groupedByCategory = items.groupedForTicket().byTicketCategory()
         for ((category, group) in groupedByCategory) {
             // Header de categoría (Fase 98, siempre visible; Fase 100, enmarcado
@@ -252,9 +273,9 @@ object PrintService {
             // quedaba pegado al resto del texto y se perdía visualmente; ahora
             // queda enmarcado como su propia sección, imposible de confundir con
             // el nombre de un producto.
-            body.t(F4, 0, y, DASH);                                y += F4H + 3
-            body.t(F4, 0, y, category);                            y += F4H + 3
-            body.t(F4, 0, y, DASH);                                y += F4H + 6
+            body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 3
+            body.t(BODY_FONT, X_LEFT, y, category);                            y += BODY_H + 3
+            body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 6
             for (g in group) {
                 // Qty/W = cantidad total real seleccionada (Fase 96, pedido del
                 // usuario): Case/Unit multiplica por unidades por caja (caseQty) —
@@ -284,12 +305,12 @@ object PrintService {
                 val nameLines = wrapText(g.productName, ITEM_NAME_WIDTH)
                 for ((idx, line) in nameLines.withIndex()) {
                     if (idx == 0) {
-                        body.t(F4, 0, y, "$pickCount - $line");    y += F4H + 3
+                        body.t(BODY_FONT, X_LEFT, y, "$pickCount - $line");    y += BODY_H + 3
                     } else {
-                        body.t(F4, 0, y, line);                    y += F4H + 3
+                        body.t(BODY_FONT, X_LEFT, y, line);                    y += BODY_H + 3
                     }
                 }
-                body.t(F4, 0, y, threeCol(qtyStr, rateStr, totalStr )); y += F4H + 4
+                body.t(BODY_FONT, X_LEFT, y, threeCol(qtyStr, rateStr, totalStr )); y += BODY_H + 4
                 y += 8
             }
         }
@@ -298,32 +319,32 @@ object PrintService {
         val totalDamage = damageItems.sumOf { it.qty }
         val credits = creditsTotalOf(damageItems, creditsTotal)
         if (totalDamage > 0) {
-            body.t(F4, 0, y, DASH);                                y += F4H + 6
-            body.t(F4, 0, y, "Negative Sale Summary:");            y += F4H + 4
+            body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 6
+            body.t(BODY_FONT, X_LEFT, y, "Negative Sale Summary:");            y += BODY_H + 4
             for (dmg in damageItems.filter { it.qty > 0 }) {
                 val lineAmount = String.format(Locale.US, "\$%.2f", dmg.qty * dmg.unitPrice)
                 val dmgQtyStr = com.example.test.data.formatDamageQty(dmg.qty, dmg.unit)
                 for (line in wrapText("${dmg.productName}: $dmgQtyStr · -$lineAmount")) {
-                    body.t(F4, 4, y, line);                        y += F4H + 3
+                    body.t(BODY_FONT, X_LEFT + 4, y, line);                        y += BODY_H + 3
                 }
             }
-            body.t(F4, 0, y, DASH);                                y += F4H + 10
+            body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 10
         }
 
         // ── Total ──────────────────────────────────────
-        body.t(F4, 0, y, SEP);                                     y += F4H + 10
+        body.t(BODY_FONT, X_LEFT, y, SEP);                                     y += BODY_H + 10
         if (credits > 0) {
-            body.t(F4, 0, y, twoCol("Subtotal:", String.format(Locale.US, "\$%.2f", grandTotal))); y += F4H + 4
-            body.t(F4, 0, y, twoCol("Credits:", String.format(Locale.US, "-\$%.2f", credits)));    y += F4H + 4
+            body.t(BODY_FONT, X_LEFT, y, twoCol("Subtotal:", String.format(Locale.US, "\$%.2f", grandTotal))); y += BODY_H + 4
+            body.t(BODY_FONT, X_LEFT, y, twoCol("Credits:", String.format(Locale.US, "-\$%.2f", credits)));    y += BODY_H + 4
         }
         val creditAppliedVal = creditApplied ?: 0.0
         val finalTotal = if (creditAppliedVal > 0) {
-            body.t(F4, 0, y, twoCol("Credit Applied:", String.format(Locale.US, "-\$%.2f", creditAppliedVal))); y += F4H + 4
+            body.t(BODY_FONT, X_LEFT, y, twoCol("Credit Applied:", String.format(Locale.US, "-\$%.2f", creditAppliedVal))); y += BODY_H + 4
             grandTotal - credits - creditAppliedVal
         } else {
             grandTotal - credits
         }
-        body.t(F4, 0, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", finalTotal))); y += F4H + 8
+        body.t(BODY_FONT, X_LEFT, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", finalTotal))); y += BODY_H + 8
         // Con una sola categoría se puede sumar cantidad + unidad ("22.80 lb total").
         // Mezclando lb + case + unit no hay una suma que tenga sentido — se muestra
         // cantidad de productos en su lugar.
@@ -338,16 +359,16 @@ object PrintService {
             val itemCount = items.groupedForTicket().size
             "$itemCount items total"
         }
-        body.t(F4, 0, y, qtyLine);                                 y += F4H + 6
-        y = body.tWrapped(0, y, companyName, lineGap = 4);          y += 12
+        body.t(BODY_FONT, X_LEFT, y, qtyLine);                                 y += BODY_H + 6
+        y = body.tWrapped(X_LEFT, y, companyName, lineGap = 4);          y += 12
 
         // ── Términos y condiciones (QR) ──────────────────
         // Reemplaza el texto legal completo por un QR que apunta a la página
         // web con el disclaimer — el texto ya no se imprime en el ticket.
         y += 8
-        body.t(F4, 0, y, "Terms & Conditions:");                   y += F4H + 4
-        body.t(F4, 0, y, "Scan to view");                          y += F4H + 8
-        val qrWidth = 320
+        body.t(BODY_FONT, X_LEFT, y, "Terms & Conditions:");                   y += BODY_H + 4
+        body.t(BODY_FONT, X_LEFT, y, "Scan to view");                          y += BODY_H + 8
+        val qrWidth = 500
         val qrX = (PW - qrWidth) / 2
         val (qrCmd, qrNewY) = buildQrEg(context, qrWidth, qrX, y)
         if (qrCmd.isNotEmpty()) {
@@ -355,16 +376,16 @@ object PrintService {
             y = qrNewY
         }
         for (urlLine in "https://excellentiafoods.com/terms-and-conditions/".chunked(LINE_WIDTH)) {
-            body.t(F4, 0, y, urlLine); y += F4H + 4
+            body.t(BODY_FONT, X_LEFT, y, urlLine); y += BODY_H + 4
         }
         y += 8
 
         // ── Firma ──────────────────────────────────────
         if (!signature.isNullOrBlank()) {
             y += 16
-            body.t(F4, 0, y, DASH);                               y += F4H + 8
-            body.t(F4, 0, y, "Customer Signature");               y += F4H + 12
-            val sigWidth = 480
+            body.t(BODY_FONT, X_LEFT, y, DASH);                               y += BODY_H + 8
+            body.t(BODY_FONT, X_LEFT, y, "Customer Signature");               y += BODY_H + 12
+            val sigWidth = 700
             val sigX = (PW - sigWidth) / 2
             val (egCmd, newY) = buildSignatureEg(signature, sigWidth, sigX, y)
             if (egCmd.isNotEmpty()) {
@@ -386,10 +407,10 @@ object PrintService {
         var y = 20
 
         body.center()
-        body.t(F7, 0, y, "EXCELLENTIA");            y += F7H + 10
-        body.t(F4, 0, y, "Prueba de impresion");    y += F4H + 8
-        body.t(F4, 0, y, date);                     y += F4H + 10
-        body.t(F4, 0, y, "ZQ630 Plus  OK");         y += F4H
+        body.t(BODY_FONT, X_LEFT, y, "EXCELLENTIA");         y += BODY_H + 10
+        body.t(BODY_FONT, X_LEFT, y, "Prueba de impresion"); y += BODY_H + 8
+        body.t(BODY_FONT, X_LEFT, y, date);                  y += BODY_H + 10
+        body.t(BODY_FONT, X_LEFT, y, "ZQ630 Plus  OK");      y += BODY_H
 
         val height = y + BOTTOM
         return "! 0 200 200 $height 1\r\nPAGE-WIDTH $PW\r\n" +
@@ -523,15 +544,16 @@ object PrintService {
     private fun StringBuilder.t(font: Int, x: Int, y: Int, data: String) =
         append("T $font 0 $x $y $data\r\n")
 
-    // Imprime `text` en font 4, envolviendo con wrapText en vez de truncar —
+    // Imprime `text` en la fuente del cuerpo (BODY_FONT), envolviendo con
+    // wrapText en vez de truncar —
     // usado en los campos de la cabecera/pie (nombre de empresa, subtítulo,
     // dirección, etc.) que antes usaban `.take()` y perdían texto en silencio
     // si eran largos. Devuelve el `y` después de la última línea.
     private fun StringBuilder.tWrapped(x: Int, startY: Int, text: String, maxChars: Int = LINE_WIDTH, lineGap: Int = 4): Int {
         var y = startY
         for (line in wrapText(text, maxChars)) {
-            t(F4, x, y, line)
-            y += F4H + lineGap
+            t(BODY_FONT, x, y, line)
+            y += BODY_H + lineGap
         }
         return y
     }
