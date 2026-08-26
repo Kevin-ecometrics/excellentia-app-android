@@ -30,7 +30,7 @@ class ChangePasswordActivity : BaseActivity() {
         setContentView(R.layout.activity_change_password)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(b.left, b.top, b.right, b.bottom)
+            v.setPadding(b.left, 0, b.right, b.bottom)
             insets
         }
 

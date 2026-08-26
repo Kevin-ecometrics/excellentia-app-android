@@ -22,8 +22,11 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@color/ex_navy"
             app:navigationIcon="@drawable/ic_back"
-            app:title="@string/title_history" />
+            app:navigationIconTint="@color/white"
+            app:title="@string/title_history"
+            app:titleTextColor="@color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Content area -->
@@ -51,7 +54,7 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipToday"
-                style="@style/Widget.Material3.Chip.Filter"
+                style="@style/Widget.Excellentia.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checked="true"
@@ -59,7 +62,7 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipAllDates"
-                style="@style/Widget.Material3.Chip.Filter"
+                style="@style/Widget.Excellentia.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/chip_all_dates" />
@@ -81,7 +84,7 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipAll"
-                style="@style/Widget.Material3.Chip.Filter"
+                style="@style/Widget.Excellentia.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checked="true"
@@ -89,21 +92,21 @@
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipSent"
-                style="@style/Widget.Material3.Chip.Filter"
+                style="@style/Widget.Excellentia.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/filter_sent" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipPending"
-                style="@style/Widget.Material3.Chip.Filter"
+                style="@style/Widget.Excellentia.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/filter_pending" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipFailed"
-                style="@style/Widget.Material3.Chip.Filter"
+                style="@style/Widget.Excellentia.Chip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/chip_failed" />
@@ -143,9 +146,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
+                    android:textColor="@color/white"
+                    app:strokeColor="@color/white"
                     android:text="@string/btn_load_more_orders"
                     android:visibility="gone"
-                    app:cornerRadius="12dp" />
+                    app:cornerRadius="0dp" />
 
                 <LinearLayout
                     android:id="@+id/layoutEmpty"
@@ -162,7 +167,7 @@
                         android:layout_height="72dp"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_history"
-                        app:tint="@color/light_gray" />
+                        app:tint="#66F9EFE8" />
 
                     <TextView
                         android:id="@+id/tvEmptyMessage"
@@ -171,7 +176,7 @@
                         android:layout_marginTop="16dp"
                         android:gravity="center"
                         android:text="@string/empty_history"
-                        android:textColor="@color/text_secondary"
+                        android:textColor="@color/white"
                         android:textSize="16sp" />
 
                     <TextView
@@ -180,7 +185,7 @@
                         android:layout_marginTop="4dp"
                         android:gravity="center"
                         android:text="@string/orders_will_appear_here"
-                        android:textColor="@color/light_gray"
+                        android:textColor="#99F9EFE8"
                         android:textSize="13sp" />
                 </LinearLayout>
             </LinearLayout>

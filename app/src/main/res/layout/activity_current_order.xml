@@ -20,7 +20,9 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_back">
+            android:background="@color/ex_green"
+            app:navigationIcon="@drawable/ic_back"
+            app:navigationIconTint="@color/white">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -37,16 +39,17 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:fontFamily="@font/family_after"
                         android:text="@string/title_current_order"
                         android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textColor="?attr/colorOnSurface" />
+                        android:textColor="@color/white" />
 
                     <TextView
                         android:id="@+id/tvCustomerLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textAppearance="?attr/textAppearanceLabelSmall"
-                        android:textColor="@color/primary"
+                        android:textColor="@color/ex_gold"
                         android:visibility="gone" />
 
                     <TextView
@@ -54,7 +57,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="10sp"
-                        android:textColor="@color/text_secondary"
+                        android:textColor="#B3F9EFE8"
                         android:visibility="gone" />
                 </LinearLayout>
 
@@ -65,15 +68,16 @@
                     android:layout_marginEnd="4dp"
                     android:clickable="false"
                     android:focusable="false"
+                    android:fontFamily="@font/family_after"
                     android:insetBottom="0dp"
                     android:insetTop="0dp"
                     android:minWidth="32dp"
                     android:paddingHorizontal="10dp"
-                    android:textColor="@color/white"
+                    android:textColor="@color/ex_green"
                     android:textSize="13sp"
                     android:textStyle="bold"
-                    app:backgroundTint="@color/primary"
-                    app:cornerRadius="16dp" />
+                    app:backgroundTint="@color/ex_gold"
+                    app:cornerRadius="0dp" />
             </LinearLayout>
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
@@ -107,7 +111,7 @@
                 android:layout_height="72dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_add_cart"
-                app:tint="@color/light_gray" />
+                app:tint="#66F9EFE8" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -115,7 +119,7 @@
                 android:layout_marginTop="16dp"
                 android:gravity="center"
                 android:text="@string/label_no_products_in_order"
-                android:textColor="@color/text_secondary"
+                android:textColor="@color/white"
                 android:textSize="15sp" />
 
             <TextView
@@ -124,7 +128,7 @@
                 android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:text="@string/label_scan_to_start"
-                android:textColor="@color/light_gray"
+                android:textColor="#99F9EFE8"
                 android:textSize="13sp" />
         </LinearLayout>
 
@@ -152,7 +156,7 @@
             android:id="@+id/layoutTotals"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:background="@color/surface"
+            android:background="@color/white"
             android:elevation="4dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
@@ -181,6 +185,7 @@
                     android:id="@+id/tvGrandTotal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="@font/family_after"
                     android:textColor="@color/primary"
                     android:textSize="26sp"
                     android:textStyle="bold" />
@@ -256,35 +261,43 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnViewTicket"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="52dp"
                     android:layout_marginEnd="8dp"
                     android:layout_weight="1"
+                    android:fontFamily="@font/family_after"
                     android:insetBottom="0dp"
                     android:insetTop="0dp"
                     android:text="@string/btn_view_ticket"
+                    android:textColor="@color/white"
                     android:textSize="13sp"
-                    app:cornerRadius="26dp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@color/ex_indigo"
+                    app:cornerRadius="0dp"
                     app:icon="@drawable/ic_history"
                     app:iconGravity="textStart"
-                    app:iconSize="18dp" />
+                    app:iconSize="18dp"
+                    app:iconTint="@color/white" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnFinalize"
                     android:layout_width="0dp"
                     android:layout_height="52dp"
                     android:layout_weight="1"
+                    android:fontFamily="@font/family_after"
                     android:insetBottom="0dp"
                     android:insetTop="0dp"
                     android:text="@string/btn_finalize_order"
+                    android:textColor="@color/white"
                     android:textSize="13sp"
                     android:textStyle="bold"
                     app:backgroundTint="@color/success"
-                    app:cornerRadius="26dp"
+                    app:cornerRadius="0dp"
+                    app:elevation="4dp"
                     app:icon="@drawable/ic_add_cart"
                     app:iconGravity="textStart"
-                    app:iconSize="18dp" />
+                    app:iconSize="18dp"
+                    app:iconTint="@color/white" />
             </LinearLayout>
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -306,7 +319,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="20dp"
+            app:cardCornerRadius="0dp"
             app:cardElevation="12dp">
 
             <LinearLayout

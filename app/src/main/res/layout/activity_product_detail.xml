@@ -20,8 +20,11 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@color/ex_green"
             app:navigationIcon="@drawable/ic_back"
-            app:title="@string/title_product" />
+            app:navigationIconTint="@color/white"
+            app:title="@string/title_product"
+            app:titleTextColor="@color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Scrollable content -->
@@ -42,16 +45,16 @@
             <!-- Product image placeholder -->
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="180dp"
-                android:background="@color/light_primary">
+                android:layout_height="140dp"
+                android:background="@color/ex_green_tint">
 
                 <ImageView
-                    android:layout_width="72dp"
-                    android:layout_height="72dp"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
                     android:layout_gravity="center"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_product"
-                    app:tint="@color/primary" />
+                    app:tint="@color/ex_green" />
             </FrameLayout>
 
             <!-- Product info card -->
@@ -61,7 +64,7 @@
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="-20dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="16dp"
+                app:cardCornerRadius="0dp"
                 app:cardElevation="4dp">
 
                 <LinearLayout
@@ -92,7 +95,12 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
+                        android:background="@drawable/bg_chip_sent"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp"
+                        android:textColor="@color/ex_success"
                         android:textSize="12sp"
+                        android:textStyle="bold"
                         android:visibility="gone" />
 
                     <TextView
@@ -116,8 +124,9 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:fontFamily="@font/family_after"
                             android:textColor="@color/primary"
-                            android:textSize="22sp"
+                            android:textSize="24sp"
                             android:textStyle="bold" />
 
                         <!-- Units counter -->
@@ -135,7 +144,7 @@
                                 android:insetBottom="0dp"
                 
                                 app:backgroundTint="@color/background"
-                                app:cornerRadius="18dp"
+                                app:cornerRadius="0dp"
                                 app:icon="@drawable/ic_remove"
                                 app:iconGravity="textStart"
                                 app:iconPadding="0dp"
@@ -152,6 +161,7 @@
                                     android:id="@+id/tvUnits"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
+                                    android:fontFamily="@font/family_after"
                                     android:text="@string/default_unit_count"
                                     android:textColor="@color/text_primary"
                                     android:textSize="20sp"
@@ -173,7 +183,7 @@
                                 android:insetBottom="0dp"
                 
                                 app:backgroundTint="@color/primary"
-                                app:cornerRadius="18dp"
+                                app:cornerRadius="0dp"
                                 app:icon="@drawable/ic_add"
                                 app:iconGravity="textStart"
                                 app:iconPadding="0dp"
@@ -193,7 +203,7 @@
                 android:layout_marginTop="12dp"
                 android:visibility="gone"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="16dp"
+                app:cardCornerRadius="0dp"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -237,7 +247,7 @@
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="12dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="16dp"
+                app:cardCornerRadius="0dp"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -300,9 +310,11 @@
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="16dp"
-                app:cardBackgroundColor="@color/primary"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="3dp">
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="0dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/ex_gold"
+                app:strokeWidth="1.5dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -323,7 +335,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/label_item_total"
                             android:textAllCaps="true"
-                            android:textColor="#B3FFFFFF"
+                            android:textColor="@color/ex_ink_soft"
                             android:textSize="10sp" />
 
                         <TextView
@@ -331,7 +343,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:textColor="#FFFFFF"
+                            android:fontFamily="@font/family_after"
+                            android:textColor="@color/ex_green"
                             android:textSize="28sp"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -341,7 +354,7 @@
                         android:layout_height="36dp"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_add_cart"
-                        app:tint="#FFFFFF" />
+                        app:tint="@color/ex_green" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
@@ -362,30 +375,43 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAddOrder"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:text="@string/btn_add_to_order"
-            android:textColor="@color/primary"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            app:backgroundTint="@color/amber"
-            app:cornerRadius="12dp"
-            app:icon="@drawable/ic_add_cart"
-            app:iconGravity="textStart"
-            app:iconSize="18dp"
-            app:iconTint="@color/primary" />
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnViewHistory"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="4dp"
-            android:text="@string/btn_cancel"
-            android:textColor="@color/text_secondary"
-            android:textSize="13sp" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnViewHistory"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="12dp"
+                android:fontFamily="@font/family_after"
+                android:text="@string/btn_cancel"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/ex_navy"
+                app:cornerRadius="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddOrder"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="2"
+                android:fontFamily="@font/family_after"
+                android:text="@string/btn_add_to_order"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/ex_green"
+                app:cornerRadius="0dp"
+                app:elevation="4dp"
+                app:icon="@drawable/ic_add_cart"
+                app:iconGravity="textStart"
+                app:iconSize="18dp"
+                app:iconTint="@color/white" />
+        </LinearLayout>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

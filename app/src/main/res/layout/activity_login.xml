@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:background="@color/ex_green"
     android:orientation="vertical">
 
     <ScrollView
@@ -19,47 +19,54 @@
             android:gravity="center"
             android:minHeight="480dp"
             android:orientation="vertical"
-            android:paddingHorizontal="28dp"
-            android:paddingVertical="40dp">
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="32dp">
 
             <!-- Logo -->
-            <FrameLayout
-                android:layout_width="84dp"
-                android:layout_height="84dp"
-                android:background="@drawable/bg_circle_translucent">
-
-                <ImageView
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_gravity="center"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_scan_display"
-                    app:tint="@color/primary" />
-            </FrameLayout>
+            <ImageView
+                android:layout_width="110dp"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:adjustViewBounds="true"
+                android:importantForAccessibility="no"
+                android:src="@drawable/logo_icon" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
+                android:fontFamily="@font/family_after"
                 android:letterSpacing="0.12"
                 android:text="@string/app_title"
-                android:textColor="@color/text_primary"
-                android:textSize="26sp"
+                android:textColor="@color/ex_gold"
+                android:textSize="24sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/label_sign_in"
-                android:textColor="@color/text_secondary"
+                android:fontFamily="@font/family_after"
+                android:letterSpacing="0.3"
+                android:text="@string/app_title_sub"
+                android:textColor="@color/ex_gold"
                 android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/family_after"
+                android:letterSpacing="0.12"
+                android:text="@string/label_sign_in"
+                android:textAllCaps="true"
+                android:textColor="@color/ex_gold"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
             <!-- Form -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="36dp"
+                android:layout_marginTop="28dp"
                 android:orientation="vertical">
 
                 <!-- Server config toggle -->
@@ -70,7 +77,7 @@
                     android:layout_marginBottom="12dp"
                     android:drawablePadding="6dp"
                     android:text="@string/configure_server"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="@color/ex_cream"
                     android:textSize="12sp" />
 
                 <!-- Server URL (expandable) -->
@@ -83,7 +90,7 @@
                     android:visibility="gone">
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Excellentia.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_server_url">
@@ -100,7 +107,7 @@
                 <!-- Email -->
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/tilEmail"
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    style="@style/Widget.Excellentia.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="14dp"
@@ -111,24 +118,25 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textEmailAddress"
-                        android:textSize="14sp" />
+                        android:textSize="15sp" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Password -->
                 <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    style="@style/Widget.Excellentia.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="4dp"
                     android:hint="@string/hint_current_password"
-                    app:endIconMode="password_toggle">
+                    app:endIconMode="password_toggle"
+                    app:endIconTint="@color/ex_ink_soft">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etPassword"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textPassword"
-                        android:textSize="14sp" />
+                        android:textSize="15sp" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Error card -->
@@ -138,10 +146,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:visibility="gone"
-                    app:cardBackgroundColor="@color/error_light"
-                    app:cardCornerRadius="10dp"
+                    app:cardBackgroundColor="@color/ex_danger_tint"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="0dp"
-                    app:strokeColor="@color/red"
+                    app:strokeColor="@color/ex_danger"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
@@ -157,7 +165,7 @@
                             android:layout_marginEnd="10dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_check_circle"
-                            app:tint="@color/red" />
+                            app:tint="@color/ex_danger" />
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -169,7 +177,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/error_invalid_credentials"
-                                android:textColor="@color/red"
+                                android:textColor="@color/ex_danger"
                                 android:textSize="13sp"
                                 android:textStyle="bold" />
 
@@ -178,7 +186,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/error_check_credentials"
-                                android:textColor="@color/red"
+                                android:textColor="@color/ex_danger"
                                 android:textSize="11sp" />
                         </LinearLayout>
                     </LinearLayout>
@@ -191,10 +199,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:visibility="gone"
-                    app:cardBackgroundColor="@color/warning_light"
-                    app:cardCornerRadius="10dp"
+                    app:cardBackgroundColor="@color/ex_warning_tint"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="0dp"
-                    app:strokeColor="@color/warning"
+                    app:strokeColor="@color/ex_gold"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
@@ -210,30 +218,32 @@
                             android:layout_marginEnd="10dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_cloud"
-                            app:tint="@color/warning" />
+                            app:tint="@color/ex_warning" />
 
                         <TextView
                             android:id="@+id/tvWarning"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textColor="@color/warning"
+                            android:textColor="@color/ex_warning"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- LOGIN button -->
+                <!-- INGRESAR button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnLogin"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
+                    android:layout_height="60dp"
                     android:layout_marginTop="20dp"
+                    android:fontFamily="@font/family_after"
                     android:letterSpacing="0.06"
                     android:text="@string/btn_login"
-                    android:textColor="@color/white"
-                    android:textSize="14sp"
+                    android:textColor="@color/ex_green"
+                    android:textSize="17sp"
                     android:textStyle="bold"
-                    app:backgroundTint="@color/primary"
-                    app:cornerRadius="12dp" />
+                    app:backgroundTint="@color/ex_lime"
+                    app:cornerRadius="0dp"
+                    app:elevation="6dp" />
 
                 <!-- Reintentar button -->
                 <com.google.android.material.button.MaterialButton
@@ -244,9 +254,11 @@
                     android:layout_marginTop="10dp"
                     android:letterSpacing="0.04"
                     android:text="@string/btn_retry_connection"
+                    android:textColor="@color/ex_cream"
                     android:textSize="13sp"
                     android:visibility="gone"
-                    app:cornerRadius="10dp" />
+                    app:cornerRadius="0dp"
+                    app:strokeColor="@color/ex_cream" />
 
                 <!-- Loading state -->
                 <LinearLayout
@@ -262,64 +274,54 @@
                         style="@style/Widget.Material3.CircularProgressIndicator.Small"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:indeterminate="true" />
+                        android:indeterminate="true"
+                        app:indicatorColor="@color/ex_gold" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:text="@string/label_verifying"
-                        android:textColor="@color/text_secondary"
+                        android:textColor="@color/ex_cream"
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
 
-    <!-- Status bar -->
+    <!-- Status row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/surface"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:orientation="horizontal"
         android:paddingHorizontal="28dp"
-        android:paddingVertical="12dp">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/label_server_status"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+        android:paddingBottom="4dp">
 
         <View
             android:id="@+id/viewStatusDot"
             android:layout_width="8dp"
             android:layout_height="8dp"
-            android:layout_marginEnd="6dp"
+            android:layout_marginEnd="8dp"
             android:background="@drawable/circle_gray" />
 
         <TextView
             android:id="@+id/tvServerStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:letterSpacing="0.04"
+            android:letterSpacing="0.02"
             android:text="@string/status_checking"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:textColor="@color/ex_cream"
+            android:textSize="13sp" />
     </LinearLayout>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/surface"
         android:gravity="center"
-        android:paddingBottom="12dp"
-                android:text="@string/app_version_label"
-        android:textColor="@color/light_gray"
-        android:textSize="11sp" />
+        android:paddingBottom="14dp"
+        android:text="@string/app_version_label"
+        android:textColor="#8CF9EFE8"
+        android:textSize="12sp" />
 
 </LinearLayout>

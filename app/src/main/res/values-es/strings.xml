@@ -60,7 +60,7 @@
     <string name="hint_server_url">URL del servidor</string>
     <string name="configure_server">⚙  Configurar servidor</string>
     <string name="hide_server_config">▲  Ocultar configuración</string>
-    <string name="btn_login">LOGIN</string>
+    <string name="btn_login">INGRESAR</string>
     <string name="btn_logging_in">INGRESANDO…</string>
     <string name="btn_retry_connection">REINTENTAR CONEXIÓN</string>
     <string name="label_server_status">Estado del servidor</string>
@@ -383,6 +383,7 @@
     <string name="title_ticket_detail">Sale Ticket</string>
     <string name="btn_reprint">Reimprimir ticket</string>
     <string name="app_title">EXCELLENTIA</string>
+    <string name="app_title_sub">FOODS</string>
     <string name="hint_email">Email</string>
     <string name="app_version_label">v1.2.0</string>
     <string name="default_unit_count">1</string>

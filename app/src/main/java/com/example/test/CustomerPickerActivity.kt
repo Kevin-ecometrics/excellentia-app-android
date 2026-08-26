@@ -164,7 +164,7 @@ class CustomerPickerActivity : BaseActivity() {
                 text = if (allCustomers.isEmpty()) getString(R.string.label_no_customers_qb)
                        else getString(R.string.label_no_customers_found)
                 textSize = 14f
-                setTextColor(resources.getColor(R.color.text_secondary, theme))
+                setTextColor(resources.getColor(R.color.white, theme))
                 setPadding(0, 32.dp, 0, 0)
                 gravity = android.view.Gravity.CENTER
             }
@@ -178,8 +178,10 @@ class CustomerPickerActivity : BaseActivity() {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { bottomMargin = 8.dp }
-                radius = 14.dp.toFloat()
-                cardElevation = 2.dp.toFloat()
+                radius = 0f
+                cardElevation = 0f
+                strokeWidth = 1.dp
+                strokeColor = resources.getColor(R.color.ex_line, theme)
                 setCardBackgroundColor(resources.getColor(R.color.surface, theme))
                 isClickable = true
                 isFocusable = true

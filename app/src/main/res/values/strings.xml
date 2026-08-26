@@ -405,6 +405,7 @@
     <string name="error_qbo_retry_generic">Could not send to QuickBooks: %1$s</string>
     <string name="title_qbo_retry_error">QuickBooks sync failed</string>
     <string name="app_title">EXCELLENTIA</string>
+    <string name="app_title_sub">FOODS</string>
     <string name="hint_email">Email</string>
     <string name="app_version_label">v1.2.0</string>
     <string name="default_unit_count">1</string>

@@ -9,13 +9,14 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="4dp">
+        android:elevation="4dp"
+        android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/primary"
+            android:background="@color/ex_navy"
             app:navigationIcon="@drawable/ic_back"
             app:navigationIconTint="#FFFFFF"
             app:title="@string/title_pre_orders"
@@ -46,7 +47,7 @@
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipActive"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="@style/Widget.Excellentia.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="true"
@@ -54,21 +55,21 @@
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipConverted"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="@style/Widget.Excellentia.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/chip_converted" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipCancelled"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="@style/Widget.Excellentia.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/chip_cancelled" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipAll"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="@style/Widget.Excellentia.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/chip_all_pre_orders" />
@@ -114,7 +115,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/empty_pre_orders_pending"
-                            android:textColor="@color/text_secondary"
+                            android:textColor="#CCF9EFE8"
                             android:textSize="15sp" />
 
                         <TextView
@@ -123,7 +124,7 @@
                             android:layout_marginTop="6dp"
                             android:gravity="center"
                             android:text="@string/btn_new_pre_order"
-                            android:textColor="@color/text_secondary"
+                            android:textColor="#CCF9EFE8"
                             android:textSize="12sp" />
                     </LinearLayout>
 
@@ -143,6 +144,10 @@
         android:textColor="#FFFFFF"
         app:icon="@drawable/ic_add"
         app:iconTint="#FFFFFF"
-        app:backgroundTint="@color/primary" />
+        app:backgroundTint="@color/primary"
+        app:strokeColor="@color/white"
+        app:strokeWidth="1dp"
+        app:shapeAppearance="@style/ShapeAppearance.Excellentia.None"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.Excellentia.None" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

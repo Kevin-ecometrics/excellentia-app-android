@@ -9,7 +9,8 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="4dp">
+        android:elevation="4dp"
+        android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -90,8 +91,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp">
+                app:cardCornerRadius="0dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/ex_line"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -186,8 +189,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp">
+                app:cardCornerRadius="0dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/ex_line"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -238,6 +243,7 @@
                             android:id="@+id/tvDetailTotal"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:fontFamily="@font/family_after"
                             android:textColor="@color/primary"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -260,14 +266,20 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="8dp"
+                android:fontFamily="@font/family_after"
                 android:text="@string/btn_convert_to_order"
+                android:textColor="@color/white"
                 android:textStyle="bold"
                 android:visibility="gone"
                 app:backgroundTint="@color/primary"
-                app:cornerRadius="26dp"
+                app:cornerRadius="0dp"
+                app:elevation="4dp"
+                app:strokeColor="@color/white"
+                app:strokeWidth="1dp"
                 app:icon="@drawable/ic_check_circle"
                 app:iconGravity="textStart"
-                app:iconSize="18dp" />
+                app:iconSize="18dp"
+                app:iconTint="@color/white" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCancel"
@@ -278,7 +290,7 @@
                 android:text="@string/title_cancel_pre_order"
                 android:textColor="@color/red"
                 android:visibility="gone"
-                app:cornerRadius="24dp"
+                app:cornerRadius="0dp"
                 app:strokeColor="@color/red" />
 
             <!-- Botones visibles solo cuando ya fue convertida -->
@@ -287,14 +299,20 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="8dp"
+                android:fontFamily="@font/family_after"
                 android:text="@string/btn_reuse_pre_order"
+                android:textColor="@color/white"
                 android:textStyle="bold"
                 android:visibility="gone"
                 app:backgroundTint="@color/primary"
-                app:cornerRadius="26dp"
+                app:cornerRadius="0dp"
+                app:elevation="4dp"
+                app:strokeColor="@color/white"
+                app:strokeWidth="1dp"
                 app:icon="@drawable/ic_add_cart"
                 app:iconGravity="textStart"
-                app:iconSize="18dp" />
+                app:iconSize="18dp"
+                app:iconTint="@color/white" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnViewHistory"
@@ -303,8 +321,11 @@
                 android:layout_height="48dp"
                 android:layout_marginTop="8dp"
                 android:text="@string/btn_view_in_history"
+                android:textColor="@color/white"
                 android:visibility="gone"
-                app:cornerRadius="24dp"
+                app:cornerRadius="0dp"
+                app:strokeColor="@color/white"
+                app:iconTint="@color/white"
                 app:icon="@drawable/ic_history"
                 app:iconGravity="textStart"
                 app:iconSize="16dp" />

@@ -1,27 +1,99 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Sharp/rectangular corners everywhere (brand board), applied as the theme-wide
+         M3 shape default so buttons/cards/chips/dialogs/text-fields need no per-view
+         cornerRadius override. Individual screens keep only the intentionally-circular
+         elements (avatars, status dots, FAB, toggle knobs). -->
+    <style name="ShapeAppearance.Excellentia.None" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">0dp</item>
+    </style>
+
+    <style name="TextAppearance.Excellentia.Display" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="fontFamily">@font/family_after</item>
+        <item name="android:fontFamily">@font/family_after</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="Widget.Excellentia.Chip" parent="Widget.Material3.Chip.Filter">
+        <item name="chipBackgroundColor">@color/chip_bg_color</item>
+        <item name="android:textColor">@color/chip_text_color</item>
+        <item name="chipStrokeColor">@color/chip_stroke_color</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="rippleColor">@color/ex_green_tint</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Excellentia.None</item>
+    </style>
+
+    <style name="Widget.Excellentia.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxBackgroundColor">@color/white</item>
+        <item name="boxStrokeColor">@color/ex_input_stroke</item>
+        <item name="boxStrokeWidth">1.5dp</item>
+        <item name="boxStrokeWidthFocused">1.5dp</item>
+        <item name="hintTextColor">@color/ex_green</item>
+        <item name="android:textColorHint">@color/ex_ink_faint</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Excellentia.None</item>
+    </style>
+
     <style name="Base.Theme.Test" parent="Theme.Material3.Light.NoActionBar">
         <item name="android:windowBackground">@color/background</item>
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorPrimaryContainer">@color/light_primary</item>
         <item name="colorOnPrimaryContainer">@color/primary_dark</item>
-        <item name="colorSecondary">@color/primary_light</item>
+        <item name="colorSecondary">@color/ex_navy</item>
         <item name="colorOnSecondary">@color/white</item>
         <item name="colorSecondaryContainer">@color/light_primary</item>
-        <item name="colorTertiary">@color/success</item>
-        <item name="colorOnTertiary">@color/white</item>
+        <item name="colorTertiary">@color/ex_gold</item>
+        <item name="colorOnTertiary">@color/ex_green</item>
         <item name="colorError">@color/red</item>
         <item name="colorOnError">@color/white</item>
         <item name="colorErrorContainer">@color/error_light</item>
         <item name="colorSurface">@color/surface</item>
         <item name="colorOnSurface">@color/text_primary</item>
-        <item name="colorSurfaceVariant">@color/background</item>
+        <item name="colorSurfaceVariant">@color/ex_cream</item>
         <item name="colorOnSurfaceVariant">@color/text_secondary</item>
         <item name="colorOutline">@color/outline</item>
         <item name="colorOutlineVariant">@color/light_gray</item>
+        <!-- Full M3 role set filled in with brand tokens — Theme.Material3.Light's
+             baseline defaults for any UNSET role fall back to Google's stock purple
+             palette, which was leaking through on Chip/Switch/BottomNav selected
+             states before these were added. -->
+        <item name="colorOnSecondaryContainer">@color/ex_green</item>
+        <item name="colorTertiaryContainer">@color/ex_warning_tint</item>
+        <item name="colorOnTertiaryContainer">@color/ex_green</item>
+        <item name="colorOnErrorContainer">@color/ex_danger</item>
+        <item name="colorSurfaceDim">@color/ex_cream</item>
+        <item name="colorSurfaceBright">@color/white</item>
+        <item name="colorSurfaceContainerLowest">@color/white</item>
+        <item name="colorSurfaceContainerLow">@color/ex_cream</item>
+        <item name="colorSurfaceContainer">@color/ex_green_tint</item>
+        <item name="colorSurfaceContainerHigh">@color/ex_line</item>
+        <item name="colorSurfaceContainerHighest">@color/ex_line_strong</item>
+        <item name="colorPrimaryFixed">@color/ex_green_tint</item>
+        <item name="colorPrimaryFixedDim">@color/ex_green</item>
+        <item name="colorOnPrimaryFixed">@color/ex_green_deep</item>
+        <item name="colorOnPrimaryFixedVariant">@color/ex_green</item>
+        <item name="colorSecondaryFixed">@color/ex_green_tint</item>
+        <item name="colorSecondaryFixedDim">@color/ex_navy</item>
+        <item name="colorOnSecondaryFixed">@color/ex_navy</item>
+        <item name="colorOnSecondaryFixedVariant">@color/ex_navy</item>
+        <item name="colorTertiaryFixed">@color/ex_warning_tint</item>
+        <item name="colorTertiaryFixedDim">@color/ex_gold</item>
+        <item name="colorOnTertiaryFixed">@color/ex_green</item>
+        <item name="colorOnTertiaryFixedVariant">@color/ex_green</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@color/surface</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Excellentia.None</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Excellentia.None</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Excellentia.None</item>
+        <item name="shapeAppearanceCornerExtraSmall">@style/ShapeAppearance.Excellentia.None</item>
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.Excellentia.None</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.Excellentia.None</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.Excellentia.None</item>
+        <item name="shapeAppearanceCornerExtraLarge">@style/ShapeAppearance.Excellentia.None</item>
     </style>
 
     <style name="Theme.Test" parent="Base.Theme.Test">
@@ -31,9 +103,9 @@
     <style name="Theme.Test.Splash" parent="Theme.Material3.Light.NoActionBar">
         <item name="android:windowBackground">@drawable/splash_background</item>
         <item name="android:windowFullscreen">true</item>
-        <item name="android:statusBarColor">@color/surface</item>
-        <item name="android:navigationBarColor">@color/surface</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@color/ex_green</item>
+        <item name="android:navigationBarColor">@color/ex_green</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <style name="WindowAnimation.Slide" parent="@android:style/Animation.Activity">

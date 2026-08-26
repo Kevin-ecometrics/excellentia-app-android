@@ -22,8 +22,11 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@color/ex_navy"
             app:navigationIcon="@drawable/ic_back"
-            app:title="@string/title_settings" />
+            app:navigationIconTint="@color/white"
+            app:title="@string/title_settings"
+            app:titleTextColor="@color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Content area: ScrollView + Save button -->
@@ -58,7 +61,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="14dp"
                     app:cardBackgroundColor="@color/primary"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -122,7 +125,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -142,7 +145,8 @@
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:importantForAccessibility="no"
-                                android:src="@drawable/ic_link" />
+                                android:src="@drawable/ic_link"
+                                app:tint="@color/primary" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -177,7 +181,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -244,7 +248,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -325,7 +329,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -345,7 +349,8 @@
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:importantForAccessibility="no"
-                                android:src="@drawable/ic_cloud" />
+                                android:src="@drawable/ic_cloud"
+                                app:tint="@color/primary" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -401,7 +406,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -481,7 +486,7 @@
                             android:layout_marginTop="12dp"
                             android:text="@string/btn_select_printer"
                             android:textSize="13sp"
-                            app:cornerRadius="22dp"
+                            app:cornerRadius="0dp"
                             app:icon="@drawable/ic_add_cart"
                             app:iconGravity="textStart"
                             app:iconSize="16dp" />
@@ -494,7 +499,7 @@
                             android:layout_marginTop="8dp"
                             android:text="@string/btn_print_test_page"
                             android:textSize="13sp"
-                            app:cornerRadius="22dp"
+                            app:cornerRadius="0dp"
                             app:icon="@drawable/ic_check_circle"
                             app:iconGravity="textStart"
                             app:iconSize="16dp" />
@@ -507,7 +512,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -628,7 +633,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -719,7 +724,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="0dp"
                     app:cardElevation="2dp">
 
                     <LinearLayout
@@ -782,7 +787,9 @@
                     android:layout_height="56dp"
                     android:layout_marginTop="8dp"
                     android:text="@string/title_change_password"
-                    app:cornerRadius="16dp" />
+                    android:textColor="@color/white"
+                    app:cornerRadius="0dp"
+                    app:strokeColor="@color/white" />
 
                 <!-- Logout button -->
                 <com.google.android.material.button.MaterialButton
@@ -795,7 +802,7 @@
                     android:textSize="15sp"
                     android:textStyle="bold"
                     app:backgroundTint="@color/red"
-                    app:cornerRadius="14dp"
+                    app:cornerRadius="0dp"
                     app:icon="@drawable/ic_back"
                     app:iconGravity="textStart"
                     app:iconSize="18dp"
@@ -811,10 +818,13 @@
             android:layout_marginHorizontal="16dp"
             android:layout_marginVertical="12dp"
             android:text="@string/btn_save"
+            android:textColor="@color/white"
             android:textSize="15sp"
             android:textStyle="bold"
             app:backgroundTint="@color/primary"
-            app:cornerRadius="14dp"
+            app:cornerRadius="0dp"
+            app:strokeColor="@color/white"
+            app:strokeWidth="1dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />

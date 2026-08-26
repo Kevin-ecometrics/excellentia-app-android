@@ -1,24 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-
-    <!-- ic_scan_display escalado 2.5x y centrado -->
-    <!-- Esquina superior izquierda -->
-    <path android:fillColor="#FFFFFF" android:pathData="M29,29H44V33H33V44H29Z" />
-    <!-- Esquina superior derecha -->
-    <path android:fillColor="#FFFFFF" android:pathData="M64,29H79V44H75V33H64Z" />
-    <!-- Esquina inferior izquierda -->
-    <path android:fillColor="#FFFFFF" android:pathData="M29,64H33V75H44V79H29Z" />
-    <!-- Esquina inferior derecha -->
-    <path android:fillColor="#FFFFFF" android:pathData="M75,64H79V79H64V75H75Z" />
-    <!-- Líneas de código de barras -->
-    <path android:fillColor="#FFFFFF" android:pathData="M36,46H40V62H36Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M44,46H49V62H44Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M52,46H54V62H52Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M56,46H62V62H56Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M64,46H67V62H64Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M69,46H73V62H69Z" />
-</vector>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="66dp"
+        android:height="66dp"
+        android:gravity="center"
+        android:drawable="@drawable/logo_icon" />
+</layer-list>

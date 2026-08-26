@@ -11,15 +11,21 @@
         android:id="@+id/layoutHeader"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/surface"
-        android:elevation="3dp"
+        android:background="@color/ex_green"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="16dp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="14dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="10dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/logo_icon" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -31,8 +37,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/label_hello_operator"
-                android:textColor="@color/text_primary"
-                android:textSize="17sp"
+                android:textColor="@color/white"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -41,7 +47,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
                 android:text="@string/label_ready_to_scan"
-                android:textColor="@color/text_secondary"
+                android:textColor="#CCF9EFE8"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -50,6 +56,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_status_chip"
+            android:backgroundTint="#26FFFFFF"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingHorizontal="10dp"
@@ -68,7 +75,7 @@
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.04"
                 android:text="@string/status_online"
-                android:textColor="@color/text_primary"
+                android:textColor="@color/white"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -140,11 +147,13 @@
                 android:id="@+id/layoutCustomerCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="14dp"
                 android:visibility="gone"
-                app:cardBackgroundColor="@color/primary"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp">
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="0dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/ex_line"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -162,18 +171,21 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:letterSpacing="0.04"
                             android:text="@string/label_active_customer"
                             android:textAllCaps="true"
-                            android:textColor="#B3FFFFFF"
-                            android:textSize="10sp" />
+                            android:textColor="@color/ex_green"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/tvCustomerName"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:textColor="#FFFFFF"
-                            android:textSize="15sp"
+                            android:fontFamily="@font/family_after"
+                            android:textColor="@color/ex_ink"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <TextView
@@ -181,7 +193,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:textColor="#CCE0F0FF"
+                            android:textColor="@color/ex_ink_soft"
                             android:textSize="12sp"
                             android:visibility="gone" />
                     </LinearLayout>
@@ -197,8 +209,9 @@
                             android:layout_width="wrap_content"
                             android:layout_height="32dp"
                             android:text="@string/btn_change_customer"
-                            android:textColor="#FFFFFF"
-                            android:textSize="11sp" />
+                            android:textColor="@color/ex_green"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnViewClientHistory"
@@ -206,7 +219,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="32dp"
                             android:text="@string/btn_customer_history"
-                            android:textColor="#CCE0F0FF"
+                            android:textColor="@color/ex_ink_soft"
                             android:textSize="11sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -217,12 +230,14 @@
                 android:id="@+id/layoutSelectCustomer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="14dp"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp">
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="0dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/ex_line"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -235,7 +250,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/label_select_customer"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/ex_ink"
                         android:textSize="15sp"
                         android:textStyle="bold" />
 
@@ -245,7 +260,7 @@
                         android:layout_marginTop="4dp"
                         android:gravity="center"
                         android:text="@string/label_select_customer_desc"
-                        android:textColor="@color/text_secondary"
+                        android:textColor="@color/ex_ink_soft"
                         android:textSize="12sp" />
 
                     <com.google.android.material.button.MaterialButton
@@ -256,64 +271,69 @@
                         android:text="@string/btn_select_customer"
                         android:textSize="13sp"
                         android:textStyle="bold"
-                        app:backgroundTint="@color/primary"
-                        app:cornerRadius="22dp"
+                        app:backgroundTint="@color/ex_green"
+                        app:cornerRadius="0dp"
                         app:icon="@drawable/ic_chevron_right"
                         app:iconGravity="textStart"
                         app:iconSize="16dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Scan ring + circle button -->
-            <FrameLayout
-                android:layout_width="200dp"
-                android:layout_height="200dp">
+            <!-- Scan button (big rectangular action, per brand mockup) -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="0dp"
+                app:cardElevation="6dp">
 
-                <!-- Outer ring (translucent) -->
-                <View
-                    android:layout_width="200dp"
-                    android:layout_height="200dp"
-                    android:background="@drawable/bg_scan_ring" />
-
-                <!-- Inner circle (tap to scan) -->
                 <FrameLayout
                     android:id="@+id/btnHoldScan"
-                    android:layout_width="148dp"
-                    android:layout_height="148dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/bg_scan_circle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:clickable="true"
-                    android:elevation="4dp"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:minHeight="200dp"
+                    android:paddingVertical="28dp">
 
-                    <ImageView
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:layout_gravity="center"
-                        android:importantForAccessibility="no"
-                        android:src="@drawable/ic_scan_display" />
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_scan_display"
+                            app:tint="@color/ex_green" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:fontFamily="@font/family_after"
+                            android:gravity="center"
+                            android:letterSpacing="0.02"
+                            android:text="@string/label_tap_to_scan"
+                            android:textAllCaps="true"
+                            android:textColor="@color/ex_green"
+                            android:textSize="22sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:alpha="0.75"
+                            android:text="@string/label_tap_circle_or_trigger"
+                            android:textColor="@color/ex_green"
+                            android:textSize="13sp" />
+                    </LinearLayout>
                 </FrameLayout>
-            </FrameLayout>
-
-            <!-- TAP TO SCAN text -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:letterSpacing="0.08"
-                android:text="@string/label_tap_to_scan"
-                android:textAllCaps="true"
-                android:textColor="@color/primary"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/label_tap_circle_or_trigger"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Hold state label (shown while scanning) -->
             <TextView
@@ -330,50 +350,78 @@
                 android:textStyle="bold"
                 android:visibility="gone" />
 
-            <!-- Manual entry button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnManualEntry"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="260dp"
-                android:layout_height="48dp"
-                android:layout_marginTop="28dp"
-                android:text="@string/btn_manual_entry"
-                android:textSize="13sp"
-                app:cornerRadius="24dp"
-                app:icon="@drawable/ic_keyboard"
-                app:iconGravity="textStart"
-                app:iconSize="16dp"
-                app:iconTint="@color/primary" />
+            <!-- Manual entry / Pre-orders / Add credit — flex row of white boxes -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal">
 
-            <!-- Pre-órdenes shortcut -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnPreOrders"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="4dp"
-                android:text="@string/btn_pre_orders"
-                android:textColor="@color/primary"
-                android:textSize="13sp"
-                app:icon="@drawable/ic_schedule"
-                app:iconGravity="textStart"
-                app:iconSize="15dp"
-                app:iconTint="@color/primary" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnManualEntry"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="@string/btn_manual_entry"
+                    android:textColor="@color/ex_green"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@color/white"
+                    app:cornerRadius="0dp"
+                    app:icon="@drawable/ic_keyboard"
+                    app:iconGravity="textTop"
+                    app:iconPadding="6dp"
+                    app:iconSize="22dp"
+                    app:iconTint="@color/ex_gold"
+                    app:strokeColor="@color/ex_line_strong"
+                    app:strokeWidth="1dp" />
 
-            <!-- Agregar créditos shortcut -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnAddCredit"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="4dp"
-                android:text="@string/btn_add_credit"
-                android:textColor="@color/primary"
-                android:textSize="13sp"
-                app:icon="@drawable/ic_credit_card"
-                app:iconGravity="textStart"
-                app:iconSize="15dp"
-                app:iconTint="@color/primary" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPreOrders"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="@string/btn_pre_orders"
+                    android:textColor="@color/ex_green"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@color/white"
+                    app:cornerRadius="0dp"
+                    app:icon="@drawable/ic_schedule"
+                    app:iconGravity="textTop"
+                    app:iconPadding="6dp"
+                    app:iconSize="22dp"
+                    app:iconTint="@color/ex_gold"
+                    app:strokeColor="@color/ex_line_strong"
+                    app:strokeWidth="1dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddCredit"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_weight="1"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="@string/btn_add_credit"
+                    android:textColor="@color/ex_green"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@color/white"
+                    app:cornerRadius="0dp"
+                    app:icon="@drawable/ic_credit_card"
+                    app:iconGravity="textTop"
+                    app:iconPadding="6dp"
+                    app:iconSize="22dp"
+                    app:iconTint="@color/ex_gold"
+                    app:strokeColor="@color/ex_line_strong"
+                    app:strokeWidth="1dp" />
+            </LinearLayout>
 
             <!-- Scanner guide link -->
             <com.google.android.material.button.MaterialButton
@@ -383,7 +431,7 @@
                 android:layout_height="40dp"
                 android:layout_marginTop="4dp"
                 android:text="@string/btn_how_to_configure_scanner"
-                android:textColor="@color/text_secondary"
+                android:textColor="#B3F9EFE8"
                 android:textSize="12sp" />
 
             <!-- Last scan card -->
@@ -395,9 +443,11 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:visibility="gone"
-                app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp">
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="0dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/ex_line"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -463,7 +513,12 @@
         android:id="@+id/bottomNav"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:background="@color/white"
         android:elevation="8dp"
+        app:itemActiveIndicatorStyle="@null"
+        app:itemIconTint="@color/bottom_nav_item_color"
+        app:itemRippleColor="@color/ex_green_tint"
+        app:itemTextColor="@color/bottom_nav_item_color"
         app:labelVisibilityMode="selected"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

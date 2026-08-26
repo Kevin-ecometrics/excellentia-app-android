@@ -1,20 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Fondo blanco -->
-    <item android:drawable="@color/surface" />
-    <!-- Círculo azul sólido -->
+    <!-- Brand green background, matching the Login screen it transitions into -->
+    <item android:drawable="@color/ex_green" />
+    <!-- Excellentia leaf-crest mark -->
     <item
-        android:width="110dp"
-        android:height="110dp"
-        android:gravity="center">
-        <shape android:shape="oval">
-            <solid android:color="@color/primary" />
-        </shape>
-    </item>
-    <!-- Ícono de scanner (blanco) -->
-    <item
-        android:width="62dp"
-        android:height="62dp"
+        android:width="140dp"
+        android:height="140dp"
         android:gravity="center"
-        android:drawable="@drawable/ic_scan_display" />
+        android:drawable="@drawable/logo_icon" />
 </layer-list>

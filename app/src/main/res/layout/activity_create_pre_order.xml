@@ -9,7 +9,8 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="4dp">
+        android:elevation="4dp"
+        android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -46,7 +47,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
+                app:cardCornerRadius="0dp"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -99,7 +100,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
+                app:cardCornerRadius="0dp"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -149,7 +150,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
+                app:cardCornerRadius="0dp"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -165,7 +166,7 @@
                         android:layout_height="44dp"
                         android:text="@string/btn_pick_date"
                         android:textSize="12sp"
-                        app:cornerRadius="22dp"
+                        app:cornerRadius="0dp"
                         app:icon="@drawable/ic_schedule"
                         app:iconGravity="textStart"
                         app:iconSize="16dp" />
@@ -203,7 +204,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
+                app:cardCornerRadius="0dp"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -263,9 +264,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:text="@string/btn_save_pre_order"
+                android:textColor="@color/white"
                 android:textStyle="bold"
                 app:backgroundTint="@color/primary"
-                app:cornerRadius="26dp"
+                app:cornerRadius="0dp"
+                app:strokeColor="@color/white"
+                app:strokeWidth="1dp"
                 app:icon="@drawable/ic_check_circle"
                 app:iconGravity="textStart"
                 app:iconSize="18dp" />

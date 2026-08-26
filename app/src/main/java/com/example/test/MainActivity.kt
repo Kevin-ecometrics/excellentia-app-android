@@ -332,7 +332,7 @@ class MainActivity : BaseActivity() {
 
     private fun enableScanning(enabled: Boolean) {
         btnHoldScan.isEnabled = enabled
-        btnHoldScan.alpha = if (enabled) 1f else 0.4f
+        btnHoldScan.alpha = if (enabled) 1f else 0.7f
         btnManualEntry.isEnabled = enabled
         btnManualEntry.alpha = if (enabled) 1f else 0.4f
         tvScanPrompt.text = if (enabled) getString(R.string.label_ready_to_scan) else getString(R.string.label_select_customer_first)
@@ -502,13 +502,11 @@ class MainActivity : BaseActivity() {
         scanHandler.removeCallbacks(scanTimeout)
         if (isScanning) {
             tvHoldState.visibility = View.VISIBLE
-            btnHoldScan.setBackgroundResource(R.drawable.bg_scan_ring)
             btnHoldScan.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
             softScanStart()
             scanHandler.postDelayed(scanTimeout, 7000)
         } else {
             tvHoldState.visibility = View.GONE
-            btnHoldScan.setBackgroundResource(R.drawable.bg_scan_circle)
             softScanStop()
         }
     }
@@ -517,7 +515,6 @@ class MainActivity : BaseActivity() {
         if (isScanning) {
             isScanning = false
             tvHoldState.visibility = View.GONE
-            btnHoldScan.setBackgroundResource(R.drawable.bg_scan_circle)
             softScanStop()
         }
     }
@@ -527,7 +524,6 @@ class MainActivity : BaseActivity() {
         if (isScanning) {
             isScanning = false
             tvHoldState.visibility = View.GONE
-            btnHoldScan.setBackgroundResource(R.drawable.bg_scan_circle)
             softScanStop()
         }
     }

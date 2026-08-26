@@ -5,7 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/ex_green">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
@@ -20,8 +20,11 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@color/ex_green"
             app:navigationIcon="@drawable/ic_back"
-            app:title="@string/title_signature" />
+            app:navigationIconTint="@color/white"
+            app:title="@string/title_signature"
+            app:titleTextColor="@color/white" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -32,8 +35,9 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="16dp"
+        android:fontFamily="@font/family_after"
         android:gravity="center"
-        android:textColor="@color/primary"
+        android:textColor="@color/ex_gold"
         android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
@@ -48,7 +52,7 @@
         android:layout_marginTop="4dp"
         android:gravity="center"
         android:text="@string/label_sign_in_box"
-        android:textColor="@color/text_secondary"
+        android:textColor="#CCF9EFE8"
         android:textSize="13sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -62,7 +66,7 @@
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="12dp"
         android:layout_marginBottom="12dp"
-        app:cardCornerRadius="8dp"
+        app:cardCornerRadius="0dp"
         app:cardElevation="2dp"
         app:layout_constraintBottom_toTopOf="@id/layoutButtons"
         app:layout_constraintEnd_toEndOf="parent"
@@ -92,11 +96,15 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnClear"
-            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="52dp"
             android:layout_weight="1"
-            android:text="@string/btn_clear_signature" />
+            android:fontFamily="@font/family_after"
+            android:text="@string/btn_clear_signature"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            app:backgroundTint="@color/ex_navy"
+            app:cornerRadius="0dp" />
 
         <Space
             android:layout_width="12dp"
@@ -104,11 +112,16 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnConfirm"
-            style="@style/Widget.Material3.Button"
             android:layout_width="0dp"
             android:layout_height="52dp"
             android:layout_weight="2"
-            android:text="@string/btn_confirm_signature" />
+            android:fontFamily="@font/family_after"
+            android:text="@string/btn_confirm_signature"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            app:backgroundTint="@color/success"
+            app:cornerRadius="0dp"
+            app:elevation="4dp" />
 
     </LinearLayout>
 

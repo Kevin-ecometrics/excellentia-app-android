@@ -19,8 +19,11 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@color/ex_green"
             app:navigationIcon="@drawable/ic_back"
-            app:title="@string/title_ticket_detail" />
+            app:navigationIconTint="@color/white"
+            app:title="@string/title_ticket_detail"
+            app:titleTextColor="@color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <LinearLayout
@@ -46,7 +49,7 @@
             android:textStyle="bold"
             android:visibility="gone"
             app:backgroundTint="@color/warning"
-            app:cornerRadius="12dp"
+            app:cornerRadius="0dp"
             app:icon="@drawable/ic_sync"
             app:iconGravity="textStart"
             app:iconSize="18dp"
@@ -63,7 +66,9 @@
             android:textStyle="bold"
             android:visibility="gone"
             app:backgroundTint="@color/primary"
-            app:cornerRadius="12dp"
+            app:cornerRadius="0dp"
+            app:strokeColor="@color/white"
+            app:strokeWidth="1dp"
             app:icon="@drawable/ic_check_circle"
             app:iconGravity="textStart"
             app:iconSize="18dp"
@@ -87,8 +92,10 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            app:cardCornerRadius="0dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/ex_line"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:id="@+id/ticketContent"

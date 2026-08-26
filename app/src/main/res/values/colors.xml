@@ -1,26 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Excellentia brand board -->
+    <color name="ex_green">#023334</color>
+    <color name="ex_gold">#D5AB05</color>
+    <color name="ex_navy">#222B56</color>
+    <color name="ex_indigo">#40427C</color>
+    <color name="ex_cream">#F9EFE8</color>
+
+    <!-- Derived (oklch-harmonized with the brand palette) -->
+    <color name="ex_green_deep">#012123</color>
+    <color name="ex_green_tint">#DCE9E5</color>
+    <color name="ex_ink">#1F2422</color>
+    <color name="ex_ink_soft">#5C6660</color>
+    <color name="ex_ink_faint">#A8A199</color>
+    <color name="ex_line">#E7DCD2</color>
+    <color name="ex_line_strong">#CBBFB3</color>
+    <color name="ex_divider">#F1E7DD</color>
+
+    <!-- Semantic -->
+    <color name="ex_success">#2F6B4B</color>
+    <color name="ex_success_tint">#E4EFE6</color>
+    <color name="ex_warning">#7A6202</color>
+    <color name="ex_warning_tint">#F6E9C2</color>
+    <color name="ex_danger">#A8432B</color>
+    <color name="ex_danger_tint">#F6E3DB</color>
+    <color name="ex_danger_deep">#7A3A26</color>
+    <!-- One-off login CTA accent from the mockup (distinct from ex_gold) -->
+    <color name="ex_lime">#9FC73A</color>
+
+    <!-- Base -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="primary">#1565C0</color>
-    <color name="primary_dark">#0D47A1</color>
-    <color name="primary_light">#1976D2</color>
-    <color name="light_primary">#E3F2FD</color>
-    <color name="background">#F0F4F8</color>
+
+    <!-- Legacy semantic names, repointed to the brand palette so every
+         existing layout using @color/primary etc. reskins automatically. -->
+    <color name="primary">@color/ex_green</color>
+    <color name="primary_dark">@color/ex_green_deep</color>
+    <color name="primary_light">@color/ex_indigo</color>
+    <color name="light_primary">@color/ex_green_tint</color>
+    <!-- Every screen in the mockup uses the brand green as its outer/base
+         background (explicit note in the design doc: "fondo verde de marca"
+         applies to all 16 screens) — white/cream CARDS float on top of it. -->
+    <color name="background">@color/ex_green</color>
     <color name="surface">#FFFFFF</color>
-    <color name="success">#2E7D32</color>
-    <color name="success_light">#E8F5E9</color>
-    <color name="warning">#F57F17</color>
-    <color name="warning_light">#FFF8E1</color>
-    <color name="green">#2E7D32</color>
-    <color name="red">#C62828</color>
-    <color name="amber">#FFC107</color>
-    <color name="amber_dark">#FF8F00</color>
-    <color name="gray">#757575</color>
-    <color name="light_gray">#E0E0E0</color>
-    <color name="divider">#ECEFF1</color>
-    <color name="text_primary">#212121</color>
-    <color name="text_secondary">#616161</color>
-    <color name="error_light">#FFEBEE</color>
-    <color name="outline">#79747E</color>
+    <color name="success">@color/ex_success</color>
+    <color name="success_light">@color/ex_success_tint</color>
+    <color name="warning">@color/ex_gold</color>
+    <color name="warning_light">@color/ex_warning_tint</color>
+    <color name="green">@color/ex_success</color>
+    <color name="red">@color/ex_danger</color>
+    <color name="amber">@color/ex_gold</color>
+    <color name="amber_dark">@color/ex_warning</color>
+    <color name="gray">@color/ex_ink_soft</color>
+    <color name="light_gray">@color/ex_line</color>
+    <color name="divider">@color/ex_divider</color>
+    <color name="text_primary">@color/ex_ink</color>
+    <color name="text_secondary">@color/ex_ink_soft</color>
+    <color name="error_light">@color/ex_danger_tint</color>
+    <color name="outline">@color/ex_line_strong</color>
 </resources>

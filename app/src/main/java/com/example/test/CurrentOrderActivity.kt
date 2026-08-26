@@ -655,12 +655,16 @@ class CurrentOrderActivity : BaseActivity() {
                     // agregado a mano (btnAddCreditItem) para el mismo producto.
                     val prefillQty = pendingDamageItems.firstOrNull { it.barcode == order.barcode }?.qty ?: 0.0
                     setText(if (isLbs) String.format(Locale.US, "%.2f", prefillQty) else prefillQty.toInt().toString())
-                    textSize = 15f
+                    textSize = 16f
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                    setTextColor(getColor(R.color.ex_danger))
                     gravity = android.view.Gravity.CENTER
+                    background = androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.bg_edittext)
                     layoutParams = android.widget.LinearLayout.LayoutParams(
                         (64 * density).toInt(),
                         android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
+                    ).apply { marginStart = (8 * density).toInt() }
+                    setPadding((10 * density).toInt(), (8 * density).toInt(), (10 * density).toInt(), (8 * density).toInt())
                     selectAll()
                 }
 
