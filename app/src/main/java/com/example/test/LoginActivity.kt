@@ -2,16 +2,16 @@ package com.example.test
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.InputType
 import android.view.View
 import android.widget.EditText
-import android.widget.LinearLayout
+import android.widget.ImageButton
 import android.widget.TextView
 
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputLayout
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,7 +30,12 @@ class LoginActivity : BaseActivity() {
     private lateinit var etBackendUrl: EditText
     private lateinit var etEmail: EditText
     private lateinit var etPassword: EditText
-    private lateinit var tilEmail: TextInputLayout
+    private lateinit var wrapServerUrl: View
+    private lateinit var wrapEmail: View
+    private lateinit var wrapPassword: View
+    private lateinit var btnTogglePassword: ImageButton
+    private var emailHasError = false
+    private var isPasswordVisible = false
     private lateinit var btnLogin: MaterialButton
     private lateinit var btnRetry: MaterialButton
     private lateinit var layoutLoading: View
@@ -66,6 +71,10 @@ class LoginActivity : BaseActivity() {
 
         bindViews()
         etBackendUrl.setText(securePrefs.getBackendUrl())
+        setupInputFocusHighlight(wrapServerUrl, etBackendUrl)
+        setupInputFocusHighlight(wrapEmail, etEmail)
+        setupInputFocusHighlight(wrapPassword, etPassword)
+        btnTogglePassword.setOnClickListener { togglePasswordVisibility() }
 
         btnLogin.setOnClickListener { doLogin() }
         btnRetry.setOnClickListener { pingServer(); clearError() }
@@ -83,7 +92,10 @@ class LoginActivity : BaseActivity() {
         etBackendUrl    = findViewById(R.id.etBackendUrl)
         etEmail         = findViewById(R.id.etEmail)
         etPassword      = findViewById(R.id.etPassword)
-        tilEmail        = findViewById(R.id.tilEmail)
+        wrapServerUrl   = findViewById(R.id.wrapServerUrl)
+        wrapEmail       = findViewById(R.id.wrapEmail)
+        wrapPassword    = findViewById(R.id.wrapPassword)
+        btnTogglePassword = findViewById(R.id.btnTogglePassword)
         btnLogin        = findViewById(R.id.btnLogin)
         btnRetry        = findViewById(R.id.btnRetry)
         layoutLoading   = findViewById(R.id.layoutLoading)
@@ -130,13 +142,6 @@ class LoginActivity : BaseActivity() {
 
     private fun setStatus(text: String, online: Boolean, isChecking: Boolean = false) {
         tvServerStatus.text = text
-        tvServerStatus.setTextColor(getColor(
-            when {
-                isChecking -> R.color.text_secondary
-                online     -> R.color.success
-                else       -> R.color.red
-            }
-        ))
         viewStatusDot.setBackgroundResource(
             when {
                 isChecking -> R.drawable.circle_gray
@@ -260,13 +265,38 @@ class LoginActivity : BaseActivity() {
         layoutError.visibility = View.VISIBLE
     }
 
+    // Plain bordered boxes (no TextInputLayout) — swap the background drawable
+    // by hand instead of relying on Material's built-in focus/error states.
+    private fun setupInputFocusHighlight(wrapper: View, editText: EditText) {
+        editText.setOnFocusChangeListener { _, hasFocus ->
+            wrapper.setBackgroundResource(
+                when {
+                    wrapper === wrapEmail && emailHasError -> R.drawable.bg_input_field_error
+                    hasFocus -> R.drawable.bg_input_field_focused
+                    else -> R.drawable.bg_input_field
+                }
+            )
+        }
+    }
+
+    private fun togglePasswordVisibility() {
+        isPasswordVisible = !isPasswordVisible
+        val selection = etPassword.selectionStart
+        etPassword.inputType = if (isPasswordVisible)
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+        else
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        etPassword.setSelection(selection.coerceIn(0, etPassword.text?.length ?: 0))
+        btnTogglePassword.setImageResource(if (isPasswordVisible) R.drawable.ic_eye_off else R.drawable.ic_eye)
+    }
+
     private fun markEmailError() {
-        tilEmail.isErrorEnabled = true
-        tilEmail.error = " "
-        tilEmail.editText?.setOnFocusChangeListener { _, _ ->
-            tilEmail.isErrorEnabled = false
-            tilEmail.error = null
-            tilEmail.editText?.onFocusChangeListener = null
+        emailHasError = true
+        wrapEmail.setBackgroundResource(R.drawable.bg_input_field_error)
+        etEmail.setOnFocusChangeListener { _, hasFocus ->
+            emailHasError = false
+            wrapEmail.setBackgroundResource(if (hasFocus) R.drawable.bg_input_field_focused else R.drawable.bg_input_field)
+            setupInputFocusHighlight(wrapEmail, etEmail)
         }
     }
 
@@ -282,8 +312,11 @@ class LoginActivity : BaseActivity() {
 
     private fun clearError() {
         layoutError.visibility = View.GONE
-        tilEmail.isErrorEnabled = false
-        tilEmail.error = null
+        if (emailHasError) {
+            emailHasError = false
+            wrapEmail.setBackgroundResource(R.drawable.bg_input_field)
+            setupInputFocusHighlight(wrapEmail, etEmail)
+        }
     }
 
     private fun goToMain() {

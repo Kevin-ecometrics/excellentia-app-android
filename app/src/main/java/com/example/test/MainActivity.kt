@@ -331,11 +331,26 @@ class MainActivity : BaseActivity() {
     }
 
     private fun enableScanning(enabled: Boolean) {
-        btnHoldScan.isEnabled = enabled
-        btnHoldScan.alpha = if (enabled) 1f else 0.7f
-        btnManualEntry.isEnabled = enabled
+        // Views stay isEnabled=true (a disabled View never dispatches touch
+        // events, so a tap on it would do nothing) — the dimmed alpha is the
+        // only visual "disabled" cue, and requireCustomerSelected() below is
+        // what actually blocks the action and explains why.
+        btnHoldScan.alpha = if (enabled) 1f else 0.4f
         btnManualEntry.alpha = if (enabled) 1f else 0.4f
         tvScanPrompt.text = if (enabled) getString(R.string.label_ready_to_scan) else getString(R.string.label_select_customer_first)
+    }
+
+    // Gate for the two actions that need an active customer first (scan,
+    // manual entry) — returns false and surfaces why instead of silently
+    // no-op'ing when tapped before a customer is selected.
+    private fun requireCustomerSelected(): Boolean {
+        if (securePrefs.getActiveCustomerId() != null) return true
+        Snackbar.make(
+            findViewById(android.R.id.content),
+            getString(R.string.label_select_customer_first),
+            Snackbar.LENGTH_SHORT
+        ).show()
+        return false
     }
 
     private fun initViews() {
@@ -362,14 +377,16 @@ class MainActivity : BaseActivity() {
         btnPreOrders         = findViewById(R.id.btnPreOrders)
         btnAddCredit         = findViewById(R.id.btnAddCredit)
 
-        btnHoldScan.setOnClickListener { toggleScan() }
+        btnHoldScan.setOnClickListener { if (requireCustomerSelected()) toggleScan() }
         btnScan.setOnClickListener { showGuide() }
-        btnManualEntry.setOnClickListener { showManualEntryDialog() }
+        btnManualEntry.setOnClickListener { if (requireCustomerSelected()) showManualEntryDialog() }
 
         // Búsqueda por nombre (long press en manual entry)
         btnManualEntry.setOnLongClickListener {
-            Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_searching_by_name), Snackbar.LENGTH_SHORT).show()
-            showProductSearchDialog()
+            if (requireCustomerSelected()) {
+                Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_searching_by_name), Snackbar.LENGTH_SHORT).show()
+                showProductSearchDialog()
+            }
             true
         }
 
@@ -551,7 +568,6 @@ class MainActivity : BaseActivity() {
 
     private fun setStatus(connected: Boolean, label: String) {
         tvStatus.text = label
-        tvStatus.setTextColor(getColor(if (connected) R.color.success else R.color.red))
         viewStatusDot.setBackgroundResource(
             if (connected) R.drawable.circle_green else R.drawable.circle_gray
         )

@@ -20,6 +20,9 @@
     <!-- Semantic -->
     <color name="ex_success">#2F6B4B</color>
     <color name="ex_success_tint">#E4EFE6</color>
+    <!-- Bright "online/connected" status-dot accent (Login, Home) — distinct
+         from ex_success, which reads too dark/muted at 7-10dp dot size. -->
+    <color name="ex_mint">#7FD6A4</color>
     <color name="ex_warning">#7A6202</color>
     <color name="ex_warning_tint">#F6E9C2</color>
     <color name="ex_danger">#A8432B</color>

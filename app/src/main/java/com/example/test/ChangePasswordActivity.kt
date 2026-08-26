@@ -1,7 +1,10 @@
 package com.example.test
 
 import android.os.Bundle
+import android.text.InputType
 import android.view.View
+import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 
@@ -13,14 +16,13 @@ import com.example.test.data.network.RetrofitClient
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
-import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.launch
 
 class ChangePasswordActivity : BaseActivity() {
 
-    private lateinit var etCurrent: TextInputEditText
-    private lateinit var etNew: TextInputEditText
-    private lateinit var etConfirm: TextInputEditText
+    private lateinit var etCurrent: EditText
+    private lateinit var etNew: EditText
+    private lateinit var etConfirm: EditText
     private lateinit var tvError: TextView
     private lateinit var btnSave: MaterialButton
 
@@ -40,8 +42,29 @@ class ChangePasswordActivity : BaseActivity() {
         tvError   = findViewById(R.id.tvError)
         btnSave   = findViewById(R.id.btnSave)
 
+        findViewById<ImageButton>(R.id.btnToggleCurrentPassword).setOnClickListener {
+            togglePasswordVisibility(etCurrent, it as ImageButton)
+        }
+        findViewById<ImageButton>(R.id.btnToggleNewPassword).setOnClickListener {
+            togglePasswordVisibility(etNew, it as ImageButton)
+        }
+        findViewById<ImageButton>(R.id.btnToggleConfirmPassword).setOnClickListener {
+            togglePasswordVisibility(etConfirm, it as ImageButton)
+        }
+
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         btnSave.setOnClickListener { attemptChange() }
+    }
+
+    private fun togglePasswordVisibility(editText: EditText, toggleButton: ImageButton) {
+        val isVisible = editText.inputType == (InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
+        val selection = editText.selectionStart
+        editText.inputType = if (isVisible)
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        else
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+        editText.setSelection(selection.coerceIn(0, editText.text?.length ?: 0))
+        toggleButton.setImageResource(if (isVisible) R.drawable.ic_eye else R.drawable.ic_eye_off)
     }
 
     private fun attemptChange() {

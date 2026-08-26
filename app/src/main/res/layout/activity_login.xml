@@ -80,7 +80,10 @@
                     android:textColor="@color/ex_cream"
                     android:textSize="12sp" />
 
-                <!-- Server URL (expandable) -->
+                <!-- Server URL (expandable) — plain bordered box, static label,
+                     no TextInputLayout: avoids Material's outline notch-cutout
+                     hint mechanic entirely, which was clipping label text at
+                     the top when combined with our sharp (0dp) corners. -->
                 <LinearLayout
                     android:id="@+id/layoutServer"
                     android:layout_width="match_parent"
@@ -89,55 +92,131 @@
                     android:orientation="vertical"
                     android:visibility="gone">
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.Excellentia.TextInputLayout"
+                    <LinearLayout
+                        android:id="@+id/wrapServerUrl"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="@string/hint_server_url">
+                        android:background="@drawable/bg_input_field"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="14dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="6dp">
 
-                        <com.google.android.material.textfield.TextInputEditText
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.06"
+                            android:text="@string/hint_server_url"
+                            android:textAllCaps="true"
+                            android:textColor="@color/ex_green"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <EditText
                             android:id="@+id/etBackendUrl"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:background="@null"
                             android:inputType="textUri"
-                            android:textSize="13sp" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                            android:minHeight="0dp"
+                            android:paddingVertical="2dp"
+                            android:textColor="@color/ex_ink"
+                            android:textColorHint="@color/ex_ink_faint"
+                            android:textSize="14sp" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <!-- Email -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/tilEmail"
-                    style="@style/Widget.Excellentia.TextInputLayout"
+                <LinearLayout
+                    android:id="@+id/wrapEmail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="14dp"
-                    android:hint="@string/hint_email">
+                    android:background="@drawable/bg_input_field"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="6dp">
 
-                    <com.google.android.material.textfield.TextInputEditText
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.06"
+                        android:text="@string/hint_email"
+                        android:textAllCaps="true"
+                        android:textColor="@color/ex_green"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <EditText
                         android:id="@+id/etEmail"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:background="@null"
                         android:inputType="textEmailAddress"
-                        android:textSize="15sp" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:minHeight="0dp"
+                        android:paddingVertical="2dp"
+                        android:textColor="@color/ex_ink"
+                        android:textColorHint="@color/ex_ink_faint"
+                        android:textSize="16sp" />
+                </LinearLayout>
 
                 <!-- Password -->
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Excellentia.TextInputLayout"
+                <LinearLayout
+                    android:id="@+id/wrapPassword"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="4dp"
-                    android:hint="@string/hint_current_password"
-                    app:endIconMode="password_toggle"
-                    app:endIconTint="@color/ex_ink_soft">
+                    android:background="@drawable/bg_input_field"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="6dp">
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etPassword"
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.06"
+                        android:text="@string/hint_current_password"
+                        android:textAllCaps="true"
+                        android:textColor="@color/ex_green"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="textPassword"
-                        android:textSize="15sp" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:layout_marginTop="2dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/etPassword"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@null"
+                            android:inputType="textPassword"
+                            android:minHeight="0dp"
+                            android:paddingVertical="2dp"
+                            android:textColor="@color/ex_ink"
+                            android:textColorHint="@color/ex_ink_faint"
+                            android:textSize="16sp" />
+
+                        <ImageButton
+                            android:id="@+id/btnTogglePassword"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginStart="8dp"
+                            android:background="@null"
+                            android:contentDescription="@string/hint_current_password"
+                            android:padding="0dp"
+                            android:src="@drawable/ic_eye"
+                            app:tint="@color/ex_ink_soft" />
+                    </LinearLayout>
+                </LinearLayout>
 
                 <!-- Error card -->
                 <com.google.android.material.card.MaterialCardView

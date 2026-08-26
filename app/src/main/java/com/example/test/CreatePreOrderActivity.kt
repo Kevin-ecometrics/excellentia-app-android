@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
@@ -26,7 +27,6 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
-import com.google.android.material.textfield.TextInputEditText
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
@@ -41,7 +41,7 @@ class CreatePreOrderActivity : BaseActivity() {
     private lateinit var tvSalesperson: TextView
     private lateinit var btnPickDate: MaterialButton
     private lateinit var tvSelectedDate: TextView
-    private lateinit var etNotes: TextInputEditText
+    private lateinit var etNotes: EditText
     private lateinit var layoutItems: LinearLayout
     private lateinit var tvNoItems: TextView
     private lateinit var btnSearchProduct: MaterialButton

@@ -8,6 +8,7 @@
         <item name="cornerSize">0dp</item>
     </style>
 
+
     <style name="TextAppearance.Excellentia.Display" parent="TextAppearance.Material3.HeadlineSmall">
         <item name="fontFamily">@font/family_after</item>
         <item name="android:fontFamily">@font/family_after</item>

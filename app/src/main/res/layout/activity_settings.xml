@@ -158,19 +158,38 @@
                                 android:textStyle="bold" />
                         </LinearLayout>
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="@string/label_backend_url">
+                            android:background="@drawable/bg_input_field"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="14dp"
+                            android:paddingTop="8dp"
+                            android:paddingBottom="6dp">
 
-                            <com.google.android.material.textfield.TextInputEditText
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:letterSpacing="0.06"
+                                android:text="@string/label_backend_url"
+                                android:textAllCaps="true"
+                                android:textColor="@color/ex_green"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <EditText
                                 android:id="@+id/etBackendUrl"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:background="@null"
                                 android:inputType="textUri"
+                                android:minHeight="0dp"
+                                android:paddingVertical="2dp"
+                                android:textColor="@color/ex_ink"
+                                android:textColorHint="@color/ex_ink_faint"
                                 android:textSize="14sp" />
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

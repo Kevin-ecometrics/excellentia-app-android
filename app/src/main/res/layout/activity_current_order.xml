@@ -73,11 +73,12 @@
                     android:insetTop="0dp"
                     android:minWidth="32dp"
                     android:paddingHorizontal="10dp"
-                    android:textColor="@color/ex_green"
+                    android:textColor="@color/white"
                     android:textSize="13sp"
                     android:textStyle="bold"
                     app:backgroundTint="@color/ex_gold"
-                    app:cornerRadius="0dp" />
+                    app:cornerRadius="0dp"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Excellentia.None" />
             </LinearLayout>
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>

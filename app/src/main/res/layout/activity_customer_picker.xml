@@ -39,27 +39,46 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/layoutHeader">
 
-        <!-- Search field -->
-        <com.google.android.material.textfield.TextInputLayout
+        <!-- Search field — plain bordered row, no TextInputLayout (same
+             pattern as Login/Settings): avoids Material's outline notch-cutout
+             hint mechanic, which clipped label text combined with sharp
+             corners. A live-filter field doesn't need a persistent label
+             above it like a data field does, so this is icon + hint only. -->
+        <LinearLayout
             android:id="@+id/cardSearch"
-            style="@style/Widget.Excellentia.TextInputLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
-            android:hint="@string/hint_search_customer"
-            app:startIconDrawable="@drawable/ic_search"
-            app:startIconTint="@color/ex_ink_faint"
+            android:background="@drawable/bg_input_field"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_search"
+                app:tint="@color/ex_ink_faint" />
+
+            <EditText
                 android:id="@+id/etSearch"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="@string/hint_search_customer"
                 android:inputType="textPersonName"
+                android:minHeight="0dp"
+                android:paddingVertical="12dp"
+                android:textColor="@color/ex_ink"
+                android:textColorHint="@color/ex_ink_faint"
                 android:textSize="15sp" />
-        </com.google.android.material.textfield.TextInputLayout>
+        </LinearLayout>
 
         <!-- Loading -->
         <com.google.android.material.progressindicator.CircularProgressIndicator
