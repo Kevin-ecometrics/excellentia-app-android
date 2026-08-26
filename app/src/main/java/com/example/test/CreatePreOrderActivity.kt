@@ -14,7 +14,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -195,7 +194,7 @@ class CreatePreOrderActivity : BaseActivity() {
             return
         }
         val names = salespersons.map { it.name ?: "—" }.toTypedArray()
-        AlertDialog.Builder(this)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Seleccionar vendedor")
             .setItems(names) { _, index ->
                 val sp = salespersons[index]

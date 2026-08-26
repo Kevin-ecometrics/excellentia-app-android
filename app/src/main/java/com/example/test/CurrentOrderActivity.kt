@@ -799,7 +799,7 @@ class CurrentOrderActivity : BaseActivity() {
         if (printerAddress.isNullOrBlank()) {
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.title_no_printer))
-                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setIcon(R.drawable.ic_alert)
                 .setMessage(getString(R.string.msg_no_printer))
                 .setPositiveButton(getString(R.string.btn_continue_no_print)) { _, _ ->
                     printFirstTicketThenAskPayment(skipPrint = true)

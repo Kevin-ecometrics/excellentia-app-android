@@ -12,7 +12,6 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AlertDialog
 
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat

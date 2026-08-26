@@ -64,14 +64,46 @@
         <item name="cornerRadius">0dp</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
+        <!-- Gap from whichever button sits to its left (Negative/Neutral) — both
+             are now solid filled blocks, not text links, so without this they
+             render flush against each other with no visible seam. -->
+        <item name="android:layout_marginStart">8dp</item>
     </style>
 
-    <style name="Widget.Excellentia.Button.Dialog.Negative" parent="Widget.Material3.Button.TextButton">
+    <!-- Solid navy block, not a text link — matches the "Cancelar" button used
+         everywhere else in the app (ProductDetailActivity, SignatureActivity,
+         CurrentOrderActivity, etc. all pair a navy secondary action next to a
+         green primary one, never a plain text button). -->
+    <style name="Widget.Excellentia.Button.Dialog.Negative" parent="Widget.Material3.Button">
         <item name="android:fontFamily">@font/family_after</item>
         <item name="fontFamily">@font/family_after</item>
         <item name="android:textAllCaps">true</item>
-        <item name="android:textColor">@color/ex_ink_soft</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="backgroundTint">@color/ex_navy</item>
+        <item name="android:textColor">@color/white</item>
         <item name="cornerRadius">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <!-- Same reasoning as Positive above — matters when both Negative and
+             Neutral are shown together (Neutral first, Negative second). -->
+        <item name="android:layout_marginStart">8dp</item>
+    </style>
+
+    <!-- Snackbar.make() calls across the app (offline banners, save
+         confirmations, retry errors) rendered with Material's default dark
+         gray/black pill — nowhere else in the app uses that color. Rewired to
+         the brand's darkest green with a gold action label. -->
+    <style name="Widget.Excellentia.Snackbar" parent="Widget.Material3.Snackbar">
+        <item name="backgroundTint">@color/ex_green_deep</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Excellentia.None</item>
+    </style>
+
+    <style name="Widget.Excellentia.Snackbar.TextView" parent="Widget.MaterialComponents.Snackbar.TextView">
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="Widget.Excellentia.Snackbar.Button" parent="Widget.MaterialComponents.Button.TextButton.Snackbar">
+        <item name="android:textColor">@color/ex_gold</item>
     </style>
 
     <!-- Native android.app.DatePickerDialog (CreatePreOrderActivity) isn't a
@@ -87,6 +119,9 @@
     <style name="Base.Theme.Test" parent="Theme.Material3.Light.NoActionBar">
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.Excellentia.MaterialAlertDialog</item>
         <item name="android:datePickerDialogTheme">@style/ThemeOverlay.Excellentia.DatePicker</item>
+        <item name="snackbarStyle">@style/Widget.Excellentia.Snackbar</item>
+        <item name="snackbarTextViewStyle">@style/Widget.Excellentia.Snackbar.TextView</item>
+        <item name="snackbarButtonStyle">@style/Widget.Excellentia.Snackbar.Button</item>
         <item name="android:windowBackground">@color/background</item>
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/white</item>
