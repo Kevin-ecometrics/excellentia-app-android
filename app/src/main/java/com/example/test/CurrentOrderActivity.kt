@@ -529,6 +529,7 @@ class CurrentOrderActivity : BaseActivity() {
         signatureLauncher.launch(
             Intent(this, SignatureActivity::class.java).apply {
                 putExtra("customer_name", customerName)
+                putExtra("order_total", tvGrandTotal.text.toString())
             }
         )
     }
@@ -585,11 +586,13 @@ class CurrentOrderActivity : BaseActivity() {
                 )
             }
 
-            // Mensaje dentro del scroll para no ocupar espacio del diálogo
+            // Banner de advertencia dentro del scroll para no ocupar espacio del diálogo
             container.addView(android.widget.TextView(ctx).apply {
                 text = getString(R.string.msg_damaged_items_hint)
                 textSize = 13f
-                setTextColor(getColor(R.color.text_secondary))
+                setTextColor(getColor(R.color.ex_danger_deep))
+                setBackgroundColor(getColor(R.color.ex_danger_tint))
+                setPadding((14 * density).toInt(), (12 * density).toInt(), (14 * density).toInt(), (12 * density).toInt())
                 layoutParams = android.widget.LinearLayout.LayoutParams(
                     android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                     android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
@@ -602,16 +605,25 @@ class CurrentOrderActivity : BaseActivity() {
             val inputs = mutableListOf<Pair<com.example.test.data.local.entities.PendingOrderEntity, android.widget.EditText>>()
 
             for (order in pending) {
+                // Card por producto — mismo lenguaje visual (borde ex_line, sin
+                // esquinas redondeadas) que el resto de la app, en vez de texto
+                // suelto sobre el fondo del diálogo.
+                val card = android.widget.LinearLayout(ctx).apply {
+                    orientation = android.widget.LinearLayout.VERTICAL
+                    background = androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.bg_edittext)
+                    setPadding((12 * density).toInt(), (10 * density).toInt(), (12 * density).toInt(), (10 * density).toInt())
+                    layoutParams = android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = (10 * density).toInt() }
+                }
+
                 // Nombre del producto
                 val tvName = android.widget.TextView(ctx).apply {
                     text = order.productName
                     textSize = 14f
                     setTextColor(getColor(R.color.text_primary))
                     setTypeface(null, android.graphics.Typeface.BOLD)
-                    layoutParams = android.widget.LinearLayout.LayoutParams(
-                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply { topMargin = (14 * density).toInt() }
                 }
 
                 // Fila: detalle (izq) + input (der)
@@ -670,8 +682,9 @@ class CurrentOrderActivity : BaseActivity() {
 
                 row.addView(tvDetail)
                 row.addView(etQty)
-                container.addView(tvName)
-                container.addView(row)
+                card.addView(tvName)
+                card.addView(row)
+                container.addView(card)
                 inputs.add(Pair(order, etQty))
             }
 
@@ -726,40 +739,48 @@ class CurrentOrderActivity : BaseActivity() {
         }
 
     private fun askPaymentMethod(skipPrint: Boolean) {
+        val options = arrayOf(
+            getString(R.string.btn_cash),
+            getString(R.string.btn_check),
+            getString(R.string.btn_account)
+        )
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_payment_method))
-            .setMessage(getString(R.string.msg_payment_method))
             .setCancelable(false)
-            .setPositiveButton(getString(R.string.btn_cash)) { _, _ ->
-                pendingPaymentMethod = "Cash"
-                pendingCheckNumber = null
-                sendBatchAndPrint(skipPrint)
-            }
-            .setNeutralButton(getString(R.string.btn_check)) { _, _ ->
-                pendingPaymentMethod = "Check"
-                val input = android.widget.EditText(this).apply {
-                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                    hint = getString(R.string.hint_check_number)
-                }
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                    .setTitle(getString(R.string.title_check_number))
-                    .setMessage(getString(R.string.msg_check_number))
-                    .setView(input)
-                    .setCancelable(false)
-                    .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
-                        pendingCheckNumber = input.text.toString().take(20)
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> {
+                        pendingPaymentMethod = "Cash"
+                        pendingCheckNumber = null
                         sendBatchAndPrint(skipPrint)
                     }
-                    .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
-                        // Vuelve al diálogo de método de pago
-                        askPaymentMethod(skipPrint)
+                    1 -> {
+                        pendingPaymentMethod = "Check"
+                        val input = android.widget.EditText(this).apply {
+                            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                            hint = getString(R.string.hint_check_number)
+                        }
+                        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                            .setTitle(getString(R.string.title_check_number))
+                            .setMessage(getString(R.string.msg_check_number))
+                            .setView(input)
+                            .setCancelable(false)
+                            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                                pendingCheckNumber = input.text.toString().take(20)
+                                sendBatchAndPrint(skipPrint)
+                            }
+                            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
+                                // Vuelve al diálogo de método de pago
+                                askPaymentMethod(skipPrint)
+                            }
+                            .show()
                     }
-                    .show()
-            }
-            .setNegativeButton(getString(R.string.btn_account)) { _, _ ->
-                pendingPaymentMethod = "On Account"
-                pendingCheckNumber = null
-                sendBatchAndPrint(skipPrint)
+                    2 -> {
+                        pendingPaymentMethod = "On Account"
+                        pendingCheckNumber = null
+                        sendBatchAndPrint(skipPrint)
+                    }
+                }
             }
             .show()
     }

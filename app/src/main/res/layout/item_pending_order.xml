@@ -72,7 +72,7 @@
             android:layout_height="40dp"
             android:layout_marginStart="8dp"
             app:backgroundTint="@color/ex_green_tint"
-            app:icon="@drawable/ic_product"
+            app:icon="@drawable/ic_edit"
             app:iconSize="18dp"
             app:iconTint="@color/primary" />
 
@@ -84,7 +84,7 @@
             android:layout_height="40dp"
             android:layout_marginStart="4dp"
             app:backgroundTint="@color/ex_danger_tint"
-            app:icon="@drawable/ic_remove"
+            app:icon="@drawable/ic_delete"
             app:iconSize="18dp"
             app:iconTint="@color/red" />
 

@@ -27,6 +27,10 @@
     <color name="ex_danger_deep">#7A3A26</color>
     <!-- One-off login CTA accent from the mockup (distinct from ex_gold) -->
     <color name="ex_lime">#9FC73A</color>
+    <!-- Dark teal customer-row card (Selector de cliente) — sits on the green
+         page background rather than floating as a white card, per mockup. -->
+    <color name="ex_row_dark">#0B4A4A</color>
+    <color name="ex_row_dark_border">#40F9EFE8</color>
 
     <!-- Base -->
     <color name="black">#FF000000</color>

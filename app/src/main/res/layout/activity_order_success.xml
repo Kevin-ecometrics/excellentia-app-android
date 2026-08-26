@@ -17,27 +17,21 @@
         android:paddingHorizontal="28dp"
         android:paddingVertical="40dp">
 
-        <!-- Checkmark circle -->
+        <!-- Checkmark circle (single circle, per design — do not nest another
+             circular icon/halo inside this, ic_check is a bare stroke checkmark) -->
         <FrameLayout
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:background="@drawable/bg_circle_translucent">
+            android:layout_width="88dp"
+            android:layout_height="88dp"
+            android:background="@drawable/bg_scan_circle"
+            android:backgroundTint="@color/success"
+            android:elevation="4dp">
 
-            <FrameLayout
-                android:layout_width="88dp"
-                android:layout_height="88dp"
+            <ImageView
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:layout_gravity="center"
-                android:background="@drawable/bg_scan_circle"
-                app:backgroundTint="@color/success">
-
-                <ImageView
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:layout_gravity="center"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_check_circle"
-                    app:tint="#FFFFFF" />
-            </FrameLayout>
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_check" />
         </FrameLayout>
 
         <!-- Title -->
@@ -193,6 +187,40 @@
 
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" />
 
+                <!-- Payment method -->
+                <LinearLayout
+                    android:id="@+id/rowPayment"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="8dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/label_payment_field"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvSuccessPayment"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/dividerPayment"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/divider"
+                    android:visibility="gone" />
+
                 <!-- Credits (damage + applied balance) -->
                 <LinearLayout
                     android:id="@+id/rowCredits"
@@ -256,6 +284,51 @@
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <!-- Pending sync banner (offline) -->
+        <LinearLayout
+            android:id="@+id/layoutPendingSync"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_pending_sync"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="14dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_cloud"
+                app:tint="@color/ex_warning" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_pending_sync_title"
+                    android:textColor="@color/ex_warning"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:lineSpacingExtra="2dp"
+                    android:text="@string/msg_order_saved_offline"
+                    android:textColor="@color/ex_warning"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- Buttons -->
         <com.google.android.material.button.MaterialButton

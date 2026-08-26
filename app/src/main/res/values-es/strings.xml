@@ -18,6 +18,8 @@
     <string name="label_offline_desc">Guardar pedidos localmente hasta tener conexión</string>
     <string name="hint_jwt">Ingresa tu JWT token</string>
     <string name="title_history">Historial de escaneos</string>
+    <string name="subtitle_local_remote">Locales y remotos</string>
+    <string name="subtitle_pending_sync">Locales y remotos  ·  %1$d pendientes de sincronizar</string>
     <string name="title_settings">Ajustes</string>
     <string name="title_product">Detalle del producto</string>
     <string name="filter_all">Todos</string>
@@ -48,7 +50,8 @@
     <string name="btn_save_password">Guardar contraseña</string>
     <string name="btn_saving">Guardando…</string>
     <string name="error_enter_current_password">Ingresa tu contraseña actual</string>
-    <string name="error_password_too_short">La nueva contraseña debe tener al menos 6 caracteres</string>
+    <string name="error_password_too_short">La nueva contraseña debe tener al menos 8 caracteres</string>
+    <string name="label_password_requirements">Requisitos:\nMínimo 8 caracteres</string>
     <string name="error_passwords_dont_match">Las contraseñas no coinciden</string>
     <string name="error_wrong_current_password">Contraseña actual incorrecta</string>
     <string name="error_server_code">Error del servidor (%1$d)</string>
@@ -145,6 +148,8 @@
     <string name="label_pending_status">PENDIENTE</string>
     <string name="batch_summary">Pedido #%1$s  ·  %2$d producto(s)</string>
     <string name="label_batch_invoice">Factura #%1$s</string>
+    <string name="label_stat_credit">Crédito\na favor</string>
+    <string name="label_stat_purchases_30d">Compras\n30d</string>
 
     <!-- CurrentOrderActivity -->
     <string name="label_customer_tap_change">Cliente: %1$s  ·  Toca para cambiar</string>
@@ -355,9 +360,12 @@
     <string name="label_invoice_qb">Factura QB</string>
     <string name="label_customer_field">Cliente</string>
     <string name="label_products_field">Productos</string>
+    <string name="label_payment_field">Pago</string>
     <string name="label_credits_field">Créditos</string>
     <string name="label_total_field">Total</string>
     <string name="btn_new_order">NUEVO PEDIDO</string>
+    <string name="label_pending_sync_title">Pendiente de sincronizar.</string>
+    <string name="msg_order_saved_offline">Sin conexión — el pedido se guardó. Se enviará a QuickBooks automáticamente al reconectar.</string>
 
     <!-- ProductDetailActivity layout -->
     <string name="label_item_total">TOTAL DEL ÍTEM</string>
@@ -374,6 +382,7 @@
 
     <!-- SignatureActivity layout -->
     <string name="label_sign_in_box">Firme dentro del recuadro</string>
+    <string name="label_order_for">Pedido para</string>
     <string name="btn_clear_signature">Limpiar</string>
     <string name="btn_confirm_signature">Confirmar firma</string>
 

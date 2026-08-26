@@ -14,6 +14,7 @@ import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -181,8 +182,8 @@ class CustomerPickerActivity : BaseActivity() {
                 radius = 0f
                 cardElevation = 0f
                 strokeWidth = 1.dp
-                strokeColor = resources.getColor(R.color.ex_line, theme)
-                setCardBackgroundColor(resources.getColor(R.color.surface, theme))
+                strokeColor = resources.getColor(R.color.ex_row_dark_border, theme)
+                setCardBackgroundColor(resources.getColor(R.color.ex_row_dark, theme))
                 isClickable = true
                 isFocusable = true
                 setOnClickListener { confirmSelection(customer) }
@@ -195,7 +196,7 @@ class CustomerPickerActivity : BaseActivity() {
                 )
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(16.dp, 14.dp, 16.dp, 14.dp)
+                setPadding(14.dp, 13.dp, 14.dp, 13.dp)
             }
 
             val nameAddressCol = LinearLayout(this).apply {
@@ -209,37 +210,36 @@ class CustomerPickerActivity : BaseActivity() {
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
                 text = customer.displayName
-                textSize = 15f
-                setTextColor(resources.getColor(R.color.text_primary, theme))
+                textSize = 16f
+                setTypeface(ResourcesCompat.getFont(this@CustomerPickerActivity, R.font.family_after), android.graphics.Typeface.BOLD)
+                setTextColor(resources.getColor(R.color.ex_cream, theme))
             }
             nameAddressCol.addView(tvName)
 
             val address = customer.fullAddress
             if (!address.isNullOrBlank()) {
-                val tvAddress = TextView(this).apply {
+                val tvSubtitle = TextView(this).apply {
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
                     ).apply { topMargin = 2.dp }
                     text = address
-                    textSize = 12f
-                    setTextColor(resources.getColor(R.color.text_secondary, theme))
+                    textSize = 13f
+                    setTextColor(resources.getColor(R.color.ex_cream, theme))
+                    alpha = 0.75f
                 }
-                nameAddressCol.addView(tvAddress)
+                nameAddressCol.addView(tvSubtitle)
             }
 
-            val tvId = TextView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { marginStart = 8.dp }
-                text = "#${customer.id}"
-                textSize = 12f
-                setTextColor(resources.getColor(R.color.text_secondary, theme))
+            val ivChevron = android.widget.ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(20.dp, 20.dp).apply { marginStart = 8.dp }
+                setImageResource(R.drawable.ic_chevron_right)
+                setColorFilter(resources.getColor(R.color.ex_cream, theme))
+                contentDescription = null
             }
 
             row.addView(nameAddressCol)
-            row.addView(tvId)
+            row.addView(ivChevron)
             card.setOnLongClickListener {
                 showCustomerOptions(customer)
                 true

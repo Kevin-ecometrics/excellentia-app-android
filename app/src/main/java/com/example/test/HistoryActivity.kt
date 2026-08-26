@@ -40,6 +40,7 @@ class HistoryActivity : BaseActivity() {
     private lateinit var layoutEmpty: View
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var btnLoadMore: com.google.android.material.button.MaterialButton
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var orderRepository: OrderRepository
     private var currentFilter = "ALL"
     private var currentDateFilter = "TODAY"
@@ -70,7 +71,8 @@ class HistoryActivity : BaseActivity() {
         swipeRefresh.setColorSchemeColors(getColor(R.color.primary))
         swipeRefresh.setOnRefreshListener { loadHistory() }
 
-        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
+        toolbar = findViewById(R.id.toolbar)
+        toolbar.setNavigationOnClickListener { finish() }
 
         chipGroupDate.setOnCheckedStateChangeListener { _, checkedIds ->
             currentDateFilter = when {
@@ -109,6 +111,10 @@ class HistoryActivity : BaseActivity() {
         lifecycleScope.launch {
             try {
                 val localAll = orderRepository.getPendingOrders()
+                toolbar.subtitle = if (localAll.isNotEmpty())
+                    getString(R.string.subtitle_pending_sync, localAll.size)
+                else
+                    getString(R.string.subtitle_local_remote)
                 val remoteResult = orderRepository.getRemoteOrders(page = currentPage, limit = pageSize)
 
                 val allRemote = mutableListOf<OrderDto>()
@@ -229,7 +235,7 @@ class HistoryActivity : BaseActivity() {
             SyncStatus.PENDING -> {
                 tvStatus.text = getString(R.string.status_pending)
                 tvStatus.setBackgroundResource(R.drawable.bg_chip_pending)
-                tvStatus.setTextColor(ContextCompat.getColor(this, R.color.warning))
+                tvStatus.setTextColor(ContextCompat.getColor(this, R.color.ex_warning))
             }
             SyncStatus.FAILED -> {
                 tvStatus.text = getString(R.string.status_failed)
@@ -317,7 +323,7 @@ class HistoryActivity : BaseActivity() {
         view.findViewById<TextView>(R.id.tvBatchStatus).apply {
             text = if (allSent) getString(R.string.label_completed) else getString(R.string.label_pending_status)
             setBackgroundResource(if (allSent) R.drawable.bg_chip_sent else R.drawable.bg_chip_pending)
-            setTextColor(ContextCompat.getColor(this@HistoryActivity, if (allSent) R.color.success else R.color.warning))
+            setTextColor(ContextCompat.getColor(this@HistoryActivity, if (allSent) R.color.success else R.color.ex_warning))
         }
 
         view.setOnClickListener {

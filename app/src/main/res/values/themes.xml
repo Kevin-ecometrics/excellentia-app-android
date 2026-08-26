@@ -74,8 +74,19 @@
         <item name="cornerRadius">0dp</item>
     </style>
 
+    <!-- Native android.app.DatePickerDialog (CreatePreOrderActivity) isn't a
+         Material dialog and ignores materialAlertDialogTheme — it only reads
+         the platform android:datePickerDialogTheme attribute. Without this the
+         selected-day highlight and OK/Cancel buttons render in stock Android
+         teal instead of the brand green. -->
+    <style name="ThemeOverlay.Excellentia.DatePicker" parent="ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="colorAccent">@color/ex_green</item>
+        <item name="android:colorAccent">@color/ex_green</item>
+    </style>
+
     <style name="Base.Theme.Test" parent="Theme.Material3.Light.NoActionBar">
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.Excellentia.MaterialAlertDialog</item>
+        <item name="android:datePickerDialogTheme">@style/ThemeOverlay.Excellentia.DatePicker</item>
         <item name="android:windowBackground">@color/background</item>
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/white</item>

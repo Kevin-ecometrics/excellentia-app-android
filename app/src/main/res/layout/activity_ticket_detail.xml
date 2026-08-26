@@ -69,7 +69,7 @@
             app:cornerRadius="0dp"
             app:strokeColor="@color/white"
             app:strokeWidth="1dp"
-            app:icon="@drawable/ic_check_circle"
+            app:icon="@drawable/ic_print"
             app:iconGravity="textStart"
             app:iconSize="18dp"
             app:iconTint="@color/white" />

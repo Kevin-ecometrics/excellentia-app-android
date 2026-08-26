@@ -164,7 +164,7 @@
                             android:layout_height="20dp"
                             android:layout_marginEnd="10dp"
                             android:importantForAccessibility="no"
-                            android:src="@drawable/ic_check_circle"
+                            android:src="@drawable/ic_error"
                             app:tint="@color/ex_danger" />
 
                         <LinearLayout

@@ -167,7 +167,7 @@ class PreOrderListActivity : BaseActivity() {
             "CONVERTED" -> R.color.success
             "CONFIRMED" -> R.color.primary
             "CANCELLED" -> R.color.red
-            else        -> R.color.warning
+            else        -> R.color.ex_warning
         }
         val statusBg = when (po.status) {
             "CONVERTED" -> R.drawable.bg_chip_sent

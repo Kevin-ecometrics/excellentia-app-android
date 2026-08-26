@@ -213,7 +213,7 @@ class PreOrderDetailActivity : BaseActivity() {
             "CONVERTED" -> R.color.success
             "CONFIRMED" -> R.color.primary
             "CANCELLED" -> R.color.red
-            else        -> R.color.warning
+            else        -> R.color.ex_warning
         }
         tvDetailStatus.text = statusLabel
         tvDetailStatus.setTextColor(ContextCompat.getColor(this, statusColor))

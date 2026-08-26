@@ -50,7 +50,7 @@ class ChangePasswordActivity : BaseActivity() {
         val confirm = etConfirm.text.toString()
 
         if (current.isBlank()) { showError(getString(R.string.error_enter_current_password)); return }
-        if (new.length < 6)    { showError(getString(R.string.error_password_too_short)); return }
+        if (new.length < 8)    { showError(getString(R.string.error_password_too_short)); return }
         if (new != confirm)    { showError(getString(R.string.error_passwords_dont_match)); return }
 
         btnSave.isEnabled = false

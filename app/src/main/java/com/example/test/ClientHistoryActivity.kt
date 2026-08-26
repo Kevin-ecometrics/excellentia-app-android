@@ -30,6 +30,8 @@ class ClientHistoryActivity : BaseActivity() {
     private lateinit var toolbar: MaterialToolbar
     private lateinit var tvCustomerHeader: TextView
     private lateinit var tvSummary: TextView
+    private lateinit var tvStatCredit: TextView
+    private lateinit var tvStatPurchases30d: TextView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var layoutEntries: LinearLayout
     private lateinit var layoutEmpty: View
@@ -62,6 +64,8 @@ class ClientHistoryActivity : BaseActivity() {
         toolbar            = findViewById(R.id.toolbar)
         tvCustomerHeader   = findViewById(R.id.tvCustomerHeader)
         tvSummary          = findViewById(R.id.tvSummary)
+        tvStatCredit       = findViewById(R.id.tvStatCredit)
+        tvStatPurchases30d = findViewById(R.id.tvStatPurchases30d)
         swipeRefresh       = findViewById(R.id.swipeRefresh)
         layoutEntries      = findViewById(R.id.layoutEntries)
         layoutEmpty        = findViewById(R.id.layoutEmpty)
@@ -86,6 +90,18 @@ class ClientHistoryActivity : BaseActivity() {
         currentPage = 1
         allBatches.clear()
         loadPage(append = false)
+        loadStats()
+    }
+
+    private fun loadStats() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getCustomerCreditBalance(customerId)
+                if (resp.isSuccessful) {
+                    tvStatCredit.text = "$" + String.format(Locale.US, "%.2f", resp.body()?.balance ?: 0.0)
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     private fun loadPage(append: Boolean) {
@@ -105,6 +121,7 @@ class ClientHistoryActivity : BaseActivity() {
                     if (!append) allBatches.clear()
                     allBatches.addAll(newBatches)
                     hasMorePages = (meta?.let { currentPage * pageSize < it.total } ?: false)
+                    tvStatPurchases30d.text = (meta?.purchases30d ?: 0).toString()
 
                     updateSummary()
                     renderBatches()
@@ -175,7 +192,7 @@ class ClientHistoryActivity : BaseActivity() {
         view.findViewById<TextView>(R.id.tvBatchStatus).apply {
             text = if (isSent) getString(R.string.label_completed) else getString(R.string.label_pending_status)
             setBackgroundResource(if (isSent) R.drawable.bg_chip_sent else R.drawable.bg_chip_pending)
-            setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, if (isSent) R.color.success else R.color.warning))
+            setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, if (isSent) R.color.success else R.color.ex_warning))
         }
 
         view.setOnClickListener {

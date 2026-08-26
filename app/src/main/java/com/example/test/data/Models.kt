@@ -49,7 +49,8 @@ data class ApiResponse<T>(
 data class PaginationMeta(
     val page: Int,
     val limit: Int,
-    val total: Int
+    val total: Int,
+    val purchases30d: Int? = null
 )
 
 data class ProductDto(

@@ -47,13 +47,8 @@ class OrderSuccessActivity : BaseActivity() {
         val credits = creditsTotalOf(damageItems, authoritative = creditsTotalExtra)
         val displayTotal = total - credits - creditApplied
 
-        if (isOfflinePending) {
-            com.google.android.material.snackbar.Snackbar.make(
-                findViewById(R.id.main),
-                getString(R.string.msg_order_saved_offline),
-                com.google.android.material.snackbar.Snackbar.LENGTH_LONG
-            ).show()
-        }
+        findViewById<View>(R.id.layoutPendingSync).visibility =
+            if (isOfflinePending) View.VISIBLE else View.GONE
 
         findViewById<TextView>(R.id.tvSuccessBatch).text =
             if (batchId.isNotBlank()) "#$batchId" else "—"
@@ -73,6 +68,17 @@ class OrderSuccessActivity : BaseActivity() {
 
         findViewById<TextView>(R.id.tvSuccessItems).text =
             getString(R.string.label_products_count, itemCount)
+
+        val orders: List<OrderDto> = try {
+            val type = object : TypeToken<List<OrderDto>>() {}.type
+            Gson().fromJson(ordersJson, type) ?: emptyList()
+        } catch (_: Exception) { emptyList() }
+        val paymentMethod = orders.firstOrNull()?.paymentMethod
+        if (!paymentMethod.isNullOrBlank()) {
+            findViewById<View>(R.id.rowPayment).visibility = View.VISIBLE
+            findViewById<View>(R.id.dividerPayment).visibility = View.VISIBLE
+            findViewById<TextView>(R.id.tvSuccessPayment).text = paymentMethod
+        }
 
         val totalCredits = credits + creditApplied
         if (totalCredits > 0) {

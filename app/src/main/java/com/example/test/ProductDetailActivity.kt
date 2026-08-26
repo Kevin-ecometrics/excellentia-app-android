@@ -304,7 +304,7 @@ class ProductDetailActivity : BaseActivity() {
 
             val btnMinus = MaterialButton(this).apply {
                 layoutParams = LinearLayout.LayoutParams(44.dp, 44.dp).apply { marginEnd = 8.dp }
-                cornerRadius = 22
+                cornerRadius = 0
                 setIconResource(R.drawable.ic_remove)
                 iconSize = 20
                 tag = i
@@ -340,7 +340,7 @@ class ProductDetailActivity : BaseActivity() {
 
             val btnPlus = MaterialButton(this).apply {
                 layoutParams = LinearLayout.LayoutParams(44.dp, 44.dp)
-                cornerRadius = 22
+                cornerRadius = 0
                 setIconResource(R.drawable.ic_add)
                 iconSize = 20
                 tag = i
