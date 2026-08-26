@@ -149,6 +149,7 @@
     <string name="label_completed">COMPLETED</string>
     <string name="label_pending_status">PENDING</string>
     <string name="batch_summary">Order #%1$s  ·  %2$d product(s)</string>
+    <string name="label_batch_invoice">Invoice #%1$s</string>
 
     <!-- CurrentOrderActivity -->
     <string name="label_customer_tap_change">Customer: %1$s  ·  Tap to change</string>

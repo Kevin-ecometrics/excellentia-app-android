@@ -148,6 +148,14 @@ class ClientHistoryActivity : BaseActivity() {
         view.findViewById<TextView>(R.id.tvBatchId).text =
             getString(R.string.batch_summary, batch.batchId.takeLast(6), batch.itemCount)
 
+        val tvInvoice = view.findViewById<TextView>(R.id.tvBatchInvoice)
+        if (!batch.qbInvoiceId.isNullOrBlank()) {
+            tvInvoice.visibility = View.VISIBLE
+            tvInvoice.text = getString(R.string.label_batch_invoice, batch.qbInvoiceId)
+        } else {
+            tvInvoice.visibility = View.GONE
+        }
+
         val dateStr = batch.createdAt?.let {
             try {
                 val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
