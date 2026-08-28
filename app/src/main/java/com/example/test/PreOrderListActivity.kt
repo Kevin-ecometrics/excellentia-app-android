@@ -77,6 +77,7 @@ class PreOrderListActivity : BaseActivity() {
 
         chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
             currentFilter = when {
+                checkedIds.contains(R.id.chipConfirmed)  -> "CONFIRMED"
                 checkedIds.contains(R.id.chipConverted)  -> "CONVERTED"
                 checkedIds.contains(R.id.chipCancelled)  -> "CANCELLED"
                 checkedIds.contains(R.id.chipAll)        -> "ALL"
@@ -101,6 +102,7 @@ class PreOrderListActivity : BaseActivity() {
         lifecycleScope.launch {
             try {
                 val apiStatus = when (currentFilter) {
+                    "CONFIRMED"  -> "CONFIRMED"
                     "CONVERTED"  -> "CONVERTED"
                     "CANCELLED"  -> "CANCELLED"
                     "ALL"        -> null
@@ -134,6 +136,7 @@ class PreOrderListActivity : BaseActivity() {
             layoutEntries.visibility = View.GONE
             layoutEmpty.visibility   = View.VISIBLE
             layoutEmpty.findViewById<TextView>(R.id.tvEmptyLabel)?.text = when (currentFilter) {
+                "CONFIRMED"  -> getString(R.string.empty_pre_orders_confirmed)
                 "CONVERTED"  -> getString(R.string.empty_pre_orders_converted)
                 "CANCELLED"  -> getString(R.string.empty_pre_orders_cancelled)
                 "ALL"        -> getString(R.string.empty_pre_orders_all)

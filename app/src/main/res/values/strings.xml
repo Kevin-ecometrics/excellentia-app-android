@@ -231,6 +231,7 @@
     <!-- PreOrderListActivity -->
     <string name="title_pre_orders">Pre-orders</string>
     <string name="chip_pending_pre_orders">Pending</string>
+    <string name="chip_confirmed">Confirmed</string>
     <string name="chip_converted">Converted</string>
     <string name="chip_cancelled">Cancelled</string>
     <string name="chip_all_pre_orders">All</string>
@@ -238,6 +239,7 @@
     <string name="empty_pre_orders_cancelled">No cancelled pre-orders</string>
     <string name="empty_pre_orders_all">No pre-orders</string>
     <string name="empty_pre_orders_pending">No pending pre-orders</string>
+    <string name="empty_pre_orders_confirmed">No confirmed pre-orders</string>
     <string name="btn_new_pre_order">New pre-order</string>
     <string name="label_delivery_prefix">Delivery: %1$s</string>
     <string name="label_created_prefix">Created: %1$s</string>
@@ -252,6 +254,13 @@
     <string name="title_pre_order_detail">Pre-order detail</string>
     <string name="label_scheduled_delivery">Scheduled delivery: %1$s</string>
     <string name="label_created_on">Created: %1$s</string>
+    <string name="btn_edit_date">Edit date</string>
+    <string name="title_edit_scheduled_date">Edit scheduled date</string>
+    <string name="msg_date_updated">Date updated</string>
+    <string name="error_updating_date">Error updating date</string>
+    <string name="title_wrong_conversion_date">Cannot convert yet</string>
+    <string name="msg_wrong_conversion_date">This pre-order is scheduled for %1$s, not today. Update the date (pencil icon above) or convert it on the correct day.</string>
+    <string name="label_no_date_set">no date set</string>
     <string name="label_notes_prefix">Notes: %1$s</string>
     <string name="loading_converting_pre_order">Converting pre-order…</string>
     <string name="loading_client">Client: %1$s</string>
@@ -346,7 +355,7 @@
     <string name="label_printer_help_content_description">Printer help</string>
 
     <!-- CreatePreOrderActivity layout -->
-    <string name="btn_pick_date">Select delivery date (optional)</string>
+    <string name="btn_pick_date">Select delivery date</string>
     <string name="hint_notes_optional">Notes (optional)</string>
     <string name="label_products_section">PRODUCTS</string>
     <string name="btn_add_item">+ Add</string>

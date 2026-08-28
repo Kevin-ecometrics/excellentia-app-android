@@ -1,11 +1,13 @@
 package com.example.test
 
 import android.app.Activity
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -24,6 +26,7 @@ import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
 import com.example.test.data.PreOrderDto
 import com.example.test.data.PreOrderItem
+import com.example.test.data.PreOrderRequest
 import com.example.test.data.UpdatePaymentRequest
 import com.example.test.data.UpdatePreOrderStatusRequest
 import com.example.test.data.UpdateStopStatusRequest
@@ -47,6 +50,7 @@ class PreOrderDetailActivity : BaseActivity() {
     private lateinit var tvDetailCustomer: TextView
     private lateinit var tvDetailStatus: TextView
     private lateinit var tvDetailDate: TextView
+    private lateinit var btnEditDate: ImageButton
     private lateinit var tvDetailSalesperson: TextView
     private lateinit var tvDetailNotes: TextView
     private lateinit var tvItemsSectionHeader: TextView
@@ -162,6 +166,7 @@ class PreOrderDetailActivity : BaseActivity() {
         tvDetailCustomer  = findViewById(R.id.tvDetailCustomer)
         tvDetailStatus    = findViewById(R.id.tvDetailStatus)
         tvDetailDate      = findViewById(R.id.tvDetailDate)
+        btnEditDate       = findViewById(R.id.btnEditDate)
         tvDetailSalesperson = findViewById(R.id.tvDetailSalesperson)
         tvDetailNotes     = findViewById(R.id.tvDetailNotes)
         tvItemsSectionHeader = findViewById(R.id.tvItemsSectionHeader)
@@ -183,6 +188,7 @@ class PreOrderDetailActivity : BaseActivity() {
         btnCancel.setOnClickListener      { confirmCancel() }
         btnReuse.setOnClickListener       { reusePreOrder() }
         btnViewHistory.setOnClickListener { finish() }
+        btnEditDate.setOnClickListener    { showEditDateDialog() }
 
         loadPreOrder()
     }
@@ -234,18 +240,10 @@ class PreOrderDetailActivity : BaseActivity() {
         tvDetailStatus.text = statusLabel
         tvDetailStatus.setTextColor(ContextCompat.getColor(this, statusColor))
 
-        val dateStr = buildString {
-            po.scheduledDate?.let { raw ->
-                val formatted = formatDate(raw, "MMM dd, yyyy")
-                append(getString(R.string.label_scheduled_delivery, formatted))
-            }
-            po.createdAt?.let { raw ->
-                val formatted = formatDate(raw, "MMM dd, yyyy  HH:mm")
-                if (isNotEmpty()) append("\n")
-                append(getString(R.string.label_created_on, formatted))
-            }
-        }
-        tvDetailDate.text = dateStr
+        renderDateSection(po)
+        // Solo tiene sentido reprogramar mientras la pre-orden no se convirtió/canceló
+        // (mismo criterio que btnConvert/btnCancel más abajo).
+        btnEditDate.visibility = if (po.status == "DRAFT" || po.status == "CONFIRMED") View.VISIBLE else View.GONE
 
         if (!po.salespersonName.isNullOrBlank()) {
             tvDetailSalesperson.text = getString(R.string.label_salesperson_prefix, po.salespersonName)
@@ -291,6 +289,87 @@ class PreOrderDetailActivity : BaseActivity() {
                 btnCancel.visibility      = View.GONE
                 btnReuse.visibility       = View.GONE
                 btnViewHistory.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun renderDateSection(po: PreOrderDto) {
+        val dateStr = buildString {
+            po.scheduledDate?.let { raw ->
+                val formatted = formatDate(raw, "MMM dd, yyyy")
+                append(getString(R.string.label_scheduled_delivery, formatted))
+            }
+            po.createdAt?.let { raw ->
+                val formatted = formatDate(raw, "MMM dd, yyyy  HH:mm")
+                if (isNotEmpty()) append("\n")
+                append(getString(R.string.label_created_on, formatted))
+            }
+        }
+        tvDetailDate.text = dateStr
+    }
+
+    // Reprogramar la entrega desde acá (a pedido del usuario) en vez de ocultar/filtrar
+    // pre-órdenes vencidas en el picker de "Nueva ruta" (WarehouseActivity, Android) —
+    // así la pre-orden deja de aparecer como "atrasada" apenas se le pone fecha real.
+    private fun showEditDateDialog() {
+        val po = currentPreOrder ?: return
+        val todayStart = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val cal = java.util.Calendar.getInstance()
+        po.scheduledDate?.take(10)?.split("-")?.let { parts ->
+            try {
+                cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+            } catch (_: Exception) { }
+        }
+        // Si la fecha guardada ya pasó (el motivo más común para tocar el lápiz),
+        // arrancar el picker ahí lo dejaría abajo del minDate — se muestra hoy en su
+        // lugar, que además es el único valor que después pasa la validación de
+        // startConversionFlow().
+        if (cal.before(todayStart)) cal.timeInMillis = todayStart.timeInMillis
+
+        DatePickerDialog(this, { _, y, m, d ->
+            updateScheduledDate(String.format(Locale.US, "%04d-%02d-%02d", y, m + 1, d))
+        }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH), cal.get(java.util.Calendar.DAY_OF_MONTH)).apply {
+            // No tiene sentido reprogramar una entrega a un día que ya pasó — la
+            // conversión ya exige que scheduled_date sea hoy (startConversionFlow),
+            // así que elegir un día anterior acá solo la dejaría bloqueada de nuevo.
+            datePicker.minDate = todayStart.timeInMillis
+        }.show()
+    }
+
+    // Reusa el endpoint genérico updatePreOrder (PUT /api/preorders/:id) — manda de
+    // vuelta customer/notes/items tal cual vinieron del GET (round-trip) para que el
+    // backend, que hace DELETE+INSERT de pre_order_items cuando `items` viene en el
+    // body, no pierda el detalle ya guardado; solo scheduled_date cambia de verdad.
+    private fun updateScheduledDate(newDate: String) {
+        val po = currentPreOrder ?: return
+        btnEditDate.isEnabled = false
+        lifecycleScope.launch {
+            try {
+                val request = PreOrderRequest(
+                    customerId = po.customerId,
+                    customerName = po.customerName,
+                    salespersonName = po.salespersonName,
+                    scheduledDate = newDate,
+                    notes = po.notes,
+                    items = po.items
+                )
+                val resp = RetrofitClient.getApi().updatePreOrder(preOrderId, request)
+                if (resp.isSuccessful) {
+                    currentPreOrder = po.copy(scheduledDate = newDate)
+                    renderDateSection(currentPreOrder!!)
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_date_updated), Snackbar.LENGTH_SHORT).show()
+                } else {
+                    showError(getString(R.string.error_updating_date))
+                }
+            } catch (e: Exception) {
+                showError(e.localizedMessage ?: getString(R.string.error_updating_date))
+            } finally {
+                btnEditDate.isEnabled = true
             }
         }
     }
@@ -549,9 +628,34 @@ class PreOrderDetailActivity : BaseActivity() {
             showError(getString(R.string.error_finish_detailing_items))
             return
         }
+        if (!isScheduledForToday(po)) {
+            showWrongConversionDateDialog(po)
+            return
+        }
         signatureLauncher.launch(Intent(this, SignatureActivity::class.java).apply {
             putExtra("customer_name", po.customerName)
         })
+    }
+
+    // Solo se puede convertir una pre-orden el día que le toca — a pedido del
+    // usuario, para no facturar entregas adelantadas ni dejar pasar de largo una
+    // fecha vencida sin que el operador se dé cuenta. Corre ANTES de la firma
+    // (que ya es un paso largo) para no hacer perder ese trabajo si la fecha no
+    // corresponde. Sin scheduled_date (pre-orden vieja o "Reusar" sin fecha
+    // elegida todavía) también bloquea — usar el lápiz de arriba para fijarla.
+    private fun isScheduledForToday(po: PreOrderDto): Boolean {
+        val scheduled = po.scheduledDate?.take(10) ?: return false
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
+        return scheduled == today
+    }
+
+    private fun showWrongConversionDateDialog(po: PreOrderDto) {
+        val formatted = po.scheduledDate?.let { formatDate(it, "MMM dd, yyyy") } ?: getString(R.string.label_no_date_set)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.title_wrong_conversion_date))
+            .setMessage(getString(R.string.msg_wrong_conversion_date, formatted))
+            .setPositiveButton(getString(R.string.btn_understood), null)
+            .show()
     }
 
     private fun askDamagedItems() {

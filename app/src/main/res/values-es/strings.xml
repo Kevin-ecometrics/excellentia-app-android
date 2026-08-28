@@ -226,6 +226,7 @@
     <!-- PreOrderListActivity -->
     <string name="title_pre_orders">Pre-órdenes</string>
     <string name="chip_pending_pre_orders">Pendientes</string>
+    <string name="chip_confirmed">Confirmadas</string>
     <string name="chip_converted">Convertidas</string>
     <string name="chip_cancelled">Canceladas</string>
     <string name="chip_all_pre_orders">Todas</string>
@@ -233,6 +234,7 @@
     <string name="empty_pre_orders_cancelled">Sin pre-órdenes canceladas</string>
     <string name="empty_pre_orders_all">Sin pre-órdenes</string>
     <string name="empty_pre_orders_pending">Sin pre-órdenes pendientes</string>
+    <string name="empty_pre_orders_confirmed">Sin pre-órdenes confirmadas</string>
     <string name="btn_new_pre_order">Nueva pre-orden</string>
     <string name="label_delivery_prefix">Entrega: %1$s</string>
     <string name="label_created_prefix">Creado: %1$s</string>
@@ -247,6 +249,13 @@
     <string name="title_pre_order_detail">Detalle de pre-orden</string>
     <string name="label_scheduled_delivery">Entrega programada: %1$s</string>
     <string name="label_created_on">Creada: %1$s</string>
+    <string name="btn_edit_date">Editar fecha</string>
+    <string name="title_edit_scheduled_date">Editar fecha programada</string>
+    <string name="msg_date_updated">Fecha actualizada</string>
+    <string name="error_updating_date">Error al actualizar la fecha</string>
+    <string name="title_wrong_conversion_date">Todavía no se puede convertir</string>
+    <string name="msg_wrong_conversion_date">Esta pre-orden está programada para %1$s, no para hoy. Actualizá la fecha (ícono de lápiz arriba) o convertila el día que corresponde.</string>
+    <string name="label_no_date_set">sin fecha asignada</string>
     <string name="label_notes_prefix">Notas: %1$s</string>
     <string name="loading_converting_pre_order">Convirtiendo pre-orden…</string>
     <string name="loading_client">Cliente: %1$s</string>
@@ -334,7 +343,7 @@
     <string name="label_printer_help_content_description">Ayuda impresora</string>
 
     <!-- CreatePreOrderActivity layout -->
-    <string name="btn_pick_date">Seleccionar fecha de entrega (opcional)</string>
+    <string name="btn_pick_date">Seleccionar fecha de entrega</string>
     <string name="hint_notes_optional">Notas (opcional)</string>
     <string name="label_products_section">PRODUCTOS</string>
     <string name="btn_add_item">+ Agregar</string>

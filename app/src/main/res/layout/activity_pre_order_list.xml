@@ -54,6 +54,13 @@
                     android:text="@string/chip_pending_pre_orders" />
 
                 <com.google.android.material.chip.Chip
+                    android:id="@+id/chipConfirmed"
+                    style="@style/Widget.Excellentia.Chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/chip_confirmed" />
+
+                <com.google.android.material.chip.Chip
                     android:id="@+id/chipConverted"
                     style="@style/Widget.Excellentia.Chip"
                     android:layout_width="wrap_content"
