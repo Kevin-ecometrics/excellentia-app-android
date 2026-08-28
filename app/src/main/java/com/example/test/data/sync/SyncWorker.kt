@@ -3,8 +3,12 @@ package com.example.test.data.sync
 import android.content.Context
 import androidx.work.*
 import com.example.test.data.BatchRequest
+import com.example.test.data.ConvertPreOrderRequest
+import com.example.test.data.PreOrderRequest
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.dao.PendingBatchDao
+import com.example.test.data.local.dao.PendingPreOrderConversionDao
+import com.example.test.data.local.dao.PendingPreOrderDao
 import com.example.test.data.network.RetrofitClient
 import com.google.gson.Gson
 import java.util.concurrent.TimeUnit
@@ -49,6 +53,51 @@ class SyncWorker(
                                 productName = firstItem.productName,
                                 quantity    = request.items.sumOf { it.quantity },
                                 total       = request.items.sumOf { it.total }
+                            )
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Sin conexión — se reintenta en el próximo ciclo
+                }
+            }
+
+            // ── Enviar pending_preorders offline (pre-órdenes creadas sin señal) ──
+            val preOrderDao = PendingPreOrderDao(db)
+            for (pending in preOrderDao.getAll()) {
+                try {
+                    val request = gson.fromJson(pending.requestJson, PreOrderRequest::class.java)
+                    val response = RetrofitClient.getApi().createPreOrder(request)
+                    if (response.isSuccessful && response.body() != null) {
+                        preOrderDao.deleteById(pending.id)
+                        anythingSynced = true
+                        com.example.test.data.local.NotificationHelper.showPreOrderSynced(
+                            context      = applicationContext,
+                            id           = pending.id,
+                            customerName = request.customerName
+                        )
+                    }
+                } catch (_: Exception) {
+                    // Sin conexión — se reintenta en el próximo ciclo
+                }
+            }
+
+            // ── Enviar pending_preorder_conversions offline (venta cerrada sin señal) ──
+            val conversionDao = PendingPreOrderConversionDao(db)
+            for (pending in conversionDao.getAll()) {
+                try {
+                    val request = gson.fromJson(pending.requestJson, ConvertPreOrderRequest::class.java)
+                    val response = RetrofitClient.getApi().convertPreOrder(pending.preOrderId, request)
+                    if (response.isSuccessful && response.body() != null) {
+                        conversionDao.deleteById(pending.id)
+                        anythingSynced = true
+                        val firstItem = request.items.firstOrNull()
+                        if (firstItem != null) {
+                            com.example.test.data.local.NotificationHelper.showOrderSynced(
+                                context     = applicationContext,
+                                orderId     = response.body()!!.batchId.hashCode(),
+                                productName = firstItem.productName,
+                                quantity    = request.items.sumOf { it.quantity ?: 0.0 },
+                                total       = request.items.sumOf { it.total ?: 0.0 }
                             )
                         }
                     }

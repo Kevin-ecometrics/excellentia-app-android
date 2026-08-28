@@ -64,6 +64,21 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 created_at INTEGER NOT NULL
             )
         """)
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS pending_preorders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """)
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS pending_preorder_conversions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pre_order_id INTEGER NOT NULL,
+                request_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -154,11 +169,28 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
         if (oldVersion < 15) {
             try { db.execSQL("ALTER TABLE cached_products ADD COLUMN sku TEXT") } catch (_: Exception) {}
         }
+        if (oldVersion < 16) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS pending_preorders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_json TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                )
+            """)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS pending_preorder_conversions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    pre_order_id INTEGER NOT NULL,
+                    request_json TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                )
+            """)
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 15
+        private const val DATABASE_VERSION = 16
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

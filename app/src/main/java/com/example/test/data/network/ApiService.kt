@@ -113,6 +113,9 @@ interface ApiService {
     @PUT("api/preorders/{id}")
     suspend fun updatePreOrder(@Path("id") id: Int, @Body request: PreOrderRequest): Response<Unit>
 
+    @PUT("api/preorders/{id}")
+    suspend fun updatePreOrderStatus(@Path("id") id: Int, @Body request: UpdatePreOrderStatusRequest): Response<Unit>
+
     @DELETE("api/preorders/{id}")
     suspend fun deletePreOrder(@Path("id") id: Int): Response<Unit>
 
@@ -130,4 +133,42 @@ interface ApiService {
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 20
     ): Response<ApiResponse<List<CustomerBatchSummary>>>
+
+    // ── Módulo Almacén (rutas de entrega + manifiesto de carga) ──
+
+    @GET("api/routes")
+    suspend fun listRoutes(
+        @Query("date") date: String? = null,
+        @Query("driver_user_id") driverUserId: Int? = null
+    ): Response<ApiResponse<List<RouteDto>>>
+
+    @POST("api/routes")
+    suspend fun createRoute(@Body request: RouteRequest): Response<CreateRouteResponse>
+
+    @GET("api/routes/{id}")
+    suspend fun getRoute(@Path("id") id: Int): Response<ApiResponse<RouteDetailDto>>
+
+    @PUT("api/routes/{id}")
+    suspend fun updateRoute(@Path("id") id: Int, @Body request: RouteRequest): Response<Unit>
+
+    @GET("api/routes/available")
+    suspend fun listAvailableStops(@Query("date") date: String? = null): Response<AvailableStopsResponse>
+
+    @POST("api/routes/{id}/stops")
+    suspend fun addRouteStop(@Path("id") id: Int, @Body request: AddStopRequest): Response<AddStopResponse>
+
+    @DELETE("api/routes/{id}/stops/{stopId}")
+    suspend fun removeRouteStop(@Path("id") id: Int, @Path("stopId") stopId: Int): Response<Unit>
+
+    @PUT("api/routes/{id}/stops/reorder")
+    suspend fun reorderRouteStops(@Path("id") id: Int, @Body request: ReorderStopsRequest): Response<Unit>
+
+    @PUT("api/routes/{id}/stops/{stopId}/status")
+    suspend fun updateStopStatus(@Path("id") id: Int, @Path("stopId") stopId: Int, @Body request: UpdateStopStatusRequest): Response<UpdateStopStatusResponse>
+
+    @POST("api/routes/{id}/items")
+    suspend fun addRouteItem(@Path("id") id: Int, @Body request: AddRouteItemRequest): Response<RouteItemResponse>
+
+    @DELETE("api/routes/{id}/items/{itemId}")
+    suspend fun removeRouteItem(@Path("id") id: Int, @Path("itemId") itemId: Int): Response<Unit>
 }

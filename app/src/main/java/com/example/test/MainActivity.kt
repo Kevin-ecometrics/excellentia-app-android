@@ -172,6 +172,15 @@ class MainActivity : BaseActivity() {
             finish()
             return
         }
+        // El almacenista no vende — no tiene nada que hacer en la pantalla de
+        // escaneo de venta. Mismo criterio que /warehouse en la webapp
+        // redirigiendo a un operator (app/warehouse/page.tsx): acá al revés,
+        // un almacenista nunca ve MainActivity, va directo a su tab.
+        if (securePrefs.getUserRole() == "almacenista") {
+            startActivity(Intent(this, WarehouseActivity::class.java))
+            finish()
+            return
+        }
 
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
@@ -259,7 +268,7 @@ class MainActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().getCompanySettings()
                 if (resp.isSuccessful) {
                     resp.body()?.data?.let { d ->
-                        securePrefs.saveCompanySettings(d.companyName, d.subtitle, d.address, d.phone, d.city, d.disclaimer)
+                        securePrefs.saveCompanySettings(d.companyName, d.subtitle, d.address, d.phone, d.city)
                     }
                 }
             } catch (_: Exception) {}
@@ -442,6 +451,10 @@ class MainActivity : BaseActivity() {
                 }
                 R.id.nav_history -> {
                     startActivity(Intent(this, HistoryActivity::class.java))
+                    false
+                }
+                R.id.nav_my_routes -> {
+                    startActivity(Intent(this, MyRoutesActivity::class.java))
                     false
                 }
                 R.id.nav_settings -> {

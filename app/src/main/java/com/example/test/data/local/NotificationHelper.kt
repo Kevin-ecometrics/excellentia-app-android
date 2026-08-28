@@ -56,4 +56,34 @@ object NotificationHelper {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID + orderId, notification)
     }
+
+    // Offset propio para no pisar el rango de showOrderSynced() — comparten
+    // NotificationManager pero son ids de tabla local distintas (pending_preorders
+    // vs pending_batches), podrían coincidir numéricamente.
+    private const val PREORDER_NOTIFICATION_OFFSET = 500_000
+
+    fun showPreOrderSynced(context: Context, id: Int, customerName: String) {
+        createChannel(context)
+
+        val intent = Intent(context, HistoryActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_check)
+            .setColor(ContextCompat.getColor(context, R.color.ex_green))
+            .setContentTitle(context.getString(R.string.notification_preorder_sync_title))
+            .setContentText(context.getString(R.string.notification_preorder_sync_content, customerName))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(NOTIFICATION_ID + PREORDER_NOTIFICATION_OFFSET + id, notification)
+    }
 }

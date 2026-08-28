@@ -261,6 +261,27 @@
                 android:indeterminateTint="@color/primary"
                 android:visibility="gone" />
 
+            <!-- Solo visible en DRAFT — la marca lista para rutear (routeController.ts
+                 exige status CONFIRMED para poder vincularla a una parada) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnConfirmPreOrder"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/family_after"
+                android:text="@string/btn_confirm_preorder"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:backgroundTint="@color/success"
+                app:cornerRadius="0dp"
+                app:strokeColor="@color/white"
+                app:strokeWidth="1dp"
+                app:icon="@drawable/ic_check"
+                app:iconGravity="textStart"
+                app:iconSize="16dp"
+                app:iconTint="@color/white" />
+
             <!-- Action buttons — activas (DRAFT) -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnConvert"

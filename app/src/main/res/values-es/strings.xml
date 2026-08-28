@@ -258,6 +258,8 @@
     <string name="btn_creating">Creando…</string>
     <string name="btn_reuse_pre_order">Reusar pre-orden</string>
     <string name="success_new_pre_order_created">Nueva pre-orden creada</string>
+    <string name="success_pre_order_saved_offline">Sin conexión — pre-orden guardada localmente, se sincronizará sola</string>
+    <string name="success_pre_order_converted_offline">Sin conexión — venta guardada localmente, se sincronizará sola</string>
     <string name="error_converting_pre_order">Error al convertir: %1$d</string>
     <string name="error_print_after_send">Pedido enviado · Error al imprimir: %1$s</string>
     <string name="btn_add_detail">Detallar</string>
@@ -422,6 +424,8 @@
     <string name="notification_sync_title">✅ Pedido sincronizado</string>
     <string name="notification_sync_content">%1$s (%2$.1f lb) — $%3$.2f enviado a QuickBooks</string>
     <string name="notification_sync_bigtext">Pedido #%1$s\n%2$s — %3$.1f lb\nTotal: $%4$.2f\nEstado: Enviado a QuickBooks</string>
+    <string name="notification_preorder_sync_title">✅ Pre-orden sincronizada</string>
+    <string name="notification_preorder_sync_content">Pre-orden de %1$s enviada a QuickBooks</string>
     <string name="hint_qty_total_lb">Cantidad total (lb)</string>
     <string name="hint_total_price">Precio total</string>
     <string name="hint_weight">Peso</string>
@@ -429,11 +433,6 @@
     <string name="bottom_nav_order">Pedido</string>
     <string name="bottom_nav_history">Historial</string>
     <string name="bottom_nav_settings">Ajustes</string>
-
-    <!-- Disclaimer -->
-    <string name="label_disclaimer">Aviso legal / Términos</string>
-    <string name="hint_disclaimer">Términos y Condiciones:\n(1) El vendedor retiene…</string>
-    <string name="label_disclaimer_hint">Se muestra en tickets y recibos. Vacío para omitir.</string>
 
     <!-- Pre-Orders -->
     <string name="btn_search_product">Buscar producto</string>
@@ -451,4 +450,77 @@
     <string name="error_issue_credit_failed">No se pudo guardar el crédito: %1$s</string>
     <string name="label_available_credit">Crédito disponible: $%1$.2f</string>
     <string name="hint_credit_amount">Monto a aplicar</string>
+
+    <!-- Módulo Almacén (rutas de entrega + manifiesto de carga) -->
+    <string name="title_warehouse">Almacén</string>
+    <string name="label_all_dates">Todas las fechas</string>
+    <string name="btn_new_route">Nueva ruta</string>
+    <string name="empty_routes">Todavía no hay rutas</string>
+    <string name="label_no_driver">Sin asignar</string>
+    <string name="label_stops_count">%1$d parada(s)</string>
+    <string name="route_status_planned">Planificada</string>
+    <string name="route_status_in_progress">En curso</string>
+    <string name="route_status_completed">Completada</string>
+    <string name="route_status_cancelled">Cancelada</string>
+    <string name="title_new_route">Nueva ruta</string>
+    <string name="btn_route_from_scratch">Ruta de cero</string>
+    <string name="btn_route_from_preorders">Desde pre-órdenes</string>
+    <string name="msg_preorders_added">%1$d pre-orden(es) agregada(s) como parada(s)</string>
+    <string name="label_move_up">Subir</string>
+    <string name="label_move_down">Bajar</string>
+    <string name="title_remove_stop">Quitar parada</string>
+    <string name="msg_remove_stop_confirm">¿Quitar a %1$s de esta ruta?</string>
+    <string name="title_link_preorder">Pre-orden pendiente</string>
+    <string name="msg_link_preorder">%1$s tiene una pre-orden confirmada pendiente — %2$d ítem(s), $%3$.2f. ¿La vinculás a esta parada?</string>
+    <string name="btn_link">Vincular</string>
+    <string name="btn_no_thanks">No, gracias</string>
+    <string name="title_my_routes">Mis rutas</string>
+    <string name="stop_status_pending">Pendiente</string>
+    <string name="stop_status_delivered">Entregado</string>
+    <string name="stop_status_skipped">Saltado</string>
+    <string name="btn_mark_delivered">Entregado</string>
+    <string name="btn_mark_skipped">Saltar</string>
+    <string name="btn_start_route">Salir a reparto</string>
+    <string name="btn_finish_route">Terminar ruta</string>
+    <string name="title_confirm_start_route">¿Salir a reparto?</string>
+    <string name="msg_confirm_start_route">Esto marca la ruta como en curso. ¿Continuar?</string>
+    <string name="title_confirm_finish_route">¿Terminar ruta?</string>
+    <string name="msg_confirm_finish_route">Esto marca la ruta como completada. ¿Continuar?</string>
+    <string name="empty_my_routes">Todavía no tenés rutas asignadas</string>
+    <string name="label_route_items_loaded">Cargado en el camión</string>
+    <string name="btn_confirm_preorder">Confirmar pre-orden</string>
+    <string name="msg_preorder_confirmed">Pre-orden confirmada — ya disponible para agregar a una ruta</string>
+    <string name="title_confirm_skip">¿Saltar esta parada?</string>
+    <string name="msg_confirm_skip_with_sale">%1$s tiene una venta/pre-orden pendiente en esta parada — saltarla la deja sin resolver, no se va a vender ni entregar nada. ¿Continuar?</string>
+    <string name="msg_confirm_skip_plain">Marcar a %1$s como saltada — esta parada no se va a entregar en esta ruta. ¿Continuar?</string>
+    <string name="msg_route_auto_completed">Todas las paradas resueltas — la ruta se marcó como completada</string>
+    <string name="msg_route_auto_cancelled">Se saltearon todas las paradas — la ruta se marcó como cancelada</string>
+    <string name="label_adding_item">Cargando…</string>
+    <string name="label_removing_item">Quitando…</string>
+    <string name="btn_open_preorder">Abrir pre-orden</string>
+    <string name="btn_sell_to_customer">Vender</string>
+    <string name="hint_route_name">Nombre de la ruta</string>
+    <string name="label_route_date">Fecha</string>
+    <string name="label_select_date">Elegir fecha</string>
+    <string name="label_route_driver">Repartidor</string>
+    <string name="hint_route_notes">Notas (opcional)</string>
+    <string name="btn_create_route">Crear ruta</string>
+    <string name="error_route_name_date_required">El nombre y la fecha de la ruta son requeridos</string>
+    <string name="label_route_stops">Paradas</string>
+    <string name="label_no_stops">Sin paradas todavía</string>
+    <string name="btn_add_stop">Agregar parada</string>
+    <string name="title_add_stop">Agregar parada</string>
+    <string name="wh_order_label">Pedido</string>
+    <string name="wh_preorder_label">Pre-orden</string>
+    <string name="label_available_orders">Pedidos disponibles</string>
+    <string name="label_available_preorders">Pre-órdenes disponibles</string>
+    <string name="label_no_available_stops">No hay pedidos ni pre-órdenes disponibles sin asignar</string>
+    <string name="label_route_loaded">Cargado</string>
+    <string name="label_no_items_loaded">Sin productos cargados todavía</string>
+    <string name="label_scan_prompt_warehouse">Escaneá un producto para cargarlo en esta ruta</string>
+    <string name="title_load_quantity">Cantidad a cargar</string>
+    <string name="title_remove_route_item">Quitar ítem</string>
+    <string name="msg_remove_route_item_confirm">¿Quitar %1$s de la carga de esta ruta? El stock se restaura.</string>
+    <string name="msg_route_item_added">%1$d %2$s cargado(s)</string>
+    <string name="msg_route_item_added_no_sync">Cargado localmente — no se pudo sincronizar el stock a QuickBooks</string>
 </resources>

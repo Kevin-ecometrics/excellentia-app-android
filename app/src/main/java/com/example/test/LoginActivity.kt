@@ -191,7 +191,8 @@ class LoginActivity : BaseActivity() {
                         securePrefs.saveUserInfo(
                             email = u.email ?: email,
                             name  = u.name,
-                            role  = u.role
+                            role  = u.role,
+                            id    = u.id
                         )
                     }
                     RetrofitClient.initialize(baseUrl, securePrefs)
@@ -205,8 +206,7 @@ class LoginActivity : BaseActivity() {
                                     subtitle   = d.subtitle,
                                     address    = d.address,
                                     phone      = d.phone,
-                                    city       = d.city,
-                                    disclaimer = d.disclaimer
+                                    city       = d.city
                                 )
                             }
                         }

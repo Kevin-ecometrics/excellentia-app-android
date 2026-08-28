@@ -112,33 +112,46 @@ class SecurePreferences(context: Context) {
             .apply()
     }
 
-    fun saveCompanySettings(name: String, subtitle: String, address: String?, phone: String?, city: String?, disclaimer: String? = null) {
+    // Contexto de "vender desde una parada" (Módulo Almacén) — sobrevive la
+    // navegación MyRouteDetailActivity → MainActivity → ... → CurrentOrderActivity
+    // (no es un solo salto con Activity result, son varias pantallas
+    // conectadas por el bottom nav) para poder marcar la parada como
+    // entregada automáticamente recién cuando el pedido se manda de verdad,
+    // no antes. Se limpia apenas se consume (ver CurrentOrderActivity).
+    fun saveActiveRouteStop(routeId: Int, stopId: Int) {
+        prefs.edit().putInt(KEY_ACTIVE_ROUTE_ID, routeId).putInt(KEY_ACTIVE_STOP_ID, stopId).apply()
+    }
+    fun getActiveRouteId(): Int? = prefs.getInt(KEY_ACTIVE_ROUTE_ID, -1).takeIf { it != -1 }
+    fun getActiveStopId(): Int? = prefs.getInt(KEY_ACTIVE_STOP_ID, -1).takeIf { it != -1 }
+    fun clearActiveRouteStop() {
+        prefs.edit().remove(KEY_ACTIVE_ROUTE_ID).remove(KEY_ACTIVE_STOP_ID).apply()
+    }
+
+    fun saveCompanySettings(name: String, subtitle: String, address: String?, phone: String?, city: String?) {
         prefs.edit()
             .putString(KEY_COMPANY_NAME, name)
             .putString(KEY_COMPANY_SUBTITLE, subtitle)
             .putString(KEY_COMPANY_ADDRESS, address)
             .putString(KEY_COMPANY_PHONE, phone)
             .putString(KEY_COMPANY_CITY, city)
-            .putString(KEY_DISCLAIMER, disclaimer)
             .apply()
     }
 
-    fun saveDisclaimer(text: String?) {
-        prefs.edit().putString(KEY_DISCLAIMER, text?.takeIf { it.isNotBlank() }).apply()
-    }
-
-    fun getDisclaimer(): String? = prefs.getString(KEY_DISCLAIMER, null)?.takeIf { it.isNotBlank() }
-
-    fun saveUserInfo(email: String, name: String?, role: String?) {
+    fun saveUserInfo(email: String, name: String?, role: String?, id: Int? = null) {
         prefs.edit()
             .putString(KEY_USER_EMAIL, email)
             .putString(KEY_USER_NAME, name)
             .putString(KEY_USER_ROLE, role)
             .apply()
+        if (id != null) prefs.edit().putInt(KEY_USER_ID, id).apply()
     }
     fun getUserEmail(): String? = prefs.getString(KEY_USER_EMAIL, null)
     fun getUserName(): String? = prefs.getString(KEY_USER_NAME, null)?.takeIf { it.isNotBlank() }
     fun getUserRole(): String? = prefs.getString(KEY_USER_ROLE, null)
+    // Necesario para "mis rutas" (Módulo Almacén) — filtrar/validar que una
+    // ruta es del repartidor logueado. -1 si nunca se guardó (login viejo,
+    // antes de este campo) — sin id no se puede filtrar por driver_user_id.
+    fun getUserId(): Int? = prefs.getInt(KEY_USER_ID, -1).takeIf { it != -1 }
 
     fun saveLastScan(barcode: String, productName: String, timestamp: Long = System.currentTimeMillis()) {
         prefs.edit()
@@ -174,6 +187,9 @@ class SecurePreferences(context: Context) {
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_NAME  = "user_name"
         private const val KEY_USER_ROLE  = "user_role"
+        private const val KEY_USER_ID    = "user_id"
+        private const val KEY_ACTIVE_ROUTE_ID = "active_route_id"
+        private const val KEY_ACTIVE_STOP_ID  = "active_stop_id"
         private const val KEY_LAST_SCAN_BARCODE = "last_scan_barcode"
         private const val KEY_LAST_SCAN_NAME = "last_scan_name"
         private const val KEY_LAST_SCAN_TIME = "last_scan_time"
@@ -183,7 +199,6 @@ class SecurePreferences(context: Context) {
         private const val KEY_COMPANY_ADDRESS = "company_address"
         private const val KEY_COMPANY_PHONE = "company_phone"
         private const val KEY_COMPANY_CITY = "company_city"
-        private const val KEY_DISCLAIMER = "company_disclaimer"
         private const val DEFAULT_BACKEND_URL = "https://app.excellentiafoods.com"
     }
 }

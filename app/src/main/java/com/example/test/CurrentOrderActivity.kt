@@ -18,6 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test.data.BatchItem
 import com.example.test.data.OrderDto
 import com.example.test.data.ProductDto
+import com.example.test.data.UpdateStopStatusRequest
 import com.example.test.data.print.PrintService
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
@@ -492,6 +493,24 @@ class CurrentOrderActivity : BaseActivity() {
         }
     }
 
+    // Si esta venta se disparó desde "Vender" en una parada de Mis rutas
+    // (Módulo Almacén), acá es donde el pedido ya se mandó de verdad — recién
+    // acá se marca la parada como entregada, no antes (ver
+    // MyRouteDetailActivity.activateCustomerAndSell). Se limpia el contexto
+    // apenas se usa, para no arrastrarlo a la próxima venta suelta que no
+    // tenga nada que ver con una ruta.
+    private fun markRouteStopDeliveredIfAny() {
+        val routeId = securePrefs.getActiveRouteId()
+        val stopId = securePrefs.getActiveStopId()
+        securePrefs.clearActiveRouteStop()
+        if (routeId == null || stopId == null) return
+        lifecycleScope.launch {
+            try {
+                RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest("DELIVERED"))
+            } catch (_: Exception) { }
+        }
+    }
+
     private fun setStep(step: Int) {
         val successColor = getColor(R.color.success)
         val primaryColor = getColor(R.color.primary)
@@ -919,6 +938,7 @@ class CurrentOrderActivity : BaseActivity() {
 
                 orderRepository.clearPending()
                 securePrefs.clearActiveCustomer()
+                markRouteStopDeliveredIfAny()
 
                 val printerAddress = securePrefs.getPrinterAddress()
                 if (!skipPrint && !printerAddress.isNullOrBlank()) {

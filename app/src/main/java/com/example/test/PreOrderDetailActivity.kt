@@ -25,9 +25,13 @@ import com.example.test.data.OrderDto
 import com.example.test.data.PreOrderDto
 import com.example.test.data.PreOrderItem
 import com.example.test.data.UpdatePaymentRequest
+import com.example.test.data.UpdatePreOrderStatusRequest
+import com.example.test.data.UpdateStopStatusRequest
+import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.print.PrintService
+import com.example.test.data.repository.PreOrderRepository
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
@@ -48,6 +52,7 @@ class PreOrderDetailActivity : BaseActivity() {
     private lateinit var tvItemsSectionHeader: TextView
     private lateinit var layoutDetailItems: LinearLayout
     private lateinit var tvDetailTotal: TextView
+    private lateinit var btnConfirmPreOrder: MaterialButton
     private lateinit var btnConvert: MaterialButton
     private lateinit var btnCancel: MaterialButton
     private lateinit var btnReuse: MaterialButton
@@ -57,8 +62,14 @@ class PreOrderDetailActivity : BaseActivity() {
     private lateinit var tvLoadingTitle: TextView
     private lateinit var tvLoadingSubtitle: TextView
     private lateinit var securePrefs: SecurePreferences
+    private val preOrderRepository by lazy { PreOrderRepository(AppDatabase.getInstance(this)) }
 
     private var preOrderId = 0
+    // Presentes solo si se abrió desde una parada de Mis rutas (Módulo
+    // Almacén, ver MyRouteDetailActivity) — cuando la conversión de abajo
+    // sale bien, se usan para marcar esa parada como entregada.
+    private var routeIdForStop: Int? = null
+    private var stopIdForStop: Int? = null
     private var currentPreOrder: PreOrderDto? = null
     // pre_orders no guarda dirección (solo customer_id) — se resuelve al vuelo
     // contra el cliente de QB para que el ticket impreso al convertir sí la
@@ -82,7 +93,8 @@ class PreOrderDetailActivity : BaseActivity() {
         val items: List<BatchItem>,
         val signature: String?,
         val damageItems: List<DamageItem>,
-        val creditApplied: Double?
+        val creditApplied: Double?,
+        val isOfflinePending: Boolean = false
     )
     private var sentConversion: SentConversion? = null
 
@@ -144,6 +156,8 @@ class PreOrderDetailActivity : BaseActivity() {
         RetrofitClient.initialize(securePrefs.getBackendUrl(), securePrefs, this)
 
         preOrderId = intent.getIntExtra("pre_order_id", 0)
+        routeIdForStop = intent.getIntExtra("route_id", -1).takeIf { it != -1 }
+        stopIdForStop = intent.getIntExtra("stop_id", -1).takeIf { it != -1 }
 
         tvDetailCustomer  = findViewById(R.id.tvDetailCustomer)
         tvDetailStatus    = findViewById(R.id.tvDetailStatus)
@@ -153,6 +167,7 @@ class PreOrderDetailActivity : BaseActivity() {
         tvItemsSectionHeader = findViewById(R.id.tvItemsSectionHeader)
         layoutDetailItems = findViewById(R.id.layoutDetailItems)
         tvDetailTotal     = findViewById(R.id.tvDetailTotal)
+        btnConfirmPreOrder = findViewById(R.id.btnConfirmPreOrder)
         btnConvert        = findViewById(R.id.btnConvert)
         btnCancel         = findViewById(R.id.btnCancel)
         btnReuse          = findViewById(R.id.btnReuse)
@@ -163,6 +178,7 @@ class PreOrderDetailActivity : BaseActivity() {
         tvLoadingSubtitle = findViewById(R.id.tvLoadingSubtitle)
 
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
+        btnConfirmPreOrder.setOnClickListener { confirmPreOrder() }
         btnConvert.setOnClickListener     { startConversionFlow() }
         btnCancel.setOnClickListener      { confirmCancel() }
         btnReuse.setOnClickListener       { reusePreOrder() }
@@ -256,22 +272,41 @@ class PreOrderDetailActivity : BaseActivity() {
 
         when (po.status) {
             "DRAFT", "CONFIRMED" -> {
+                btnConfirmPreOrder.visibility = if (po.status == "DRAFT") View.VISIBLE else View.GONE
                 btnConvert.visibility     = View.VISIBLE
                 btnCancel.visibility      = View.VISIBLE
                 btnReuse.visibility       = View.GONE
                 btnViewHistory.visibility = View.GONE
             }
             "CONVERTED" -> {
+                btnConfirmPreOrder.visibility = View.GONE
                 btnConvert.visibility     = View.GONE
                 btnCancel.visibility      = View.GONE
                 btnReuse.visibility       = View.VISIBLE
                 btnViewHistory.visibility = View.VISIBLE
             }
             else -> { // CANCELLED
+                btnConfirmPreOrder.visibility = View.GONE
                 btnConvert.visibility     = View.GONE
                 btnCancel.visibility      = View.GONE
                 btnReuse.visibility       = View.GONE
                 btnViewHistory.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun confirmPreOrder() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().updatePreOrderStatus(preOrderId, UpdatePreOrderStatusRequest("CONFIRMED"))
+                if (resp.isSuccessful) {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_preorder_confirmed), Snackbar.LENGTH_SHORT).show()
+                    loadPreOrder()
+                } else {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
             }
         }
     }
@@ -723,6 +758,19 @@ class PreOrderDetailActivity : BaseActivity() {
         }
     }
 
+    // Si esta pantalla se abrió desde "Abrir pre-orden" en una parada de Mis
+    // rutas (Módulo Almacén), acá es donde la conversión ya se confirmó de
+    // verdad — recién acá se marca la parada como entregada.
+    private fun markRouteStopDeliveredIfAny() {
+        val routeId = routeIdForStop ?: return
+        val stopId = stopIdForStop ?: return
+        lifecycleScope.launch {
+            try {
+                RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest("DELIVERED"))
+            } catch (_: Exception) { }
+        }
+    }
+
     // Fase 88 — manda la conversión (con firma/dañados/crédito ya resueltos, pero
     // payment_method/check_number todavía null) para tener el invoice real del
     // ticket #1; guarda la respuesta en sentConversion y recién ahí pregunta el
@@ -742,84 +790,86 @@ class PreOrderDetailActivity : BaseActivity() {
         val creditForPrinting = pendingApplyCredit
 
         lifecycleScope.launch {
-            try {
-                val resp = RetrofitClient.getApi().convertPreOrder(
-                    id = preOrderId,
-                    request = ConvertPreOrderRequest(
-                        signature     = sigForPrinting,
-                        paymentMethod = null,
-                        damageItems   = damageForPrinting.takeIf { it.isNotEmpty() },
-                        checkNumber   = null,
-                        applyCredit   = creditForPrinting,
-                        items         = itemsToConvert
-                    )
+            val result = preOrderRepository.convertPreOrder(
+                preOrderId = preOrderId,
+                request = ConvertPreOrderRequest(
+                    signature     = sigForPrinting,
+                    paymentMethod = null,
+                    damageItems   = damageForPrinting.takeIf { it.isNotEmpty() },
+                    checkNumber   = null,
+                    applyCredit   = creditForPrinting,
+                    items         = itemsToConvert
                 )
+            )
 
-                if (resp.isSuccessful) {
-                    val body = resp.body()!!
+            result.onSuccess { body ->
+                val isOfflinePending = body.batchId == "OFFLINE_PENDING"
 
+                if (!isOfflinePending) {
                     tvLoadingTitle.text    = getString(R.string.loading_generating_invoice)
                     tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, body.invoiceId ?: "—")
-
-                    val batchItems = itemsToConvert.map { item ->
-                        BatchItem(
-                            barcode     = item.barcode,
-                            productName = item.productName,
-                            price       = item.price ?: 0.0,
-                            quantity    = item.quantity ?: 0.0,
-                            total       = item.total ?: 0.0,
-                            unit        = item.unit,
-                            caseQty     = item.caseQty,
-                            shortName   = item.shortName
-                        )
-                    }
-
-                    sentConversion = SentConversion(
-                        response      = body,
-                        items         = batchItems,
-                        signature     = sigForPrinting,
-                        damageItems   = damageForPrinting,
-                        creditApplied = creditForPrinting
-                    )
-
-                    val printerAddress = securePrefs.getPrinterAddress()
-                    if (!skipPrint && !printerAddress.isNullOrBlank()) {
-                        tvLoadingTitle.text    = getString(R.string.loading_printing_ticket)
-                        tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
-                        // Primer ticket — ya con el invoice real, sin Payment: todavía.
-                        val printResult = PrintService.printTicket(
-                            context         = this@PreOrderDetailActivity,
-                            deviceAddress   = printerAddress,
-                            items           = batchItems,
-                            customerName    = po.customerName,
-                            batchId         = body.batchId,
-                            invoiceId       = body.invoiceId,
-                            invoiceNumber   = body.invoiceNumber,
-                            customerAddress = resolvedCustomerAddress,
-                            damageItems     = damageForPrinting,
-                            paymentMethod   = null,
-                            signature       = sigForPrinting,
-                            checkNumber     = null,
-                            creditApplied   = creditForPrinting
-                        )
-                        printResult.onFailure { e ->
-                            Snackbar.make(
-                                findViewById(android.R.id.content),
-                                getString(R.string.error_print_after_send, e.localizedMessage ?: getString(R.string.error_no_connection)),
-                                Snackbar.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-
-                    layoutLoading.visibility = View.GONE
-                    askPaymentMethod(skipPrint)
                 } else {
-                    layoutLoading.visibility = View.GONE
-                    btnConvert.isEnabled = true
-                    btnCancel.isEnabled  = true
-                    showError("Error al convertir: ${resp.code()}")
+                    tvLoadingTitle.text    = getString(R.string.loading_saving_offline)
+                    tvLoadingSubtitle.text = ""
                 }
-            } catch (e: Exception) {
+
+                val batchItems = itemsToConvert.map { item ->
+                    BatchItem(
+                        barcode     = item.barcode,
+                        productName = item.productName,
+                        price       = item.price ?: 0.0,
+                        quantity    = item.quantity ?: 0.0,
+                        total       = item.total ?: 0.0,
+                        unit        = item.unit,
+                        caseQty     = item.caseQty,
+                        shortName   = item.shortName
+                    )
+                }
+
+                sentConversion = SentConversion(
+                    response         = body,
+                    items            = batchItems,
+                    signature        = sigForPrinting,
+                    damageItems      = damageForPrinting,
+                    creditApplied    = creditForPrinting,
+                    isOfflinePending = isOfflinePending
+                )
+                if (!isOfflinePending) markRouteStopDeliveredIfAny()
+
+                val printerAddress = securePrefs.getPrinterAddress()
+                if (!skipPrint && !printerAddress.isNullOrBlank()) {
+                    tvLoadingTitle.text    = getString(R.string.loading_printing_ticket)
+                    tvLoadingSubtitle.text = getString(R.string.loading_connecting_printer)
+                    // Primer ticket — ya con el invoice real, sin Payment: todavía.
+                    // Offline: sin invoice real todavía, se imprime igual (el ticket
+                    // ya sabe mostrar "pendiente de sincronizar" sin invoiceId/Number).
+                    val printResult = PrintService.printTicket(
+                        context         = this@PreOrderDetailActivity,
+                        deviceAddress   = printerAddress,
+                        items           = batchItems,
+                        customerName    = po.customerName,
+                        batchId         = body.batchId,
+                        invoiceId       = if (isOfflinePending) null else body.invoiceId,
+                        invoiceNumber   = if (isOfflinePending) null else body.invoiceNumber,
+                        customerAddress = resolvedCustomerAddress,
+                        damageItems     = damageForPrinting,
+                        paymentMethod   = null,
+                        signature       = sigForPrinting,
+                        checkNumber     = null,
+                        creditApplied   = creditForPrinting
+                    )
+                    printResult.onFailure { e ->
+                        Snackbar.make(
+                            findViewById(android.R.id.content),
+                            getString(R.string.error_print_after_send, e.localizedMessage ?: getString(R.string.error_no_connection)),
+                            Snackbar.LENGTH_LONG
+                        ).show()
+                    }
+                }
+
+                layoutLoading.visibility = View.GONE
+                askPaymentMethod(skipPrint)
+            }.onFailure { e ->
                 layoutLoading.visibility = View.GONE
                 btnConvert.isEnabled = true
                 btnCancel.isEnabled  = true
@@ -851,11 +901,17 @@ class PreOrderDetailActivity : BaseActivity() {
             tvLoadingTitle.text    = getString(R.string.loading_saving_payment)
             tvLoadingSubtitle.text = ""
 
-            try {
-                RetrofitClient.getApi().updateBatchPayment(
-                    sent.response.batchId, UpdatePaymentRequest(paymentForPrinting, checkForPrinting)
-                )
-            } catch (_: Exception) { }
+            if (!sent.isOfflinePending) {
+                try {
+                    RetrofitClient.getApi().updateBatchPayment(
+                        sent.response.batchId, UpdatePaymentRequest(paymentForPrinting, checkForPrinting)
+                    )
+                } catch (_: Exception) { }
+            } else {
+                sent.response.localPendingId?.let {
+                    preOrderRepository.attachConversionPaymentOffline(it, paymentForPrinting, checkForPrinting)
+                }
+            }
 
             val printerAddress = securePrefs.getPrinterAddress()
             if (!skipPrint && !printerAddress.isNullOrBlank()) {
@@ -867,8 +923,8 @@ class PreOrderDetailActivity : BaseActivity() {
                     items           = sent.items,
                     customerName    = po.customerName,
                     batchId         = sent.response.batchId,
-                    invoiceId       = sent.response.invoiceId,
-                    invoiceNumber   = sent.response.invoiceNumber,
+                    invoiceId       = if (sent.isOfflinePending) null else sent.response.invoiceId,
+                    invoiceNumber   = if (sent.isOfflinePending) null else sent.response.invoiceNumber,
                     customerAddress = resolvedCustomerAddress,
                     damageItems     = sent.damageItems,
                     paymentMethod   = paymentForPrinting,
@@ -890,8 +946,9 @@ class PreOrderDetailActivity : BaseActivity() {
             startActivity(
                 Intent(this@PreOrderDetailActivity, OrderSuccessActivity::class.java).apply {
                     putExtra("batch_id",          sent.response.batchId)
-                    putExtra("invoice_id",        sent.response.invoiceId ?: "")
-                    putExtra("invoice_number",    sent.response.invoiceNumber ?: 0)
+                    putExtra("invoice_id",        if (sent.isOfflinePending) "" else sent.response.invoiceId ?: "")
+                    putExtra("invoice_number",    if (sent.isOfflinePending) 0 else sent.response.invoiceNumber ?: 0)
+                    putExtra("offline_pending",   sent.isOfflinePending)
                     putExtra("customer_name",     po.customerName)
                     putExtra("customer_address",  resolvedCustomerAddress)
                     putExtra("signature",         sent.signature)
@@ -909,7 +966,7 @@ class PreOrderDetailActivity : BaseActivity() {
                                 price        = bi.price,
                                 quantity     = bi.quantity,
                                 total        = bi.total,
-                                status       = "SENT",
+                                status       = if (sent.isOfflinePending) "PENDING" else "SENT",
                                 customerId   = po.customerId,
                                 customerName = po.customerName,
                                 unit         = bi.unit,

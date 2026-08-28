@@ -21,8 +21,10 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test.data.PreOrderItem
 import com.example.test.data.PreOrderRequest
 import com.example.test.data.UserBrief
+import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
+import com.example.test.data.repository.PreOrderRepository
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
@@ -47,6 +49,7 @@ class CreatePreOrderActivity : BaseActivity() {
     private lateinit var btnSearchProduct: MaterialButton
     private lateinit var btnSavePreOrder: MaterialButton
     private lateinit var securePrefs: SecurePreferences
+    private val preOrderRepository by lazy { PreOrderRepository(AppDatabase.getInstance(this)) }
 
     private var selectedCustomerId: String? = null
     private var selectedCustomerName: String? = null
@@ -435,17 +438,18 @@ class CreatePreOrderActivity : BaseActivity() {
         )
 
         lifecycleScope.launch {
-            try {
-                val resp = RetrofitClient.getApi().createPreOrder(request)
-                if (resp.isSuccessful) {
-                    setResult(Activity.RESULT_OK)
-                    finish()
-                } else {
-                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_server_code, resp.code()), Snackbar.LENGTH_LONG).show()
-                    btnSavePreOrder.isEnabled = true
-                    btnSavePreOrder.text = getString(R.string.btn_save_pre_order)
+            val result = preOrderRepository.createPreOrder(request)
+            result.onSuccess { response ->
+                if (response.status == "OFFLINE_PENDING") {
+                    android.widget.Toast.makeText(
+                        this@CreatePreOrderActivity,
+                        getString(R.string.success_pre_order_saved_offline),
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
                 }
-            } catch (e: Exception) {
+                setResult(Activity.RESULT_OK)
+                finish()
+            }.onFailure { e ->
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_no_connection), Snackbar.LENGTH_LONG).show()
                 btnSavePreOrder.isEnabled = true
                 btnSavePreOrder.text = getString(R.string.btn_save_pre_order)

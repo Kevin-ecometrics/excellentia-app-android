@@ -422,8 +422,7 @@ data class CompanySettingsData(
     val subtitle: String = "Ticket de Venta",
     val address: String? = null,
     val phone: String? = null,
-    val city: String? = null,
-    val disclaimer: String? = null
+    val city: String? = null
 )
 
 // ── Price History Models ──
@@ -498,12 +497,160 @@ data class PreOrderDto(
 
 data class UserBrief(
     val id: Int,
-    val name: String?
+    val name: String?,
+    val role: String? = null
+)
+
+// ── Módulo Almacén (rutas de entrega + manifiesto de carga) ──
+
+data class RouteDto(
+    val id: Int,
+    val name: String,
+    @SerializedName("scheduled_date") val scheduledDate: String,
+    @SerializedName("driver_user_id") val driverUserId: Int? = null,
+    @SerializedName("driver_name") val driverName: String? = null,
+    val status: String,
+    val notes: String? = null,
+    @SerializedName("stop_count") val stopCount: Int = 0
+)
+
+data class RouteRequest(
+    val name: String? = null,
+    @SerializedName("scheduled_date") val scheduledDate: String? = null,
+    @SerializedName("driver_user_id") val driverUserId: Int? = null,
+    val notes: String? = null,
+    val status: String? = null
+)
+
+data class RouteStopDto(
+    val id: Int,
+    @SerializedName("route_id") val routeId: Int,
+    val position: Int,
+    @SerializedName("stop_type") val stopType: String,
+    @SerializedName("batch_id") val batchId: String? = null,
+    @SerializedName("pre_order_id") val preOrderId: Int? = null,
+    @SerializedName("customer_id") val customerId: String? = null,
+    @SerializedName("customer_name") val customerName: String? = null,
+    val status: String,
+    val batch: RouteStopBatch? = null,
+    val preOrder: RouteStopPreOrder? = null
+)
+
+data class RouteStopBatch(
+    @SerializedName("batch_id") val batchId: String,
+    val total: Double,
+    val status: String,
+    @SerializedName("item_count") val itemCount: Int
+)
+
+data class RouteStopPreOrder(
+    val id: Int,
+    val status: String,
+    @SerializedName("scheduled_date") val scheduledDate: String? = null,
+    val items: List<PreOrderItem> = emptyList()
+)
+
+data class RouteItemDto(
+    val id: Int,
+    @SerializedName("route_id") val routeId: Int,
+    @SerializedName("product_id") val productId: Int,
+    val barcode: String? = null,
+    val quantity: Int,
+    val name: String,
+    val sku: String? = null,
+    val unit: String? = null
+)
+
+data class RouteDetailDto(
+    val id: Int,
+    val name: String,
+    @SerializedName("scheduled_date") val scheduledDate: String,
+    @SerializedName("driver_user_id") val driverUserId: Int? = null,
+    @SerializedName("driver_name") val driverName: String? = null,
+    val status: String,
+    val notes: String? = null,
+    val stops: List<RouteStopDto> = emptyList(),
+    val items: List<RouteItemDto> = emptyList()
+)
+
+data class AddStopRequest(
+    @SerializedName("stop_type") val stopType: String,
+    @SerializedName("batch_id") val batchId: String? = null,
+    @SerializedName("pre_order_id") val preOrderId: Int? = null,
+    @SerializedName("customer_id") val customerId: String? = null,
+    @SerializedName("customer_name") val customerName: String? = null
+)
+
+data class AvailableStopsResponse(
+    val orders: List<AvailableOrder> = emptyList(),
+    val preOrders: List<AvailablePreOrder> = emptyList()
+)
+
+data class AvailableOrder(
+    @SerializedName("batch_id") val batchId: String,
+    @SerializedName("customer_id") val customerId: String?,
+    @SerializedName("customer_name") val customerName: String?,
+    val total: Double,
+    @SerializedName("item_count") val itemCount: Int
+)
+
+data class AvailablePreOrder(
+    val id: Int,
+    @SerializedName("customer_id") val customerId: String?,
+    @SerializedName("customer_name") val customerName: String?,
+    @SerializedName("scheduled_date") val scheduledDate: String? = null,
+    @SerializedName("assigned_user_id") val assignedUserId: Int? = null,
+    val total: Double = 0.0,
+    @SerializedName("item_count") val itemCount: Int = 0
+)
+
+data class UpdateStopStatusRequest(
+    val status: String
+)
+
+data class UpdateStopStatusResponse(
+    val message: String,
+    @SerializedName("routeStatus") val routeStatus: String? = null
+)
+
+data class UpdatePreOrderStatusRequest(
+    val status: String
+)
+
+data class ReorderStopsRequest(
+    @SerializedName("stop_ids") val stopIds: List<Int>
+)
+
+data class AddRouteItemRequest(
+    val barcode: String? = null,
+    @SerializedName("product_id") val productId: Int? = null,
+    val quantity: Int = 1
+)
+
+data class CreateRouteResponse(
+    val id: Int,
+    val status: String
+)
+
+data class AddStopResponse(
+    val id: Int,
+    val position: Int
+)
+
+data class RouteItemResponse(
+    val item: RouteItemDto,
+    val stock: Int,
+    @SerializedName("qbSynced") val qbSynced: Boolean,
+    @SerializedName("qbMessage") val qbMessage: String? = null
 )
 
 data class PreOrderResponse(
     val id: Int,
-    val status: String
+    val status: String,
+    // Nunca lo manda el servidor — lo usa PreOrderRepository.saveOfflinePreOrder()
+    // para señalar que la pre-orden quedó encolada en pending_preorders en vez
+    // de haberse creado de verdad (id = 0 hasta que SyncWorker la mande).
+    val localPendingId: Long? = null
 )
 
 data class ConvertPreOrderRequest(
@@ -523,7 +670,11 @@ data class ConvertPreOrderResponse(
     @SerializedName("invoiceNumber") val invoiceNumber: Int? = null,
     @SerializedName("preOrderId") val preOrderId: String,
     @SerializedName("creditsTotal") val creditsTotal: Double? = null,
-    @SerializedName("creditApplied") val creditApplied: Double? = null
+    @SerializedName("creditApplied") val creditApplied: Double? = null,
+    // Nunca lo manda el servidor — lo usa PreOrderRepository.saveOfflineConversion()
+    // para devolver el id de la fila local en pending_preorder_conversions, mismo
+    // patrón que BatchResponse.localPendingId (Fase 82).
+    val localPendingId: Long? = null
 )
 
 data class CreditBalance(

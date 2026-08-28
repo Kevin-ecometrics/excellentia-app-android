@@ -263,6 +263,8 @@
     <string name="btn_creating">Creating…</string>
     <string name="btn_reuse_pre_order">Reuse pre-order</string>
     <string name="success_new_pre_order_created">New pre-order created</string>
+    <string name="success_pre_order_saved_offline">No connection — pre-order saved locally, it will sync automatically</string>
+    <string name="success_pre_order_converted_offline">No connection — sale saved locally, it will sync automatically</string>
     <string name="error_converting_pre_order">Error converting: %1$d</string>
     <string name="error_print_after_send">Order sent · Print error: %1$s</string>
     <string name="btn_add_detail">Detail</string>
@@ -340,9 +342,6 @@
     <string name="label_n_products">%1$d products</string>
 
     <!-- Settings layout strings -->
-    <string name="label_disclaimer">Disclaimer / Legal Terms</string>
-    <string name="hint_disclaimer">Terms and Conditions:\n(1) Seller retains title…</string>
-    <string name="label_disclaimer_hint">Shown on printed tickets and receipts. Leave empty to omit.</string>
 
     <string name="label_printer_help_content_description">Printer help</string>
 
@@ -443,6 +442,8 @@
     <string name="notification_sync_title">✅ Order synced</string>
     <string name="notification_sync_content">%1$s (%2$.1f lb) — $%3$.2f sent to QuickBooks</string>
     <string name="notification_sync_bigtext">Order #%1$s\n%2$s — %3$.1f lb\nTotal: $%4$.2f\nStatus: Sent to QuickBooks</string>
+    <string name="notification_preorder_sync_title">✅ Pre-order synced</string>
+    <string name="notification_preorder_sync_content">Pre-order for %1$s sent to QuickBooks</string>
     <string name="hint_qty_total_lb">Total quantity (lb)</string>
     <string name="hint_total_price">Total price</string>
     <string name="hint_weight">Weight</string>
@@ -470,4 +471,77 @@
     <string name="msg_credit_issued_success">$%1$.2f credited to %2$s</string>
     <string name="error_issue_credit_failed">Could not save credit: %1$s</string>
     <string name="label_available_credit">Available credit: $%1$.2f</string>
+
+    <!-- Warehouse module (delivery routes + load manifest) -->
+    <string name="title_warehouse">Warehouse</string>
+    <string name="label_all_dates">All dates</string>
+    <string name="btn_new_route">New route</string>
+    <string name="empty_routes">No routes yet</string>
+    <string name="label_no_driver">Unassigned</string>
+    <string name="label_stops_count">%1$d stop(s)</string>
+    <string name="route_status_planned">Planned</string>
+    <string name="route_status_in_progress">In progress</string>
+    <string name="route_status_completed">Completed</string>
+    <string name="route_status_cancelled">Cancelled</string>
+    <string name="title_new_route">New route</string>
+    <string name="btn_route_from_scratch">Route from scratch</string>
+    <string name="btn_route_from_preorders">From pre-orders</string>
+    <string name="msg_preorders_added">%1$d pre-order(s) added as stops</string>
+    <string name="label_move_up">Move up</string>
+    <string name="label_move_down">Move down</string>
+    <string name="title_remove_stop">Remove stop</string>
+    <string name="msg_remove_stop_confirm">Remove %1$s from this route?</string>
+    <string name="title_link_preorder">Pending pre-order</string>
+    <string name="msg_link_preorder">%1$s has a confirmed pre-order pending — %2$d item(s), $%3$.2f. Link it to this stop?</string>
+    <string name="btn_link">Link</string>
+    <string name="btn_no_thanks">No, thanks</string>
+    <string name="title_my_routes">My routes</string>
+    <string name="stop_status_pending">Pending</string>
+    <string name="stop_status_delivered">Delivered</string>
+    <string name="stop_status_skipped">Skipped</string>
+    <string name="btn_mark_delivered">Delivered</string>
+    <string name="btn_mark_skipped">Skip</string>
+    <string name="btn_start_route">Start route</string>
+    <string name="btn_finish_route">Finish route</string>
+    <string name="title_confirm_start_route">Start route?</string>
+    <string name="msg_confirm_start_route">This marks the route as in progress. Continue?</string>
+    <string name="title_confirm_finish_route">Finish route?</string>
+    <string name="msg_confirm_finish_route">This marks the route as completed. Continue?</string>
+    <string name="empty_my_routes">No routes assigned to you yet</string>
+    <string name="label_route_items_loaded">Loaded on truck</string>
+    <string name="btn_confirm_preorder">Confirm pre-order</string>
+    <string name="msg_preorder_confirmed">Pre-order confirmed — now available to add to a route</string>
+    <string name="title_confirm_skip">Skip this stop?</string>
+    <string name="msg_confirm_skip_with_sale">%1$s has a pending sale/pre-order for this stop — skipping it will leave that unresolved, it won\'t be sold or delivered. Continue?</string>
+    <string name="msg_confirm_skip_plain">Mark %1$s as skipped — this stop won\'t be delivered on this route. Continue?</string>
+    <string name="msg_route_auto_completed">All stops resolved — route marked as completed</string>
+    <string name="msg_route_auto_cancelled">All stops were skipped — route marked as cancelled</string>
+    <string name="label_adding_item">Loading…</string>
+    <string name="label_removing_item">Removing…</string>
+    <string name="btn_open_preorder">Open pre-order</string>
+    <string name="btn_sell_to_customer">Sell</string>
+    <string name="hint_route_name">Route name</string>
+    <string name="label_route_date">Date</string>
+    <string name="label_select_date">Select date</string>
+    <string name="label_route_driver">Driver</string>
+    <string name="hint_route_notes">Notes (optional)</string>
+    <string name="btn_create_route">Create route</string>
+    <string name="error_route_name_date_required">Route name and date are required</string>
+    <string name="label_route_stops">Stops</string>
+    <string name="label_no_stops">No stops yet</string>
+    <string name="btn_add_stop">Add stop</string>
+    <string name="title_add_stop">Add stop</string>
+    <string name="wh_order_label">Order</string>
+    <string name="wh_preorder_label">Pre-order</string>
+    <string name="label_available_orders">Available orders</string>
+    <string name="label_available_preorders">Available pre-orders</string>
+    <string name="label_no_available_stops">No unassigned orders or pre-orders available</string>
+    <string name="label_route_loaded">Loaded</string>
+    <string name="label_no_items_loaded">No products loaded yet</string>
+    <string name="label_scan_prompt_warehouse">Scan a product to load it onto this route</string>
+    <string name="title_load_quantity">Quantity to load</string>
+    <string name="title_remove_route_item">Remove item</string>
+    <string name="msg_remove_route_item_confirm">Remove %1$s from this route\'s load? Stock will be restored.</string>
+    <string name="msg_route_item_added">%1$d %2$s loaded</string>
+    <string name="msg_route_item_added_no_sync">Loaded locally — could not sync stock to QuickBooks</string>
 </resources>
