@@ -578,6 +578,10 @@
     <string name="wh_confirm_no_returns_title">¿Nada para devolver?</string>
     <string name="wh_confirm_no_returns_message">No ingresaste ninguna cantidad. ¿Confirmás que no volvió nada de esta ruta (por ejemplo, se vendió todo)?</string>
     <string name="wh_btn_sold_out">✓ Vendido por completo</string>
+    <string name="wh_departed_confirmation_with_driver">Salió del almacén %1$s · cargado por %2$s — confirmado en buen estado</string>
+    <string name="wh_departed_confirmation_no_driver">Salió del almacén %1$s — confirmado en buen estado</string>
+    <string name="wh_returns_notes_hint">Motivo (obligatorio si hay dañado o vencido)</string>
+    <string name="wh_returns_notes_required">Agregá un motivo para: %1$s</string>
 
     <!-- Liquidación diaria: pantalla removida de Android, pasó a ser
          admin-only en la webapp. Se mantienen solo los dos estados

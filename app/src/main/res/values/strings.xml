@@ -599,6 +599,10 @@
     <string name="wh_confirm_no_returns_title">Nothing to return?</string>
     <string name="wh_confirm_no_returns_message">You didn\'t enter any quantity. Confirm that nothing came back from this route (e.g. everything was sold)?</string>
     <string name="wh_btn_sold_out">✓ Sold out</string>
+    <string name="wh_departed_confirmation_with_driver">Left the warehouse %1$s · loaded by %2$s — confirmed in good condition</string>
+    <string name="wh_departed_confirmation_no_driver">Left the warehouse %1$s — confirmed in good condition</string>
+    <string name="wh_returns_notes_hint">Reason (required if damaged or expired)</string>
+    <string name="wh_returns_notes_required">Add a reason for: %1$s</string>
 
     <!-- Liquidación diaria: pantalla removida de Android, pasó a ser
          admin-only en la webapp. Se mantienen solo los dos estados

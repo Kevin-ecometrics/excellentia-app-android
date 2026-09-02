@@ -841,7 +841,12 @@ data class RouteReturnExpectedDto(
     @SerializedName("loaded_qty") val loadedQty: Double,
     @SerializedName("sold_qty") val soldQty: Double,
     @SerializedName("already_returned_qty") val alreadyReturnedQty: Double,
-    @SerializedName("expected_return_qty") val expectedReturnQty: Double
+    @SerializedName("expected_return_qty") val expectedReturnQty: Double,
+    // Confirmación de salida — ya se graba sola al cargar (addRouteItem solo
+    // acepta stock ACTIVE, nunca dañado/vencido), se expone acá para mostrar
+    // la línea de base junto al conteo de la devolución.
+    @SerializedName("loaded_at") val loadedAt: String? = null,
+    @SerializedName("loaded_by_name") val loadedByName: String? = null
 )
 
 data class RouteReturnItemRequest(

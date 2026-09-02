@@ -4,10 +4,8 @@ import android.app.Activity
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
-import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.Spinner
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
@@ -31,6 +29,13 @@ import java.util.Locale
 // y le asigna condición a cada producto. "Esperado" (GET .../returns/expected)
 // es solo referencia — no bloquea si el conteo real no coincide, el almacén
 // audita lo físico, no re-valida lo que se vendió.
+//
+// Un mismo producto puede volver parte bueno y parte dañado/vencido — cada
+// fila tiene 3 campos de cantidad (uno por condición) en vez de un único
+// campo + selector, para poder partirlo. La confirmación de salida
+// (loaded_at/loaded_by_name, ver getExpectedReturns) se muestra como línea de
+// base: como solo se puede cargar stock ACTIVE, todo lo que sale, sale bien —
+// cualquier DAMAGED/EXPIRED acá implica que pasó durante la ruta.
 class RouteReturnsActivity : BaseActivity() {
 
     private lateinit var layoutItems: LinearLayout
@@ -39,12 +44,13 @@ class RouteReturnsActivity : BaseActivity() {
     private lateinit var securePrefs: SecurePreferences
 
     private var routeId: Int = -1
-    private val conditionValues = arrayOf("GOOD", "DAMAGED", "EXPIRED")
 
     private data class ReturnRow(
         val expected: RouteReturnExpectedDto,
-        val etQty: EditText,
-        val spCondition: Spinner
+        val etQtyGood: EditText,
+        val etQtyDamaged: EditText,
+        val etQtyExpired: EditText,
+        val etNotes: EditText
     )
 
     private val rows = mutableListOf<ReturnRow>()
@@ -96,12 +102,6 @@ class RouteReturnsActivity : BaseActivity() {
         tvNoItems.visibility = if (expected.isEmpty()) View.VISIBLE else View.GONE
         btnSaveReturns.visibility = if (expected.isEmpty()) View.GONE else View.VISIBLE
 
-        val conditionLabels = arrayOf(
-            getString(R.string.wh_condition_good),
-            getString(R.string.wh_condition_damaged),
-            getString(R.string.wh_condition_expired)
-        )
-
         for (exp in expected) {
             val card = MaterialCardView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -126,32 +126,66 @@ class RouteReturnsActivity : BaseActivity() {
                 text = getString(R.string.wh_expected_label, exp.loadedQty, exp.soldQty, exp.expectedReturnQty)
                 textSize = 12f
                 setTextColor(getColor(R.color.text_secondary))
-                setPadding(0, 2.dp, 0, 8.dp)
+                setPadding(0, 2.dp, 0, 0)
+            }
+            content.addView(tvName)
+            content.addView(tvMeta)
+
+            // Línea de base: como addRouteItem solo carga stock de lotes
+            // ACTIVE, esta fila ya es la confirmación de que salió bien —
+            // cualquier condición distinta de GOOD abajo implica que pasó en
+            // la ruta.
+            if (exp.loadedAt != null) {
+                val when_ = exp.loadedAt.take(16).replace("T", " ")
+                val tvDeparted = TextView(this).apply {
+                    text = if (!exp.loadedByName.isNullOrBlank())
+                        getString(R.string.wh_departed_confirmation_with_driver, when_, exp.loadedByName)
+                    else
+                        getString(R.string.wh_departed_confirmation_no_driver, when_)
+                    textSize = 11f
+                    setTextColor(getColor(R.color.success))
+                    setPadding(0, 4.dp, 0, 8.dp)
+                }
+                content.addView(tvDeparted)
             }
 
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-            }
-            val etQty = EditText(this).apply {
+            fun qtyField(prefillGood: Boolean): EditText = EditText(this).apply {
                 inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-                setText(String.format(Locale.US, "%.2f", exp.expectedReturnQty))
+                setText(String.format(Locale.US, "%.2f", if (prefillGood) exp.expectedReturnQty else 0.0))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
-            val spCondition = Spinner(this).apply {
-                adapter = ArrayAdapter(this@RouteReturnsActivity, android.R.layout.simple_spinner_dropdown_item, conditionLabels)
-                layoutParams = LinearLayout.LayoutParams(120.dp, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    marginStart = 8.dp
-                }
-                setSelection(0)
+            fun conditionRow(label: String, field: EditText): LinearLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(0, 4.dp, 0, 0)
+                addView(TextView(this@RouteReturnsActivity).apply {
+                    text = label
+                    textSize = 12f
+                    setTextColor(getColor(R.color.text_secondary))
+                    layoutParams = LinearLayout.LayoutParams(70.dp, LinearLayout.LayoutParams.WRAP_CONTENT)
+                })
+                addView(field)
             }
-            row.addView(etQty)
-            row.addView(spCondition)
 
-            // Atajo por producto: pone esta cantidad en 0 de un toque, en vez
-            // de tener que borrar/tipear "0" a mano — el caso común cuando se
-            // cargaron varias unidades de un producto y TODAS se vendieron.
-            // El campo sigue editable después por si en realidad volvió algo.
+            val etQtyGood = qtyField(prefillGood = true)
+            val etQtyDamaged = qtyField(prefillGood = false)
+            val etQtyExpired = qtyField(prefillGood = false)
+            content.addView(conditionRow(getString(R.string.wh_condition_good), etQtyGood))
+            content.addView(conditionRow(getString(R.string.wh_condition_damaged), etQtyDamaged))
+            content.addView(conditionRow(getString(R.string.wh_condition_expired), etQtyExpired))
+
+            val etNotes = EditText(this).apply {
+                hint = getString(R.string.wh_returns_notes_hint)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = 6.dp
+                }
+            }
+            content.addView(etNotes)
+
+            // Atajo por producto: pone las 3 cantidades en 0 de un toque, en
+            // vez de tener que borrar/tipear "0" a mano — el caso común
+            // cuando se cargaron varias unidades de un producto y TODAS se
+            // vendieron (nada volvió, en ninguna condición).
             val btnSoldOut = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
                 text = getString(R.string.wh_btn_sold_out)
                 textSize = 11f
@@ -165,26 +199,40 @@ class RouteReturnsActivity : BaseActivity() {
                 setPadding(12.dp, 0, 12.dp, 0)
                 minWidth = 0
                 minimumWidth = 0
-                setOnClickListener { etQty.setText(String.format(Locale.US, "%.2f", 0.0)) }
+                setOnClickListener {
+                    etQtyGood.setText(String.format(Locale.US, "%.2f", 0.0))
+                    etQtyDamaged.setText(String.format(Locale.US, "%.2f", 0.0))
+                    etQtyExpired.setText(String.format(Locale.US, "%.2f", 0.0))
+                }
             }
-
-            content.addView(tvName)
-            content.addView(tvMeta)
-            content.addView(row)
             content.addView(btnSoldOut)
+
             card.addView(content)
             layoutItems.addView(card)
 
-            rows.add(ReturnRow(exp, etQty, spCondition))
+            rows.add(ReturnRow(exp, etQtyGood, etQtyDamaged, etQtyExpired, etNotes))
         }
     }
 
-    private fun enteredItems(): List<RouteReturnItemRequest> = rows.mapNotNull { r ->
-        val qty = r.etQty.text.toString().toDoubleOrNull() ?: 0.0
-        if (qty <= 0) return@mapNotNull null
-        val condition = conditionValues[r.spCondition.selectedItemPosition]
-        RouteReturnItemRequest(productId = r.expected.productId, quantity = qty, conditionStatus = condition)
+    private fun qty(field: EditText): Double = field.text.toString().toDoubleOrNull() ?: 0.0
+
+    private fun enteredItems(): List<RouteReturnItemRequest> = rows.flatMap { r ->
+        val notes = r.etNotes.text.toString().trim().ifEmpty { null }
+        val items = mutableListOf<RouteReturnItemRequest>()
+        val good = qty(r.etQtyGood)
+        val damaged = qty(r.etQtyDamaged)
+        val expired = qty(r.etQtyExpired)
+        if (good > 0) items.add(RouteReturnItemRequest(productId = r.expected.productId, quantity = good, conditionStatus = "GOOD"))
+        if (damaged > 0) items.add(RouteReturnItemRequest(productId = r.expected.productId, quantity = damaged, conditionStatus = "DAMAGED", notes = notes))
+        if (expired > 0) items.add(RouteReturnItemRequest(productId = r.expected.productId, quantity = expired, conditionStatus = "EXPIRED", notes = notes))
+        items
     }
+
+    // Productos con Dañado/Vencido > 0 pero sin motivo — el backend igual lo
+    // rechaza (red de seguridad), pero avisar acá evita el viaje redondo.
+    private fun rowsMissingNotes(): List<String> = rows.filter { r ->
+        (qty(r.etQtyDamaged) > 0 || qty(r.etQtyExpired) > 0) && r.etNotes.text.toString().trim().isEmpty()
+    }.map { it.expected.name }
 
     // Un envío vacío es válido a propósito — es como el almacenista confirma
     // "ya revisé esta ruta y no hay nada que devolver" (ej. se vendió todo).
@@ -193,6 +241,11 @@ class RouteReturnsActivity : BaseActivity() {
     // caso — un envío vacío también podría ser un olvido de completar los
     // campos, no solo "no hay nada que devolver".
     private fun saveReturns() {
+        val missingNotes = rowsMissingNotes()
+        if (missingNotes.isNotEmpty()) {
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.wh_returns_notes_required, missingNotes.joinToString(", ")), Snackbar.LENGTH_LONG).show()
+            return
+        }
         val items = enteredItems()
         if (items.isEmpty()) {
             MaterialAlertDialogBuilder(this)
