@@ -188,11 +188,31 @@ class ClientHistoryActivity : BaseActivity() {
         view.findViewById<TextView>(R.id.tvBatchTotal).text =
             String.format(Locale.US, "$%.2f", batch.total)
 
-        val isSent = batch.status == "SENT"
+        // Esperando aprobación del admin (Fase 113) es distinto de "Pendiente"
+        // (problema técnico de sync) — antes se veían idénticas.
         view.findViewById<TextView>(R.id.tvBatchStatus).apply {
-            text = if (isSent) getString(R.string.label_completed) else getString(R.string.label_pending_status)
-            setBackgroundResource(if (isSent) R.drawable.bg_chip_sent else R.drawable.bg_chip_pending)
-            setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, if (isSent) R.color.success else R.color.ex_warning))
+            when (batch.status) {
+                "SENT" -> {
+                    text = getString(R.string.label_completed)
+                    setBackgroundResource(R.drawable.bg_chip_sent)
+                    setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, R.color.success))
+                }
+                "FAILED" -> {
+                    text = getString(R.string.status_failed)
+                    setBackgroundResource(R.drawable.bg_chip_failed)
+                    setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, R.color.red))
+                }
+                "AWAITING_APPROVAL" -> {
+                    text = getString(R.string.label_awaiting_approval)
+                    setBackgroundResource(R.drawable.bg_chip_pending)
+                    setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, R.color.primary))
+                }
+                else -> {
+                    text = getString(R.string.label_pending_status)
+                    setBackgroundResource(R.drawable.bg_chip_pending)
+                    setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, R.color.ex_warning))
+                }
+            }
         }
 
         view.setOnClickListener {
@@ -214,6 +234,10 @@ class ClientHistoryActivity : BaseActivity() {
                     startActivity(Intent(this@ClientHistoryActivity, TicketDetailActivity::class.java).apply {
                         putExtra("batch_id", batchId)
                         putExtra("invoice_id", invoiceId ?: "")
+                        // reserved_invoice_number: la venta puede seguir AWAITING_APPROVAL
+                        // (invoiceId todavía null) pero el ticket ya se imprimió con un
+                        // número real — sin esto, reimprimir desde acá no mostraba ninguno.
+                        putExtra("invoice_number", orders.firstOrNull()?.reservedInvoiceNumber ?: 0)
                         putExtra("orders_json", Gson().toJson(orders))
                         putExtra("customer_name", customerName)
                     })

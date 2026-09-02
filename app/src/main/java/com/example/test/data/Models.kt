@@ -69,7 +69,11 @@ data class ProductDto(
     @SerializedName("weight_per_unit") val weightPerUnit: Double? = null,
     val unit: String? = null,
     @SerializedName("case_qty") val caseQty: Int? = null,
-    val qty: Int = 0
+    val qty: Int = 0,
+    // Fase 112 — solo viene lleno en GET /api/warehouse/lots/available-products
+    // (el picker "Cargar desde recepción" de WarehouseRouteDetailActivity);
+    // en el resto de los endpoints que devuelven ProductDto queda null.
+    @SerializedName("available_qty") val availableQty: Double? = null
 ) {
     fun toProduct(): Product = Product(
         barcode = barcode ?: "unknown",
@@ -111,6 +115,11 @@ data class OrderDto(
     val status: String,
     @SerializedName("batch_id") val batchId: String? = null,
     @SerializedName("qb_invoice_id") val qbInvoiceId: String? = null,
+    // Número de factura ya reservado (ticket impreso) mientras la venta está
+    // AWAITING_APPROVAL — qbInvoiceId sigue null hasta que el admin aprueba
+    // (Fase 113, backend). Se usa para poder reimprimir el ticket desde
+    // Historial con el número correcto aunque todavía no exista factura real.
+    @SerializedName("reserved_invoice_number") val reservedInvoiceNumber: Int? = null,
     @SerializedName("device_id") val deviceId: Int? = null,
     @SerializedName("user_id") val userId: Int? = null,
     @SerializedName("created_at") val createdAt: String? = null,
@@ -282,7 +291,13 @@ data class BatchRequest(
     @SerializedName("damage_items") val damageItems: List<DamageItem>? = null,
     @SerializedName("payment_method") val paymentMethod: String? = null,
     @SerializedName("check_number") val checkNumber: String? = null,
-    @SerializedName("apply_credit") val applyCredit: Double? = null
+    @SerializedName("apply_credit") val applyCredit: Double? = null,
+    // Presentes solo cuando la venta es "por scratch" dentro de una ruta en
+    // curso — el backend los usa para no descontar stock dos veces (el
+    // producto ya se descontó al cargarlo en la ruta) y para vincular la
+    // venta a la parada. Ver OrderRepository.sendBatch().
+    @SerializedName("route_id") val routeId: Int? = null,
+    @SerializedName("stop_id") val stopId: Int? = null
 )
 
 // Fase 82 — adjunta payment_method/check_number a un batch que ya se mandó
@@ -388,6 +403,16 @@ data class RetryBatchResponse(
 )
 
 data class ApiErrorBody(val error: String? = null)
+
+// Fase 112 — cuando addRouteItem/suggestLots fallan por falta de stock en el
+// almacén, el backend distingue "cero recibido" (available == 0, la app
+// ofrece ir a Recepción) de "hay pero no alcanza" (available > 0) en vez de
+// mandar solo un string a parsear.
+data class InsufficientStockErrorBody(
+    val error: String? = null,
+    val available: Double? = null,
+    val requested: Double? = null
+)
 
 // ── Auth Models ──
 
@@ -558,7 +583,13 @@ data class RouteItemDto(
     val quantity: Int,
     val name: String,
     val sku: String? = null,
-    val unit: String? = null
+    val unit: String? = null,
+    // Fase 112 — resumen de qué lote(s) alimentaron esta línea (route_item_lots).
+    // usedOverride como Int (0/1), no Boolean: mysql2 lo manda como número
+    // (MAX(1 - used_suggested_lot)) y Gson revienta si el campo declarado es
+    // Boolean y llega un número — mismo gotcha ya documentado para qb_active.
+    @SerializedName("min_expiration_date") val minExpirationDate: String? = null,
+    @SerializedName("used_override") val usedOverride: Int? = null
 )
 
 data class RouteDetailDto(
@@ -624,7 +655,10 @@ data class ReorderStopsRequest(
 data class AddRouteItemRequest(
     val barcode: String? = null,
     @SerializedName("product_id") val productId: Int? = null,
-    val quantity: Int = 1
+    val quantity: Int = 1,
+    // Override manual de FIFO — si se omite, el backend elige el/los lote(s)
+    // (Fase 112).
+    @SerializedName("lot_id") val lotId: Int? = null
 )
 
 data class CreateRouteResponse(
@@ -640,6 +674,7 @@ data class AddStopResponse(
 data class RouteItemResponse(
     val item: RouteItemDto,
     val stock: Int,
+    val lots: List<FifoAllocationDto>? = null,
     @SerializedName("qbSynced") val qbSynced: Boolean,
     @SerializedName("qbMessage") val qbMessage: String? = null
 )
@@ -695,4 +730,142 @@ data class CustomerBatchSummary(
     @SerializedName("qb_invoice_id") val qbInvoiceId: String? = null,
     @SerializedName("item_count") val itemCount: Int = 0,
     val status: String
+)
+
+// ── Fase 112 — Almacén: recepción, FIFO, sub-inventario, liquidación, devoluciones ──
+// Hoy hay un solo almacén activo (warehouseId casi nunca hace falta mandarlo
+// a mano, el backend usa el default) — pero el esquema ya soporta más de uno.
+
+data class WarehouseDto(
+    val id: Int,
+    val name: String,
+    @SerializedName("is_active") val isActive: Int = 1
+)
+
+data class ProductLotDto(
+    val id: Int,
+    @SerializedName("receipt_batch_id") val receiptBatchId: String,
+    @SerializedName("warehouse_id") val warehouseId: Int,
+    @SerializedName("product_id") val productId: Int,
+    val barcode: String? = null,
+    @SerializedName("expiration_date") val expirationDate: String? = null,
+    @SerializedName("received_qty") val receivedQty: Double,
+    @SerializedName("remaining_qty") val remainingQty: Double,
+    val status: String,
+    @SerializedName("received_at") val receivedAt: String? = null,
+    @SerializedName("product_name") val productName: String? = null,
+    val sku: String? = null
+)
+
+// Respuesta de /api/warehouse/lots/suggest — qué lote(s) usaría FIFO para una
+// cantidad dada. El mismo shape se reusa como "asignación real" en la
+// respuesta de addRouteItem (RouteItemResponse.lots).
+data class FifoAllocationDto(
+    @SerializedName("lot_id") val lotId: Int,
+    val qty: Double,
+    @SerializedName("expiration_date") val expirationDate: String? = null,
+    @SerializedName("received_at") val receivedAt: String? = null
+)
+
+data class ReceiptItemRequest(
+    val barcode: String? = null,
+    @SerializedName("product_id") val productId: Int? = null,
+    // Double, no Int: recepción por peso (Lbs) necesita decimales.
+    val quantity: Double,
+    @SerializedName("expiration_date") val expirationDate: String? = null
+)
+
+data class CreateReceiptRequest(
+    @SerializedName("warehouse_id") val warehouseId: Int? = null,
+    val items: List<ReceiptItemRequest>
+)
+
+data class ReceiptResultItem(
+    @SerializedName("lot_id") val lotId: Int? = null,
+    @SerializedName("product_id") val productId: Int? = null,
+    @SerializedName("product_name") val productName: String? = null,
+    val quantity: Double? = null,
+    @SerializedName("expiration_date") val expirationDate: String? = null,
+    val error: String? = null
+)
+
+data class CreateReceiptResponse(
+    @SerializedName("receipt_batch_id") val receiptBatchId: String,
+    val items: List<ReceiptResultItem>
+)
+
+data class LotConditionRequest(val status: String)
+
+data class InventoryMovementDto(
+    val id: Int,
+    @SerializedName("warehouse_id") val warehouseId: Int,
+    @SerializedName("product_id") val productId: Int,
+    @SerializedName("lot_id") val lotId: Int? = null,
+    @SerializedName("movement_type") val movementType: String,
+    val quantity: Double,
+    @SerializedName("route_id") val routeId: Int? = null,
+    @SerializedName("settlement_id") val settlementId: Int? = null,
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("product_name") val productName: String? = null,
+    val sku: String? = null,
+    // Solo vienen en líneas RECEIPT (LEFT JOIN a product_lots) — para poder
+    // editar la recepción (cantidad/expiración) directo desde el sub-inventario
+    // sin otra consulta. lot_status == "ACTIVE" es lo que habilita "Editar".
+    @SerializedName("lot_expiration_date") val lotExpirationDate: String? = null,
+    @SerializedName("lot_status") val lotStatus: String? = null,
+    @SerializedName("lot_received_qty") val lotReceivedQty: Double? = null
+)
+
+data class UpdateLotRequest(
+    val quantity: Double? = null,
+    @SerializedName("expiration_date") val expirationDate: String? = null
+)
+
+// Liquidación diaria (preview/confirm) pasó a ser admin-only en la webapp —
+// los DTOs correspondientes (settlement lines, etc.) ya no viven acá.
+
+// ── Revisión de devoluciones ──
+
+data class RouteReturnExpectedDto(
+    @SerializedName("product_id") val productId: Int,
+    val name: String,
+    val sku: String? = null,
+    @SerializedName("loaded_qty") val loadedQty: Double,
+    @SerializedName("sold_qty") val soldQty: Double,
+    @SerializedName("already_returned_qty") val alreadyReturnedQty: Double,
+    @SerializedName("expected_return_qty") val expectedReturnQty: Double
+)
+
+data class RouteReturnItemRequest(
+    @SerializedName("product_id") val productId: Int,
+    val quantity: Double,
+    @SerializedName("condition_status") val conditionStatus: String = "GOOD",
+    val notes: String? = null
+)
+
+data class CreateReturnsRequest(
+    val items: List<RouteReturnItemRequest>
+)
+
+data class RouteReturnResultItem(
+    @SerializedName("product_id") val productId: Int? = null,
+    val quantity: Double? = null,
+    @SerializedName("condition_status") val conditionStatus: String? = null,
+    val error: String? = null
+)
+
+data class CreateReturnsResponse(
+    val items: List<RouteReturnResultItem>
+)
+
+data class RouteReturnDto(
+    val id: Int,
+    @SerializedName("route_id") val routeId: Int,
+    @SerializedName("product_id") val productId: Int,
+    val quantity: Double,
+    @SerializedName("condition_status") val conditionStatus: String,
+    val notes: String? = null,
+    @SerializedName("reviewed_at") val reviewedAt: String? = null,
+    val name: String? = null,
+    val sku: String? = null
 )

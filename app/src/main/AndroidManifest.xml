@@ -117,6 +117,18 @@
             android:name=".MyRouteDetailActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+        <activity
+            android:name=".ReceivingActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".RouteReturnsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".InventoryMovementsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

@@ -911,7 +911,7 @@ class PreOrderDetailActivity : BaseActivity() {
 
                 if (!isOfflinePending) {
                     tvLoadingTitle.text    = getString(R.string.loading_generating_invoice)
-                    tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, body.invoiceId ?: "—")
+                    tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, body.invoiceNumber?.toString() ?: body.invoiceId ?: "—")
                 } else {
                     tvLoadingTitle.text    = getString(R.string.loading_saving_offline)
                     tvLoadingSubtitle.text = ""

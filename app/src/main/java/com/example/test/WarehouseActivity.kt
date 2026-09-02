@@ -42,6 +42,8 @@ class WarehouseActivity : BaseActivity() {
     private lateinit var btnDateFilter: MaterialButton
     private lateinit var btnClearDateFilter: TextView
     private lateinit var btnNewRoute: MaterialButton
+    private lateinit var btnReceiving: MaterialButton
+    private lateinit var btnMovements: MaterialButton
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var securePrefs: SecurePreferences
 
@@ -72,6 +74,8 @@ class WarehouseActivity : BaseActivity() {
         btnDateFilter   = findViewById(R.id.btnDateFilter)
         btnClearDateFilter = findViewById(R.id.btnClearDateFilter)
         btnNewRoute     = findViewById(R.id.btnNewRoute)
+        btnReceiving    = findViewById(R.id.btnReceiving)
+        btnMovements    = findViewById(R.id.btnMovements)
         bottomNav       = findViewById(R.id.bottomNav)
 
         bottomNav.setOnItemSelectedListener { item ->
@@ -96,6 +100,8 @@ class WarehouseActivity : BaseActivity() {
             loadRoutes()
         }
         btnNewRoute.setOnClickListener { showNewRouteChooser() }
+        btnReceiving.setOnClickListener { startActivity(Intent(this, ReceivingActivity::class.java)) }
+        btnMovements.setOnClickListener { startActivity(Intent(this, InventoryMovementsActivity::class.java)) }
 
         loadDrivers()
         loadRoutes()

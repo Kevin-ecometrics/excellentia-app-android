@@ -171,4 +171,57 @@ interface ApiService {
 
     @DELETE("api/routes/{id}/items/{itemId}")
     suspend fun removeRouteItem(@Path("id") id: Int, @Path("itemId") itemId: Int): Response<Unit>
+
+    // ── Devoluciones (Fase 112) ──
+
+    @GET("api/routes/{id}/returns/expected")
+    suspend fun getExpectedReturns(@Path("id") id: Int): Response<ApiResponse<List<RouteReturnExpectedDto>>>
+
+    @POST("api/routes/{id}/returns")
+    suspend fun createReturns(@Path("id") id: Int, @Body request: CreateReturnsRequest): Response<CreateReturnsResponse>
+
+    @GET("api/routes/{id}/returns")
+    suspend fun listReturns(@Path("id") id: Int): Response<ApiResponse<List<RouteReturnDto>>>
+
+    // ── Almacén: recepción, FIFO, sub-inventario, liquidación (Fase 112) ──
+
+    @GET("api/warehouse/warehouses")
+    suspend fun listWarehouses(): Response<ApiResponse<List<WarehouseDto>>>
+
+    @POST("api/warehouse/receipts")
+    suspend fun createReceipt(@Body request: CreateReceiptRequest): Response<CreateReceiptResponse>
+
+    @GET("api/warehouse/lots")
+    suspend fun listLots(
+        @Query("warehouse_id") warehouseId: Int? = null,
+        @Query("product_id") productId: Int? = null,
+        @Query("status") status: String? = null
+    ): Response<ApiResponse<List<ProductLotDto>>>
+
+    @GET("api/warehouse/lots/suggest")
+    suspend fun suggestLots(
+        @Query("product_id") productId: Int,
+        @Query("quantity") quantity: Double,
+        @Query("warehouse_id") warehouseId: Int? = null
+    ): Response<ApiResponse<List<FifoAllocationDto>>>
+
+    @GET("api/warehouse/lots/available-products")
+    suspend fun listAvailableProducts(@Query("warehouse_id") warehouseId: Int? = null): Response<ApiResponse<List<ProductDto>>>
+
+    @POST("api/warehouse/lots/{id}/condition")
+    suspend fun setLotCondition(@Path("id") id: Int, @Body request: LotConditionRequest): Response<Unit>
+
+    @PUT("api/warehouse/lots/{id}")
+    suspend fun updateLot(@Path("id") id: Int, @Body request: UpdateLotRequest): Response<Unit>
+
+    @GET("api/warehouse/movements")
+    suspend fun listMovements(
+        @Query("warehouse_id") warehouseId: Int? = null,
+        @Query("date") date: String? = null,
+        @Query("settled") settled: Boolean? = null
+    ): Response<ApiResponse<List<InventoryMovementDto>>>
+
+    // La liquidación diaria (preview/confirm) pasó a ser admin-only en la
+    // webapp — Android ya no la llama (ver WarehouseActivity/SettlementActivity
+    // removidos a pedido del usuario).
 }

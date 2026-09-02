@@ -929,7 +929,7 @@ class CurrentOrderActivity : BaseActivity() {
                 if (!isOfflinePending) {
                     setStep(2)
                     tvLoadingTitle.text = getString(R.string.loading_generating_invoice)
-                    tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, response.invoiceId ?: "—")
+                    tvLoadingSubtitle.text = getString(R.string.loading_invoice_qb, response.invoiceNumber?.toString() ?: response.invoiceId ?: "—")
                 } else {
                     setStep(2)
                     tvLoadingTitle.text = getString(R.string.loading_saving_offline)

@@ -146,6 +146,7 @@
     <string name="error_load_batch_detail">No se pudo cargar el detalle del pedido</string>
     <string name="label_completed">COMPLETADO</string>
     <string name="label_pending_status">PENDIENTE</string>
+    <string name="label_awaiting_approval">POR APROBAR</string>
     <string name="batch_summary">Pedido #%1$s  ·  %2$d producto(s)</string>
     <string name="label_batch_invoice">Factura #%1$s</string>
     <string name="label_stat_credit">Crédito\na favor</string>
@@ -508,6 +509,10 @@
     <string name="label_removing_item">Quitando…</string>
     <string name="btn_open_preorder">Abrir pre-orden</string>
     <string name="btn_sell_to_customer">Vender</string>
+    <string name="label_selling_active">Seleccionando productos</string>
+    <string name="label_tap_to_add_hint">Tocá un producto de la lista de abajo para agregarlo a la venta</string>
+    <string name="btn_scan_other_product">Escanear otro producto</string>
+    <string name="btn_go_to_sale">Ir a la venta</string>
     <string name="hint_route_name">Nombre de la ruta</string>
     <string name="label_route_date">Fecha</string>
     <string name="label_select_date">Elegir fecha</string>
@@ -532,4 +537,70 @@
     <string name="msg_remove_route_item_confirm">¿Quitar %1$s de la carga de esta ruta? El stock se restaura.</string>
     <string name="msg_route_item_added">%1$d %2$s cargado(s)</string>
     <string name="msg_route_item_added_no_sync">Cargado localmente — no se pudo sincronizar el stock a QuickBooks</string>
+
+    <!-- ── Fase 112 — Almacén: FIFO, recepción, sub-inventario, liquidación, devoluciones ── -->
+    <string name="wh_no_expiration">sin fecha de expiración</string>
+    <string name="wh_lot_summary_line">%1$.2f del lote que vence %2$s</string>
+    <string name="wh_fifo_suggestion_title">Lote sugerido (FIFO)</string>
+    <string name="wh_btn_change_lot">Cambiar lote</string>
+    <string name="wh_no_lots_available">No hay lotes disponibles para este producto</string>
+    <string name="wh_lot_picker_line">Vence %1$s · %2$.2f disponible</string>
+    <string name="wh_choose_lot_title">Elegir lote</string>
+    <string name="wh_item_expiration_suffix"> · vence %1$s</string>
+    <string name="wh_override_badge">lote manual</string>
+    <string name="wh_btn_review_returns">Revisar devoluciones</string>
+
+    <string name="title_receiving">Recepción de productos</string>
+    <string name="wh_receiving_hint">Escaneá cada caja y asignale su fecha de expiración. Confirmá abajo cuando termines.</string>
+    <string name="label_expiration_date">Fecha de expiración</string>
+    <string name="wh_btn_pick_expiration">Asignar fecha de expiración</string>
+    <string name="wh_no_expiration_set">Sin fecha de expiración</string>
+    <string name="title_receiving_qty">Cantidad recibida</string>
+    <string name="wh_btn_save_receipt">Guardar recepción</string>
+    <string name="msg_receipt_saved">Recepción guardada: %1$d línea(s)</string>
+    <string name="error_receipt_failed">No se pudo guardar la recepción (%1$s)</string>
+    <string name="wh_receipt_line_summary">%1$s\n%2$.2f · %3$s</string>
+
+    <string name="title_review_returns">Revisar devoluciones</string>
+    <string name="wh_returns_hint">Contá lo que realmente regresó y asignale la condición a cada producto.</string>
+    <string name="wh_expected_label">Cargado %1$.2f · vendido %2$.2f · esperado de vuelta %3$.2f</string>
+    <string name="wh_condition_good">Buena</string>
+    <string name="wh_condition_damaged">Dañada</string>
+    <string name="wh_condition_expired">Vencida</string>
+    <string name="label_condition">Condición</string>
+    <string name="wh_btn_save_returns">Guardar devoluciones</string>
+    <string name="msg_returns_saved">Devoluciones guardadas</string>
+    <string name="error_returns_failed">No se pudieron guardar las devoluciones (%1$s)</string>
+    <string name="wh_no_expected_items">Esta ruta no tiene nada cargado para devolver</string>
+    <string name="wh_confirm_no_returns_title">¿Nada para devolver?</string>
+    <string name="wh_confirm_no_returns_message">No ingresaste ninguna cantidad. ¿Confirmás que no volvió nada de esta ruta (por ejemplo, se vendió todo)?</string>
+    <string name="wh_btn_sold_out">✓ Vendido por completo</string>
+
+    <!-- Liquidación diaria: pantalla removida de Android, pasó a ser
+         admin-only en la webapp. Se mantienen solo los dos estados
+         (usados por InventoryMovementsActivity para marcar "liquidado"/"borrador"). -->
+    <string name="wh_settlement_status_draft">Borrador</string>
+    <string name="wh_settlement_status_confirmed">Confirmada</string>
+
+    <string name="title_inventory_movements">Sub-inventario</string>
+    <string name="wh_movement_type_receipt">Recepción</string>
+    <string name="wh_movement_type_route_load">Carga de ruta</string>
+    <string name="wh_movement_type_return">Devolución</string>
+    <string name="wh_movement_type_damage">Daño/baja</string>
+    <string name="wh_movement_type_adjustment">Ajuste</string>
+    <string name="wh_no_movements">No hay movimientos registrados</string>
+
+    <string name="wh_btn_receiving">Recepción</string>
+    <string name="wh_btn_movements">Sub-inventario</string>
+    <string name="wh_edit_lot_title">Editar recepción</string>
+    <string name="wh_lot_updated">Recepción actualizada</string>
+    <string name="wh_product_not_received_title">Producto sin recibir</string>
+    <string name="wh_product_not_received_message">%1$s no tiene stock registrado en Recepción. Tenés que recibirlo antes de cargarlo a una ruta.</string>
+    <string name="wh_btn_create_product">Recibirlo</string>
+    <string name="wh_not_enough_stock_title">No hay suficiente stock</string>
+    <string name="wh_not_enough_stock_message">Solo hay %2$.2f de %1$s disponible en el almacén.</string>
+    <string name="wh_btn_from_receiving">Cargar desde recepción</string>
+    <string name="wh_from_receiving_title">Disponible en el almacén</string>
+    <string name="wh_available_product_line">%1$s  ·  %2$.2f disponible</string>
+    <string name="wh_no_available_products">No hay nada recibido disponible por ahora</string>
 </resources>

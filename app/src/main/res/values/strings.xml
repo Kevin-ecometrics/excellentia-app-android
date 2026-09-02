@@ -151,6 +151,7 @@
     <string name="error_load_batch_detail">Could not load order detail</string>
     <string name="label_completed">COMPLETED</string>
     <string name="label_pending_status">PENDING</string>
+    <string name="label_awaiting_approval">AWAITING APPROVAL</string>
     <string name="batch_summary">Order #%1$s  ·  %2$d product(s)</string>
     <string name="label_batch_invoice">Invoice #%1$s</string>
     <string name="label_stat_credit">Credit\navailable</string>
@@ -529,6 +530,10 @@
     <string name="label_removing_item">Removing…</string>
     <string name="btn_open_preorder">Open pre-order</string>
     <string name="btn_sell_to_customer">Sell</string>
+    <string name="label_selling_active">Selecting products</string>
+    <string name="label_tap_to_add_hint">Tap a product from the list below to add it to the sale</string>
+    <string name="btn_scan_other_product">Scan another product</string>
+    <string name="btn_go_to_sale">Go to sale</string>
     <string name="hint_route_name">Route name</string>
     <string name="label_route_date">Date</string>
     <string name="label_select_date">Select date</string>
@@ -553,4 +558,70 @@
     <string name="msg_remove_route_item_confirm">Remove %1$s from this route\'s load? Stock will be restored.</string>
     <string name="msg_route_item_added">%1$d %2$s loaded</string>
     <string name="msg_route_item_added_no_sync">Loaded locally — could not sync stock to QuickBooks</string>
+
+    <!-- ── Phase 112 — Warehouse: FIFO, receiving, sub-inventory, settlement, returns ── -->
+    <string name="wh_no_expiration">no expiration date</string>
+    <string name="wh_lot_summary_line">%1$.2f from lot expiring %2$s</string>
+    <string name="wh_fifo_suggestion_title">Suggested lot (FIFO)</string>
+    <string name="wh_btn_change_lot">Change lot</string>
+    <string name="wh_no_lots_available">No lots available for this product</string>
+    <string name="wh_lot_picker_line">Expires %1$s · %2$.2f available</string>
+    <string name="wh_choose_lot_title">Choose lot</string>
+    <string name="wh_item_expiration_suffix"> · expires %1$s</string>
+    <string name="wh_override_badge">manual lot</string>
+    <string name="wh_btn_review_returns">Review returns</string>
+
+    <string name="title_receiving">Receive products</string>
+    <string name="wh_receiving_hint">Scan each box and set its expiration date. Confirm below when done.</string>
+    <string name="label_expiration_date">Expiration date</string>
+    <string name="wh_btn_pick_expiration">Set expiration date</string>
+    <string name="wh_no_expiration_set">No expiration date</string>
+    <string name="title_receiving_qty">Quantity received</string>
+    <string name="wh_btn_save_receipt">Save receipt</string>
+    <string name="msg_receipt_saved">Receipt saved: %1$d line(s)</string>
+    <string name="error_receipt_failed">Could not save the receipt (%1$s)</string>
+    <string name="wh_receipt_line_summary">%1$s\n%2$.2f · %3$s</string>
+
+    <string name="title_review_returns">Review returns</string>
+    <string name="wh_returns_hint">Count what actually came back and set its condition for each product.</string>
+    <string name="wh_expected_label">Loaded %1$.2f · sold %2$.2f · expected back %3$.2f</string>
+    <string name="wh_condition_good">Good</string>
+    <string name="wh_condition_damaged">Damaged</string>
+    <string name="wh_condition_expired">Expired</string>
+    <string name="label_condition">Condition</string>
+    <string name="wh_btn_save_returns">Save returns</string>
+    <string name="msg_returns_saved">Returns saved</string>
+    <string name="error_returns_failed">Could not save returns (%1$s)</string>
+    <string name="wh_no_expected_items">This route has nothing loaded to return</string>
+    <string name="wh_confirm_no_returns_title">Nothing to return?</string>
+    <string name="wh_confirm_no_returns_message">You didn\'t enter any quantity. Confirm that nothing came back from this route (e.g. everything was sold)?</string>
+    <string name="wh_btn_sold_out">✓ Sold out</string>
+
+    <!-- Liquidación diaria: pantalla removida de Android, pasó a ser
+         admin-only en la webapp. Se mantienen solo los dos estados
+         (usados por InventoryMovementsActivity para marcar "settled"/"draft"). -->
+    <string name="wh_settlement_status_draft">Draft</string>
+    <string name="wh_settlement_status_confirmed">Confirmed</string>
+
+    <string name="title_inventory_movements">Sub-inventory</string>
+    <string name="wh_movement_type_receipt">Receipt</string>
+    <string name="wh_movement_type_route_load">Route load</string>
+    <string name="wh_movement_type_return">Return</string>
+    <string name="wh_movement_type_damage">Damage/write-off</string>
+    <string name="wh_movement_type_adjustment">Adjustment</string>
+    <string name="wh_no_movements">No movements recorded</string>
+
+    <string name="wh_btn_receiving">Receiving</string>
+    <string name="wh_btn_movements">Sub-inventory</string>
+    <string name="wh_edit_lot_title">Edit receipt</string>
+    <string name="wh_lot_updated">Receipt updated</string>
+    <string name="wh_product_not_received_title">Product not received yet</string>
+    <string name="wh_product_not_received_message">%1$s has no stock recorded in Receiving. You need to receive it before loading it onto a route.</string>
+    <string name="wh_btn_create_product">Receive it</string>
+    <string name="wh_not_enough_stock_title">Not enough stock</string>
+    <string name="wh_not_enough_stock_message">Only %2$.2f of %1$s available in the warehouse.</string>
+    <string name="wh_btn_from_receiving">Load from receiving</string>
+    <string name="wh_from_receiving_title">Available in the warehouse</string>
+    <string name="wh_available_product_line">%1$s  ·  %2$.2f available</string>
+    <string name="wh_no_available_products">Nothing received is available right now</string>
 </resources>

@@ -229,6 +229,17 @@
                             android:textSize="11sp" />
                     </LinearLayout>
 
+                    <!-- Fase 112 — alternativa a escanear caja por caja: elegir
+                         de la lista de lo que ya está recibido en el almacén. -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFromReceiving"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/wh_btn_from_receiving"
+                        android:textSize="12sp" />
+
                     <LinearLayout
                         android:id="@+id/layoutAddingItem"
                         android:layout_width="match_parent"
@@ -269,6 +280,18 @@
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp"
                         android:visibility="gone" />
+
+                    <!-- Fase 112 — revisión de devoluciones, solo visible con la
+                         ruta COMPLETED (ver bind() en WarehouseRouteDetailActivity). -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnReviewReturns"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/wh_btn_review_returns"
+                        android:visibility="gone"
+                        app:icon="@drawable/ic_scan" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

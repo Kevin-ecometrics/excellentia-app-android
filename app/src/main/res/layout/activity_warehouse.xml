@@ -70,7 +70,10 @@
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/label_select_date" />
+                android:text="@string/label_select_date"
+                android:textColor="@color/white"
+                app:rippleColor="@color/ex_green_tint"
+                app:strokeColor="@color/white" />
 
             <TextView
                 android:id="@+id/btnClearDateFilter"
@@ -83,6 +86,53 @@
                 android:textSize="12sp"
                 android:visibility="gone" />
         </LinearLayout>
+
+        <!-- Fase 112 — accesos directos a recepción/sub-inventario, acciones de
+             almacén que no son por ruta (a diferencia del resto de esta
+             pantalla). La liquidación diaria (push a QBO) pasó a ser un panel
+             admin-only en la webapp, no vive en Android. -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="4dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp">
+
+                <!-- colorPrimary (texto/borde default de OutlinedButton) es un verde
+                     casi negro, igual que el fondo de esta pantalla — quedaba
+                     invisible. Blanco explícito, mismo criterio que btnNewRoute
+                     (toolbar) para botones sobre este fondo oscuro. -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnReceiving"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/wh_btn_receiving"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    app:rippleColor="@color/ex_green_tint"
+                    app:strokeColor="@color/white" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnMovements"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/wh_btn_movements"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    app:rippleColor="@color/ex_green_tint"
+                    app:strokeColor="@color/white" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
 
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipeRefresh"

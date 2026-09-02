@@ -149,7 +149,63 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Loaded (read-only) -->
+            <!-- Acciones de venta "por scratch" — solo visibles mientras hay una
+                 parada CUSTOMER activa (ver isSellingStop() en la Activity).
+                 En card (fondo blanco), igual que el resto de las secciones de
+                 esta pantalla — NO como LinearLayout suelto directo sobre el
+                 fondo verde de la raíz, que es lo que hace invisible un
+                 OutlinedButton en @color/primary (mismo valor que
+                 @color/background, ver Fix 2026-08-31 en PROGRESS.md). -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardSellActions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/surface"
+                app:cardCornerRadius="0dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/ex_line"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnScanOther"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/family_after"
+                        android:text="@string/btn_scan_other_product"
+                        android:textAllCaps="false"
+                        android:textColor="@color/primary"
+                        android:textSize="12sp"
+                        app:cornerRadius="0dp"
+                        app:strokeColor="@color/primary" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnGoToSale"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/family_after"
+                        android:text="@string/btn_go_to_sale"
+                        android:textAllCaps="false"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        app:backgroundTint="@color/primary"
+                        app:cornerRadius="0dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Loaded (read-only fuera de modo selección; tocable con rojo/verde
+                 mientras hay una venta "por scratch" en curso) -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

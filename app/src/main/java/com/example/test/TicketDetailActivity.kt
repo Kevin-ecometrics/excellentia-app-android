@@ -77,10 +77,11 @@ class TicketDetailActivity : AppCompatActivity() {
         val grandTotal      = orders.sumOf { it.total }
         val totalQty        = orders.sumOf { it.quantity }
         var orderStatus = when {
-            orders.all { it.status == "SENT" }    -> "SENT"
-            orders.any { it.status == "PENDING" } -> "PENDING"
-            orders.any { it.status == "FAILED" }  -> "FAILED"
-            else                                  -> null
+            orders.all { it.status == "SENT" }              -> "SENT"
+            orders.any { it.status == "FAILED" }             -> "FAILED"
+            orders.any { it.status == "AWAITING_APPROVAL" }  -> "AWAITING_APPROVAL"
+            orders.any { it.status == "PENDING" }            -> "PENDING"
+            else                                              -> null
         }
 
         signatureForReprint = intent.getStringExtra("signature")
@@ -239,9 +240,12 @@ class TicketDetailActivity : AppCompatActivity() {
         }
 
         // Botón reintentar envío a QuickBooks — solo para batches remotos que
-        // no terminaron SENT (PENDING o FAILED).
+        // no terminaron SENT (PENDING o FAILED). AWAITING_APPROVAL queda
+        // afuera a propósito: todavía no se intentó nada, está esperando al
+        // admin — el backend (retryBatchSync) ya rechaza esto con 400, pero
+        // ni mostrar el botón evita el viaje redondo y la confusión.
         val btnRetryQbo = findViewById<MaterialButton>(R.id.btnRetryQbo)
-        if (batchId.isNotBlank() && orderStatus != null && orderStatus != "SENT") {
+        if (batchId.isNotBlank() && orderStatus != null && orderStatus != "SENT" && orderStatus != "AWAITING_APPROVAL") {
             btnRetryQbo.visibility = android.view.View.VISIBLE
             btnRetryQbo.setOnClickListener {
                 btnRetryQbo.isEnabled = false
@@ -500,11 +504,13 @@ class TicketDetailActivity : AppCompatActivity() {
         if (status != null) {
             addSep(heavy = false)
             val statusColor = when (status) {
-                "SENT"    -> Color.parseColor("#2E7D32")
-                "PENDING" -> Color.parseColor("#E65100")
-                else      -> Color.parseColor("#B71C1C")
+                "SENT"              -> Color.parseColor("#2E7D32")
+                "PENDING"           -> Color.parseColor("#E65100")
+                "AWAITING_APPROVAL" -> Color.parseColor("#023334")
+                else                -> Color.parseColor("#B71C1C")
             }
-            addLine(status, bold = true, sizeSp = 12f, color = statusColor)
+            val statusLabel = if (status == "AWAITING_APPROVAL") getString(R.string.label_awaiting_approval) else status
+            addLine(statusLabel, bold = true, sizeSp = 12f, color = statusColor)
         }
     }
 

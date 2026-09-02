@@ -15,8 +15,11 @@ import com.example.test.data.RouteItemDto
 import com.example.test.data.RouteRequest
 import com.example.test.data.RouteStopDto
 import com.example.test.data.UpdateStopStatusRequest
+import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
+import com.example.test.data.repository.OrderRepository
+import com.example.test.data.repository.ProductRepository
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -40,7 +43,12 @@ class MyRouteDetailActivity : BaseActivity() {
     private lateinit var tvNoStops: TextView
     private lateinit var layoutItems: LinearLayout
     private lateinit var tvNoItems: TextView
+    private lateinit var cardSellActions: View
+    private lateinit var btnScanOther: MaterialButton
+    private lateinit var btnGoToSale: MaterialButton
     private lateinit var securePrefs: SecurePreferences
+    private lateinit var productRepository: ProductRepository
+    private lateinit var orderRepository: OrderRepository
 
     private var routeId: Int = -1
 
@@ -59,6 +67,9 @@ class MyRouteDetailActivity : BaseActivity() {
 
         securePrefs = SecurePreferences(this)
         RetrofitClient.initialize(securePrefs.getBackendUrl(), securePrefs, this)
+        val db = AppDatabase.getInstance(this)
+        productRepository = ProductRepository(db, securePrefs)
+        orderRepository = OrderRepository(db, securePrefs)
 
         toolbar        = findViewById(R.id.toolbar)
         tvRouteDate    = findViewById(R.id.tvRouteDate)
@@ -69,8 +80,15 @@ class MyRouteDetailActivity : BaseActivity() {
         tvNoStops      = findViewById(R.id.tvNoStops)
         layoutItems    = findViewById(R.id.layoutItems)
         tvNoItems      = findViewById(R.id.tvNoItems)
+        cardSellActions = findViewById(R.id.cardSellActions)
+        btnScanOther   = findViewById(R.id.btnScanOther)
+        btnGoToSale    = findViewById(R.id.btnGoToSale)
 
         toolbar.setNavigationOnClickListener { finish() }
+        // Escape hatch para un producto que no esté en el manifiesto de la
+        // ruta — sin CLEAR_TOP, así "atrás" vuelve a esta pantalla.
+        btnScanOther.setOnClickListener { startActivity(Intent(this, MainActivity::class.java)) }
+        btnGoToSale.setOnClickListener { startActivity(Intent(this, CurrentOrderActivity::class.java)) }
 
         loadDetail()
     }
@@ -85,7 +103,11 @@ class MyRouteDetailActivity : BaseActivity() {
             try {
                 val resp = RetrofitClient.getApi().getRoute(routeId)
                 if (resp.isSuccessful) {
-                    resp.body()?.data?.let { bind(it) }
+                    val pendingBarcodes = orderRepository.getPendingOrders()
+                        .filter { !it.isCredit }
+                        .map { it.barcode }
+                        .toSet()
+                    resp.body()?.data?.let { bind(it, pendingBarcodes) }
                 } else {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
                 }
@@ -95,7 +117,16 @@ class MyRouteDetailActivity : BaseActivity() {
         }
     }
 
-    private fun bind(d: RouteDetailDto) {
+    // Parada CUSTOMER (venta "por scratch", sin pre-orden) cuya venta está en
+    // curso ahora mismo — el cliente/parada activos quedan en SecurePreferences
+    // desde que se toca "Vender" (activateCustomerAndSell) hasta que la venta
+    // se manda o se abandona. Solo puede haber una activa a la vez.
+    private fun isSellingStop(stop: RouteStopDto) =
+        stop.stopType == "CUSTOMER" &&
+        securePrefs.getActiveRouteId() == routeId &&
+        securePrefs.getActiveStopId() == stop.id
+
+    private fun bind(d: RouteDetailDto, pendingBarcodes: Set<String>) {
         toolbar.title = d.name
         tvRouteDate.text = d.scheduledDate.take(10)
 
@@ -144,8 +175,11 @@ class MyRouteDetailActivity : BaseActivity() {
             else -> btnRouteAction.visibility = View.GONE
         }
 
+        val sellingActive = d.stops.any { isSellingStop(it) }
+        cardSellActions.visibility = if (sellingActive) View.VISIBLE else View.GONE
+
         renderStops(d.stops, d.status)
-        renderItems(d.items)
+        renderItems(d.items, sellingActive, pendingBarcodes)
     }
 
     private fun confirmRouteTransition(newStatus: String) {
@@ -216,6 +250,7 @@ class MyRouteDetailActivity : BaseActivity() {
             val btnAction = row.findViewById<MaterialButton>(R.id.btnStopAction)
             val resolved = stop.status == "DELIVERED" || stop.status == "SKIPPED"
             val canAct = routeStatus == "PLANNED" || routeStatus == "IN_PROGRESS"
+            val selling = isSellingStop(stop)
 
             // Si la parada tiene venta asociada (pre-orden o cliente sin
             // nada armado), "Entregado" ya no es un botón manual — se marca
@@ -225,7 +260,7 @@ class MyRouteDetailActivity : BaseActivity() {
             // cliente no compró). Un pedido BATCH ya está facturado — no hay
             // venta que disparar acá, sigue siendo 100% manual como antes.
             val hasSaleAction = stop.preOrder != null || stop.stopType == "CUSTOMER"
-            if (!resolved && canAct) {
+            if (!resolved && canAct && !selling) {
                 when {
                     stop.preOrder != null -> {
                         btnAction.visibility = View.VISIBLE
@@ -249,7 +284,16 @@ class MyRouteDetailActivity : BaseActivity() {
                 btnAction.visibility = View.GONE
             }
 
-            if (resolved || !canAct) {
+            if (selling) {
+                // Venta "por scratch" en curso para esta parada — las
+                // acciones reales (tocar productos / escanear / ir a la
+                // venta) viven en la sección de más abajo, no en esta fila.
+                tvStatus.visibility = View.VISIBLE
+                layoutActions.visibility = View.GONE
+                tvStatus.text = getString(R.string.label_selling_active)
+                tvStatus.setBackgroundResource(R.drawable.bg_chip_pending)
+                tvStatus.setTextColor(getColor(R.color.primary))
+            } else if (resolved || !canAct) {
                 tvStatus.visibility = View.VISIBLE
                 layoutActions.visibility = View.GONE
                 when (stop.status) {
@@ -298,9 +342,12 @@ class MyRouteDetailActivity : BaseActivity() {
             // Se marca "Entregado" recién cuando el pedido se manda de
             // verdad — ver CurrentOrderActivity.printFirstTicketThenAskPayment().
             securePrefs.saveActiveRouteStop(routeId, stopId)
-            startActivity(Intent(this@MyRouteDetailActivity, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-            })
+            // Ya no se navega a MainActivity — se queda acá, con la lista de
+            // productos cargados en esta ruta ahora tocable (rojo/verde según
+            // esté o no en el carrito). "Escanear otro producto" sigue
+            // disponible para lo que no esté en esa lista.
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_tap_to_add_hint), Snackbar.LENGTH_LONG).show()
+            loadDetail()
         }
     }
 
@@ -343,7 +390,42 @@ class MyRouteDetailActivity : BaseActivity() {
         }
     }
 
-    private fun renderItems(items: List<RouteItemDto>) {
+    // Venta "por scratch": tocar un producto ya cargado en la ruta abre el
+    // mismo ProductDetailActivity que abriría un escaneo — mismos extras que
+    // arma MainActivity.openDetail(), incluido el cliente activo ya seteado
+    // por activateCustomerAndSell(). Si el catálogo local no tiene el
+    // barcode cacheado (raro — viene del mismo backend), se avisa por
+    // Snackbar en vez de replicar acá el diálogo completo de "no encontrado"
+    // de MainActivity — para ese caso está "Escanear otro producto".
+    private fun openProductForBarcode(barcode: String) {
+        lifecycleScope.launch {
+            val product = productRepository.findByBarcode(barcode)
+            if (product == null) {
+                Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_product_not_found, barcode), Snackbar.LENGTH_LONG).show()
+                return@launch
+            }
+            val initialQty = if (product.qty > 0) product.qty.toDouble()
+                             else product.weightPerUnit?.takeIf { it > 0 } ?: 1.0
+            startActivity(
+                Intent(this@MyRouteDetailActivity, ProductDetailActivity::class.java).apply {
+                    putExtra("BARCODE", barcode)
+                    putExtra("PRODUCT_NAME", product.name)
+                    putExtra("SHORT_NAME", product.shortName)
+                    putExtra("PRODUCT_PRICE", product.price)
+                    putExtra("QUANTITY", initialQty)
+                    putExtra("STOCK", product.stock)
+                    putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
+                    putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())
+                    putExtra("UNIT", product.unit)
+                    putExtra("CASE_QTY", product.caseQty ?: 0)
+                    putExtra("QB_ITEM_ID", product.qbItemId)
+                    product.qbActive?.let { putExtra("QB_ACTIVE", it) }
+                }
+            )
+        }
+    }
+
+    private fun renderItems(items: List<RouteItemDto>, sellingActive: Boolean, pendingBarcodes: Set<String>) {
         layoutItems.removeAllViews()
         if (items.isEmpty()) {
             tvNoItems.visibility = View.VISIBLE
@@ -358,6 +440,17 @@ class MyRouteDetailActivity : BaseActivity() {
                 (item.sku ?: item.barcode ?: "—") + (item.unit?.let { " · $it" } ?: "")
             row.findViewById<TextView>(R.id.tvItemQty).text = item.quantity.toString()
             row.findViewById<View>(R.id.btnRemoveItem).visibility = View.GONE
+
+            val barcode = item.barcode
+            if (sellingActive && barcode != null) {
+                val inCart = pendingBarcodes.contains(barcode)
+                row.setBackgroundColor(getColor(if (inCart) R.color.success_light else R.color.error_light))
+                row.setOnClickListener { openProductForBarcode(barcode) }
+            } else {
+                row.background = null
+                row.setOnClickListener(null)
+            }
+
             layoutItems.addView(row)
         }
     }

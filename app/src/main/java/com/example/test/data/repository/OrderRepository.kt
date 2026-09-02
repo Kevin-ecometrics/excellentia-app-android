@@ -154,6 +154,13 @@ class OrderRepository(
         checkNumber: String? = null,
         applyCredit: Double? = null
     ): Result<BatchResponse> = withContext(Dispatchers.IO) {
+        // route_id/stop_id: si hay una venta "por scratch" en curso (ver
+        // MyRouteDetailActivity.activateCustomerAndSell()), estos ya están
+        // seteados en SecurePreferences en este punto — recién se limpian
+        // en markRouteStopDeliveredIfAny(), DESPUÉS de que este envío tenga
+        // éxito. El backend los usa para no descontar stock dos veces (ya
+        // se descontó al cargar la ruta) y para vincular la venta a la
+        // parada (createBatch, orderController.ts).
         val request = BatchRequest(
             items = items,
             customerId = customerId,
@@ -162,7 +169,9 @@ class OrderRepository(
             damageItems = damageItems.ifEmpty { null },
             paymentMethod = paymentMethod,
             checkNumber = checkNumber,
-            applyCredit = applyCredit
+            applyCredit = applyCredit,
+            routeId = securePrefs.getActiveRouteId(),
+            stopId = securePrefs.getActiveStopId()
         )
 
         // Si ya estamos en modo offline, guardar directamente sin intentar el API
