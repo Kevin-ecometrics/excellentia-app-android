@@ -666,7 +666,11 @@ data class AddRouteItemRequest(
     val quantity: Int = 1,
     // Override manual de FIFO — si se omite, el backend elige el/los lote(s)
     // (Fase 112).
-    @SerializedName("lot_id") val lotId: Int? = null
+    @SerializedName("lot_id") val lotId: Int? = null,
+    // "STOCK" carga directo de products.stock, sin pasar por ningún lote —
+    // para stock real que nunca pasó por Recepción. Default null = "LOT",
+    // mismo comportamiento de siempre.
+    val source: String? = null
 )
 
 data class CreateRouteResponse(

@@ -416,21 +416,41 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     }
 
     private fun showQuantityDialog(product: ProductDto) {
+        val density = resources.displayMetrics.density
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+        }
         val etQty = EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
             setText("1")
             selectAll()
         }
+        // Alternativa a cargar de un lote (Recepción/FIFO): usar directo el
+        // stock general del producto — para stock real que nunca pasó por
+        // Recepción y por eso no tiene ningún lote que lo respalde.
+        val cbUseStock = android.widget.CheckBox(this).apply {
+            text = getString(R.string.wh_use_stock_checkbox, product.stock)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (12 * density).toInt()
+            }
+        }
+        layout.addView(etQty)
+        layout.addView(cbUseStock)
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_load_quantity))
             .setMessage(product.name)
-            .setView(etQty)
+            .setView(layout)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 // El modal se cierra al toque — el aviso de carga va en la
                 // pantalla (junto a "Cargado en el camión"), no acá, para no
                 // bloquear al almacenista si viene escaneando varios seguidos.
                 val qty = etQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
-                fetchFifoSuggestionThenAdd(product, qty)
+                if (cbUseStock.isChecked) {
+                    addRouteItem(product, qty, lotId = null, source = "STOCK")
+                } else {
+                    fetchFifoSuggestionThenAdd(product, qty)
+                }
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
@@ -495,17 +515,19 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // código de barras) — en ese caso se manda product_id, que el backend
     // acepta como alternativa (ver addRouteItem en routeController.ts).
     // lotId != null es el override manual de FIFO (showLotPicker); null deja
-    // que el backend elija.
-    private fun addRouteItem(product: ProductDto, quantity: Int, lotId: Int?) {
+    // que el backend elija. source = "STOCK" salta lotes por completo y
+    // descuenta products.stock directo (checkbox "Usar stock general" en
+    // showQuantityDialog) — lotId se ignora en ese caso.
+    private fun addRouteItem(product: ProductDto, quantity: Int, lotId: Int?, source: String? = null) {
         pendingItemLoads++
         tvAddingItemLabel.text = getString(R.string.label_adding_item)
         layoutAddingItem.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val request = if (product.barcode != null)
-                    AddRouteItemRequest(barcode = product.barcode, quantity = quantity, lotId = lotId)
+                    AddRouteItemRequest(barcode = product.barcode, quantity = quantity, lotId = lotId, source = source)
                 else
-                    AddRouteItemRequest(productId = product.id, quantity = quantity, lotId = lotId)
+                    AddRouteItemRequest(productId = product.id, quantity = quantity, lotId = lotId, source = source)
                 val resp = RetrofitClient.getApi().addRouteItem(routeId, request)
                 if (resp.isSuccessful) {
                     val body = resp.body()

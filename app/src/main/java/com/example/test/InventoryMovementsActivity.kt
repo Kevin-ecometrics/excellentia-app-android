@@ -293,8 +293,21 @@ class InventoryMovementsActivity : BaseActivity() {
                     setIconSize(16.dp)
                     setOnClickListener { showEditLotDialog(lot) }
                 }
+                // "Devolver" — para stock que se recibió pero no hacía falta.
+                // A diferencia de Editar (corrige un error de tipeo), esto es
+                // una acción directa de un tap con su propia confirmación,
+                // mismo mecanismo que Editar por abajo (updateLot) pero
+                // siempre baja a 0 lo que queda sin usar del lote.
+                val btnReturn = MaterialButton(this, null, com.google.android.material.R.attr.materialIconButtonStyle).apply {
+                    layoutParams = LinearLayout.LayoutParams(32.dp, 32.dp).apply { marginStart = 2.dp }
+                    setIconResource(R.drawable.ic_delete)
+                    setIconSize(16.dp)
+                    setIconTintResource(R.color.red)
+                    setOnClickListener { confirmReturnLot(lot) }
+                }
                 lotRow.addView(tvLot)
                 lotRow.addView(btnEdit)
+                lotRow.addView(btnReturn)
                 col.addView(lotRow)
             }
 
@@ -462,6 +475,23 @@ class InventoryMovementsActivity : BaseActivity() {
             card.addView(textCol)
             layoutMovements.addView(card)
         }
+    }
+
+    // Devolver = bajar a 0 lo que queda sin usar de este lote (nunca lo que
+    // ya se cargó a una ruta). updateLot rechaza si quantity < consumed
+    // (received_qty - remaining_qty) — mandar exactamente ese "consumed" en
+    // vez de 0 deja remaining_qty en 0 sin tocar lo ya asignado, así que el
+    // 409 de "ya se asignó a una ruta" no debería poder dispararse desde acá.
+    private fun confirmReturnLot(lot: ProductLotDto) {
+        val consumed = lot.receivedQty - lot.remainingQty
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.wh_return_lot_title))
+            .setMessage(getString(R.string.wh_return_lot_confirm, lot.remainingQty, lot.productName ?: lot.sku ?: "#${lot.productId}"))
+            .setPositiveButton(getString(R.string.wh_btn_return_lot)) { _, _ ->
+                updateLot(lot.id, consumed, lot.expirationDate?.take(10))
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 
     private fun showEditLotDialog(lot: ProductLotDto) {

@@ -552,6 +552,10 @@
     <string name="wh_returns_reviewed_badge">✓ Devoluciones revisadas</string>
     <string name="wh_returns_pending_review_badge">⚠ Falta revisar devoluciones</string>
     <string name="wh_returns_already_reviewed_banner">Devoluciones ya revisadas — esta ruta quedó bloqueada, no admite más cambios</string>
+    <string name="wh_use_stock_checkbox">Usar stock general (tengo %1$d)</string>
+    <string name="wh_btn_return_lot">Devolver</string>
+    <string name="wh_return_lot_title">Devolver lote</string>
+    <string name="wh_return_lot_confirm">Vas a devolver %1$.2f de %2$s — esto lo va a restar del stock. No se puede deshacer.</string>
 
     <string name="title_receiving">Recepción de productos</string>
     <string name="wh_receiving_hint">Escaneá cada caja y asignale su fecha de expiración. Confirmá abajo cuando termines.</string>

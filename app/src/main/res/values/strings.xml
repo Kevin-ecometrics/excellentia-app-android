@@ -573,6 +573,10 @@
     <string name="wh_returns_reviewed_badge">✓ Returns reviewed</string>
     <string name="wh_returns_pending_review_badge">⚠ Review returns</string>
     <string name="wh_returns_already_reviewed_banner">Returns already reviewed — this route is now locked, no more edits</string>
+    <string name="wh_use_stock_checkbox">Use general stock (have %1$d)</string>
+    <string name="wh_btn_return_lot">Return</string>
+    <string name="wh_return_lot_title">Return lot</string>
+    <string name="wh_return_lot_confirm">You\'re about to return %1$.2f of %2$s — this will subtract it from stock. This can\'t be undone.</string>
 
     <string name="title_receiving">Receive products</string>
     <string name="wh_receiving_hint">Scan each box and set its expiration date. Confirm below when done.</string>
