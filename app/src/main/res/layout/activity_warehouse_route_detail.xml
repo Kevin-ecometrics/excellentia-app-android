@@ -106,6 +106,23 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Fase 112 — banner "ya revisada": aparece cuando
+                 returns_reviewed_at != null y explica por qué el resto de la
+                 pantalla quedó deshabilitado (ver bind() en
+                 WarehouseRouteDetailActivity). -->
+            <TextView
+                android:id="@+id/tvReturnsReviewedBanner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_chip_sent"
+                android:padding="12dp"
+                android:text="@string/wh_returns_already_reviewed_banner"
+                android:textColor="@color/success"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
             <!-- Stops card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

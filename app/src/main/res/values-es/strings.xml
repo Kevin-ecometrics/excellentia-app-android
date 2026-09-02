@@ -549,6 +549,9 @@
     <string name="wh_item_expiration_suffix"> · vence %1$s</string>
     <string name="wh_override_badge">lote manual</string>
     <string name="wh_btn_review_returns">Revisar devoluciones</string>
+    <string name="wh_returns_reviewed_badge">✓ Devoluciones revisadas</string>
+    <string name="wh_returns_pending_review_badge">⚠ Falta revisar devoluciones</string>
+    <string name="wh_returns_already_reviewed_banner">Devoluciones ya revisadas — esta ruta quedó bloqueada, no admite más cambios</string>
 
     <string name="title_receiving">Recepción de productos</string>
     <string name="wh_receiving_hint">Escaneá cada caja y asignale su fecha de expiración. Confirmá abajo cuando termines.</string>
@@ -583,6 +586,14 @@
     <string name="wh_settlement_status_confirmed">Confirmada</string>
 
     <string name="title_inventory_movements">Sub-inventario</string>
+    <string name="wh_view_available">Disponible</string>
+    <string name="wh_view_history">Historial</string>
+    <string name="wh_available_hint">Stock recibido y activo en el almacén, ordenado por vencimiento más próximo</string>
+    <string name="wh_available_qty_badge">%1$.2f disponible</string>
+    <string name="wh_lot_available_badge">Disponible</string>
+    <string name="wh_route_ref">Ruta #%1$d</string>
+    <string name="wh_no_movements_for_filter">No hay movimientos para este filtro</string>
+    <string name="wh_yesterday">Ayer</string>
     <string name="wh_movement_type_receipt">Recepción</string>
     <string name="wh_movement_type_route_load">Carga de ruta</string>
     <string name="wh_movement_type_return">Devolución</string>

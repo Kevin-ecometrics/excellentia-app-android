@@ -51,6 +51,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     private lateinit var btnManualEntry: MaterialButton
     private lateinit var btnFromReceiving: MaterialButton
     private lateinit var btnReviewReturns: MaterialButton
+    private lateinit var tvReturnsReviewedBanner: TextView
     private lateinit var securePrefs: SecurePreferences
 
     private var routeId: Int = -1
@@ -150,6 +151,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         btnManualEntry = findViewById(R.id.btnManualEntry)
         btnFromReceiving = findViewById(R.id.btnFromReceiving)
         btnReviewReturns = findViewById(R.id.btnReviewReturns)
+        tvReturnsReviewedBanner = findViewById(R.id.tvReturnsReviewedBanner)
 
         toolbar.setNavigationOnClickListener { finish() }
         btnAddStop.setOnClickListener {
@@ -171,7 +173,19 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         DataWedgeScanner.register(this, dwReceiver)
+        // btnReviewReturns abre RouteReturnsActivity con un startActivity() simple
+        // (no un ActivityResultContract) — sin este refresh, volver de guardar la
+        // revisión dejaba esta pantalla con el estado viejo (botones todavía
+        // habilitados) hasta salir y reentrar a mano.
+        loadDetail()
     }
+
+    // CANCELLED sigue bloqueando todo como antes; returnsReviewedAt != null es
+    // el caso nuevo — una vez que el almacenista contó lo que volvió del
+    // camión, la carga/paradas de esta ruta quedan congeladas (mismo criterio
+    // que ya aplica el backend en addRouteItem/removeRouteItem/addStop/etc).
+    private fun isLocked(d: RouteDetailDto?): Boolean =
+        d != null && (d.status == "CANCELLED" || d.returnsReviewedAt != null)
 
     override fun onPause() {
         super.onPause()
@@ -231,12 +245,22 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             tvRouteNotes.visibility = View.GONE
         }
 
-        val locked = d.status == "CANCELLED"
+        val reviewed = d.returnsReviewedAt != null
+        val locked = isLocked(d)
+        tvReturnsReviewedBanner.visibility = if (reviewed) View.VISIBLE else View.GONE
         btnAddStop.isEnabled = !locked
         btnManualEntry.isEnabled = !locked
+        btnFromReceiving.isEnabled = !locked
         // Fase 112 — revisar devoluciones solo tiene sentido con el camión ya
         // de vuelta (COMPLETED); antes no hay nada físico que contar todavía.
+        // Ya revisada: se deja visible pero deshabilitada (en vez de ocultarla)
+        // para que quede claro que el paso ya se hizo, no solo que desapareció.
         btnReviewReturns.visibility = if (d.status == "COMPLETED") View.VISIBLE else View.GONE
+        btnReviewReturns.isEnabled = !reviewed
+        btnReviewReturns.text = if (reviewed)
+            getString(R.string.wh_returns_reviewed_badge)
+        else
+            getString(R.string.wh_btn_review_returns)
 
         renderStops(d.stops)
         renderItems(d.items)
@@ -249,7 +273,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             return
         }
         tvNoStops.visibility = View.GONE
-        val locked = detail?.status == "CANCELLED"
+        val locked = isLocked(detail)
         val sorted = stops.sortedBy { it.position }
         val inflater = LayoutInflater.from(this)
         for ((i, stop) in sorted.withIndex()) {
@@ -351,6 +375,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             return
         }
         tvNoItems.visibility = View.GONE
+        val locked = isLocked(detail)
         val inflater = LayoutInflater.from(this)
         for (item in items) {
             val row = inflater.inflate(R.layout.item_route_item, layoutItems, false)
@@ -363,7 +388,10 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             val overridePart = if (item.usedOverride == 1) " · ${getString(R.string.wh_override_badge)}" else ""
             row.findViewById<TextView>(R.id.tvItemMeta).text = metaBase + expPart + overridePart
             row.findViewById<TextView>(R.id.tvItemQty).text = item.quantity.toString()
-            row.findViewById<View>(R.id.btnRemoveItem).setOnClickListener { confirmRemoveItem(item) }
+            val btnRemoveItem = row.findViewById<View>(R.id.btnRemoveItem)
+            btnRemoveItem.isEnabled = !locked
+            btnRemoveItem.alpha = if (locked) 0.3f else 1f
+            btnRemoveItem.setOnClickListener { confirmRemoveItem(item) }
             layoutItems.addView(row)
         }
     }
@@ -372,7 +400,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
 
     private fun onBarcodeScanned(barcode: String) {
         val d = detail ?: return
-        if (d.status == "CANCELLED") return
+        if (isLocked(d)) return
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().getProductByBarcode(barcode)

@@ -570,6 +570,9 @@
     <string name="wh_item_expiration_suffix"> · expires %1$s</string>
     <string name="wh_override_badge">manual lot</string>
     <string name="wh_btn_review_returns">Review returns</string>
+    <string name="wh_returns_reviewed_badge">✓ Returns reviewed</string>
+    <string name="wh_returns_pending_review_badge">⚠ Review returns</string>
+    <string name="wh_returns_already_reviewed_banner">Returns already reviewed — this route is now locked, no more edits</string>
 
     <string name="title_receiving">Receive products</string>
     <string name="wh_receiving_hint">Scan each box and set its expiration date. Confirm below when done.</string>
@@ -604,6 +607,14 @@
     <string name="wh_settlement_status_confirmed">Confirmed</string>
 
     <string name="title_inventory_movements">Sub-inventory</string>
+    <string name="wh_view_available">Available</string>
+    <string name="wh_view_history">History</string>
+    <string name="wh_available_hint">Stock received and active in the warehouse, closest expiration first</string>
+    <string name="wh_available_qty_badge">%1$.2f available</string>
+    <string name="wh_lot_available_badge">Available</string>
+    <string name="wh_route_ref">Route #%1$d</string>
+    <string name="wh_no_movements_for_filter">No movements for this filter</string>
+    <string name="wh_yesterday">Yesterday</string>
     <string name="wh_movement_type_receipt">Receipt</string>
     <string name="wh_movement_type_route_load">Route load</string>
     <string name="wh_movement_type_return">Return</string>

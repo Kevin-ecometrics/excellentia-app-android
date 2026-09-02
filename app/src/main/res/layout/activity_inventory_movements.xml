@@ -39,26 +39,195 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingHorizontal="16dp"
                 android:paddingTop="12dp"
                 android:paddingBottom="32dp">
 
-                <LinearLayout
-                    android:id="@+id/layoutMovements"
+                <!-- Disponible/Historial — antes esta pantalla era un único log de
+                     movimientos y "qué tengo disponible ahora" había que inferirlo
+                     mirando de a un ícono de editar por vez. "Disponible" es la
+                     pestaña por default: contesta directo la pregunta que más
+                     importa día a día. -->
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipGroupView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:paddingHorizontal="16dp"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
 
-                <TextView
-                    android:id="@+id/tvNoMovements"
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipViewAvailable"
+                        style="@style/Widget.Excellentia.Chip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/wh_view_available" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipViewHistory"
+                        style="@style/Widget.Excellentia.Chip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/wh_view_history" />
+
+                </com.google.android.material.chip.ChipGroup>
+
+                <!-- ── Disponible: stock recibido y activo, agrupado por producto ── -->
+                <LinearLayout
+                    android:id="@+id/sectionAvailable"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:paddingTop="64dp"
-                    android:text="@string/wh_no_movements"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="15sp"
-                    android:visibility="gone" />
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp"
+                        android:text="@string/wh_available_hint"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+
+                    <LinearLayout
+                        android:id="@+id/layoutAvailable"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvNoAvailable"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:paddingTop="64dp"
+                        android:text="@string/wh_no_available_products"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="15sp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+                <!-- ── Historial: log completo de movimientos, filtrable por tipo ── -->
+                <LinearLayout
+                    android:id="@+id/sectionHistory"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Filtro por fecha — el backend ya soportaba ?date= pero
+                         Android nunca lo usaba: sin esto, el historial se corta en
+                         las últimas 500 filas sin ninguna forma de ir a un día
+                         anterior. -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnMovementDateFilter"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:paddingHorizontal="10dp"
+                            android:text="@string/label_select_date"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/btnMovementClearDate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:padding="4dp"
+                            android:text="@string/label_all_dates"
+                            android:textColor="@color/primary"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chipGroupType"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTypeAll"
+                            style="@style/Widget.Excellentia.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="@string/filter_all" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTypeReceipt"
+                            style="@style/Widget.Excellentia.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/wh_movement_type_receipt" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTypeRouteLoad"
+                            style="@style/Widget.Excellentia.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/wh_movement_type_route_load" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTypeReturn"
+                            style="@style/Widget.Excellentia.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/wh_movement_type_return" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTypeDamage"
+                            style="@style/Widget.Excellentia.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/wh_movement_type_damage" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTypeAdjustment"
+                            style="@style/Widget.Excellentia.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/wh_movement_type_adjustment" />
+
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <LinearLayout
+                        android:id="@+id/layoutMovements"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvNoMovements"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:paddingTop="64dp"
+                        android:text="@string/wh_no_movements"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="15sp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
 
             </LinearLayout>
         </ScrollView>

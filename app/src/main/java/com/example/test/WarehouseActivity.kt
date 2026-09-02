@@ -201,6 +201,25 @@ class WarehouseActivity : BaseActivity() {
         view.findViewById<TextView>(R.id.tvRouteMeta).text =
             "${route.scheduledDate.take(10)}  ·  $driverLabel  ·  ${getString(R.string.label_stops_count, route.stopCount)}"
 
+        // Solo tiene sentido para rutas COMPLETED — antes de eso no hay nada
+        // físico que revisar todavía (mismo criterio que btnReviewReturns en
+        // WarehouseRouteDetailActivity). Antes de este indicador, una ruta
+        // COMPLETED sin revisar era indistinguible de una ya revisada en esta
+        // lista — había que entrar a cada una para saberlo.
+        val tvReturnsReview = view.findViewById<TextView>(R.id.tvReturnsReviewStatus)
+        if (route.status == "COMPLETED") {
+            val reviewed = route.returnsReviewedAt != null
+            tvReturnsReview.visibility = View.VISIBLE
+            tvReturnsReview.text = if (reviewed)
+                getString(R.string.wh_returns_reviewed_badge)
+            else
+                getString(R.string.wh_returns_pending_review_badge)
+            tvReturnsReview.setBackgroundResource(if (reviewed) R.drawable.bg_chip_sent else R.drawable.bg_chip_pending)
+            tvReturnsReview.setTextColor(getColor(if (reviewed) R.color.success else R.color.ex_warning))
+        } else {
+            tvReturnsReview.visibility = View.GONE
+        }
+
         view.setOnClickListener {
             startActivity(Intent(this, WarehouseRouteDetailActivity::class.java).apply {
                 putExtra("route_id", route.id)

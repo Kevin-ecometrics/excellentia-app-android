@@ -536,7 +536,12 @@ data class RouteDto(
     @SerializedName("driver_name") val driverName: String? = null,
     val status: String,
     val notes: String? = null,
-    @SerializedName("stop_count") val stopCount: Int = 0
+    @SerializedName("stop_count") val stopCount: Int = 0,
+    // Fase 112 — null mientras nadie hizo "Review returns" todavía. Se usa en
+    // WarehouseActivity para distinguir, dentro de las rutas COMPLETED, cuáles
+    // ya se revisaron de cuáles todavía necesitan que el almacenista cuente
+    // lo que volvió del camión.
+    @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null
 )
 
 data class RouteRequest(
@@ -601,7 +606,10 @@ data class RouteDetailDto(
     val status: String,
     val notes: String? = null,
     val stops: List<RouteStopDto> = emptyList(),
-    val items: List<RouteItemDto> = emptyList()
+    val items: List<RouteItemDto> = emptyList(),
+    // Ver comentario en RouteDto — acá gatilla el banner "ya revisada" y
+    // deshabilita todos los botones de edición de WarehouseRouteDetailActivity.
+    @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null
 )
 
 data class AddStopRequest(

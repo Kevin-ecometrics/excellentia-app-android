@@ -50,5 +50,17 @@
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
 
+        <TextView
+            android:id="@+id/tvReturnsReviewStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_status_chip"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
