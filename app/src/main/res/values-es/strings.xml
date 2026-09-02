@@ -587,12 +587,6 @@
     <string name="wh_returns_notes_hint">Motivo (obligatorio si hay dañado o vencido)</string>
     <string name="wh_returns_notes_required">Agregá un motivo para: %1$s</string>
 
-    <!-- Liquidación diaria: pantalla removida de Android, pasó a ser
-         admin-only en la webapp. Se mantienen solo los dos estados
-         (usados por InventoryMovementsActivity para marcar "liquidado"/"borrador"). -->
-    <string name="wh_settlement_status_draft">Borrador</string>
-    <string name="wh_settlement_status_confirmed">Confirmada</string>
-
     <string name="title_inventory_movements">Sub-inventario</string>
     <string name="wh_view_available">Disponible</string>
     <string name="wh_view_history">Historial</string>

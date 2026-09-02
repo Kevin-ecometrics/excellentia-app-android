@@ -36,6 +36,47 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 13. **ClientHistoryActivity** — historial de pedidos de un cliente específico. Header con nombre + resumen (pedidos, total). Lista de batch cards (reutiliza `item_batch_header.xml`). Click → carga orders del cliente y abre TicketDetailActivity. Recibe `customer_id` + `customer_name` por intent. Accesible desde: botón "Historial" en tarjeta de cliente activo de MainActivity, y long-press en CustomerPickerActivity.
 14. **IssueCreditActivity** — agenda crédito para un cliente **sin venta asociada** (ej. producto dañado/caducado detectado sin que se vaya a vender). Accesible desde botón "Agregar crédito" en MainActivity (mismo estilo que "Pre-órdenes"). Elegir cliente (CustomerPickerActivity) → agregar productos por escaneo DataWedge o búsqueda manual → diálogo de cantidad dañada/caducada por producto (decimal si el producto es Lbs — peso real dañado —, entero para Case/Unit/Bucket) → lista editable con estimado de crédito en pantalla → `POST /api/credits/issue`. Sin firma ni impresión — acción interna simple. No genera ningún documento en QuickBooks; el crédito queda disponible de inmediato en el balance del cliente (mismo ledger `credit_transactions` que consulta "Apply Credit" al finalizar un pedido normal).
 
+### Módulo Almacén (warehouse) — Fases 111-114
+
+Nunca documentado acá (todo el detalle de diseño/backend vive en
+`excellentia/CLAUDE.md` → "Módulo Almacén"; esto es solo el mapa de
+pantallas del lado Android). Accesible desde `WarehouseActivity` — bottom
+nav propio (`nav_warehouse`), rol `admin`/`almacenista`.
+
+- **`WarehouseActivity`** — lista de rutas de entrega, crear ruta (desde
+  cero o desde pre-órdenes disponibles), filtro por fecha. Botones a
+  Recepción (`ReceivingActivity`) y Sub-inventario (`InventoryMovementsActivity`).
+  Badge "Revisado"/"Falta revisar" por ruta `COMPLETED` (Fase 114, ver abajo).
+- **`WarehouseRouteDetailActivity`** — detalle de una ruta: paradas, y el
+  manifiesto de carga del camión (escanear/buscar producto → cantidad →
+  sugerencia FIFO de lote, o `source: "STOCK"` para cargar directo del stock
+  general sin lote — checkbox "Usar stock general", Fase 114). Botón
+  "Revisar devoluciones" (visible solo con la ruta `COMPLETED`) abre
+  `RouteReturnsActivity`. **Bloqueo (Fase 114):** banner + todos los botones
+  de edición deshabilitados una vez que `returns_reviewed_at` está seteado
+  — antes solo se bloqueaba con la ruta `CANCELLED`. `onResume()` refresca
+  (antes, volver de `RouteReturnsActivity` dejaba la pantalla con el estado
+  viejo hasta salir y reentrar).
+- **`ReceivingActivity`** — recibir mercadería: escanear + cantidad + fecha
+  de expiración opcional, crea un `product_lots` por línea.
+- **`RouteReturnsActivity`** — revisar lo que volvió de una ruta
+  `COMPLETED`. **Rediseñada en la Fase 114**: cada producto tiene 3 campos
+  de cantidad (Bueno/Dañado/Vencido, antes uno solo con selector), notas
+  obligatorias si hay Dañado o Vencido, y una línea de confirmación de
+  salida ("Salió el... cargado por... — confirmado en buen estado",
+  `loaded_at`/`loaded_by_name` de `getExpectedReturns`).
+- **`InventoryMovementsActivity`** — Sub-inventario. **Rediseñada en la
+  Fase 114**: dos pestañas, **Disponible** (stock agrupado por producto,
+  único lugar con los botones **Editar** un lote y **Devolver** — este
+  último nuevo, reusa `updateLot` para dar de baja lo que se recibió pero
+  no hacía falta) e **Historial** (badge de color por tipo de movimiento,
+  filtro fecha/tipo, agrupado por día, badge "Disponible" cruzado, alerta
+  de vencimiento próximo). La pantalla de **Liquidación diaria**
+  (`SettlementActivity`) había arrancado acá en la Fase 112 y se eliminó de
+  Android por completo ese mismo día (movida a admin-only en la webapp); en
+  la Fase 114 la Liquidación diaria se eliminó del todo, de las tres partes
+  — QBO ahora sincroniza al toque en cada movimiento.
+
 ### Data Layer
 
 | File | Purpose |

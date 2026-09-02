@@ -459,11 +459,10 @@ class InventoryMovementsActivity : BaseActivity() {
                 badgeRow.addView(tvAvailable, lp)
             }
             val tvMeta = TextView(this).apply {
-                val settled = if (m.settlementId != null) getString(R.string.wh_settlement_status_confirmed) else getString(R.string.wh_settlement_status_draft)
                 val exp = m.lotExpirationDate?.take(10)
                 val expPart = if (exp != null) getString(R.string.wh_item_expiration_suffix, exp) else ""
                 val routePart = m.routeId?.let { "  ·  " + getString(R.string.wh_route_ref, it) } ?: ""
-                text = "${m.createdAt?.take(16)?.replace("T", " ") ?: ""}  ·  $settled$expPart$routePart"
+                text = "${m.createdAt?.take(16)?.replace("T", " ") ?: ""}$expPart$routePart"
                 textSize = 11f
                 val expiringSoon = exp != null && isExpiringSoon(exp)
                 setTextColor(getColor(if (expiringSoon) R.color.amber_dark else R.color.text_secondary))

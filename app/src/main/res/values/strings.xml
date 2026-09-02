@@ -608,12 +608,6 @@
     <string name="wh_returns_notes_hint">Reason (required if damaged or expired)</string>
     <string name="wh_returns_notes_required">Add a reason for: %1$s</string>
 
-    <!-- Liquidación diaria: pantalla removida de Android, pasó a ser
-         admin-only en la webapp. Se mantienen solo los dos estados
-         (usados por InventoryMovementsActivity para marcar "settled"/"draft"). -->
-    <string name="wh_settlement_status_draft">Draft</string>
-    <string name="wh_settlement_status_confirmed">Confirmed</string>
-
     <string name="title_inventory_movements">Sub-inventory</string>
     <string name="wh_view_available">Available</string>
     <string name="wh_view_history">History</string>

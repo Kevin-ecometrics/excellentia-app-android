@@ -220,8 +220,4 @@ interface ApiService {
         @Query("date") date: String? = null,
         @Query("settled") settled: Boolean? = null
     ): Response<ApiResponse<List<InventoryMovementDto>>>
-
-    // La liquidación diaria (preview/confirm) pasó a ser admin-only en la
-    // webapp — Android ya no la llama (ver WarehouseActivity/SettlementActivity
-    // removidos a pedido del usuario).
 }

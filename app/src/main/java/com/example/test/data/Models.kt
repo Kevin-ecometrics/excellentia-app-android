@@ -816,7 +816,6 @@ data class InventoryMovementDto(
     @SerializedName("movement_type") val movementType: String,
     val quantity: Double,
     @SerializedName("route_id") val routeId: Int? = null,
-    @SerializedName("settlement_id") val settlementId: Int? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("product_name") val productName: String? = null,
     val sku: String? = null,

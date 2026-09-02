@@ -531,9 +531,10 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().addRouteItem(routeId, request)
                 if (resp.isSuccessful) {
                     val body = resp.body()
-                    // Fase 112 — el push a QBO ya no ocurre acá (qbSynced viene
-                    // siempre false a propósito, se difiere a la liquidación
-                    // diaria), así que el mensaje de éxito ya no depende de eso.
+                    // El push a QBO ya pasó del lado del backend (recordMovement
+                    // sincroniza QtyOnHand al toque) — el mensaje de éxito acá no
+                    // depende de qbSynced, es solo informativo por si falla en
+                    // silencio (no revierte lo local).
                     val msg = getString(R.string.msg_route_item_added, quantity, product.name)
                     Snackbar.make(findViewById(android.R.id.content), msg, Snackbar.LENGTH_SHORT).show()
                     // Se pinta al toque con lo que ya devuelve el POST, sin esperar
