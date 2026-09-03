@@ -375,6 +375,7 @@
     <string name="btn_finalize_order">Finalize order</string>
     <string name="btn_add_credit_item">+ Add credit item</string>
     <string name="label_credit_item_tag">CREDIT</string>
+    <string name="label_mark_as_courtesy">Mark as courtesy</string>
     <string name="label_step_sending_qb">Sending to QuickBooks</string>
     <string name="label_step_generating_invoice">Generating invoice</string>
     <string name="label_step_printing">Printing ticket</string>
@@ -493,6 +494,8 @@
     <string name="route_status_in_progress">In progress</string>
     <string name="route_status_completed">Completed</string>
     <string name="route_status_cancelled">Cancelled</string>
+    <string name="route_type_direct">Direct</string>
+    <string name="label_direct_route">Direct route (single destination)</string>
     <string name="title_new_route">New route</string>
     <string name="btn_route_from_scratch">Route from scratch</string>
     <string name="btn_route_from_preorders">From pre-orders</string>
@@ -547,6 +550,10 @@
     <string name="title_add_stop">Add stop</string>
     <string name="wh_order_label">Order</string>
     <string name="wh_preorder_label">Pre-order</string>
+    <string name="wh_consignment_label">Consignment</string>
+    <string name="stop_type_customer">Customer</string>
+    <string name="stop_type_consignment">Consignment</string>
+    <string name="title_consignment">Consignment</string>
     <string name="label_available_orders">Available orders</string>
     <string name="label_available_preorders">Available pre-orders</string>
     <string name="label_no_available_stops">No unassigned orders or pre-orders available</string>
@@ -596,6 +603,21 @@
     <string name="wh_condition_damaged">Damaged</string>
     <string name="wh_condition_expired">Expired</string>
     <string name="wh_condition_transporter_damage">Transporter damage</string>
+    <string name="wh_reconciliation">Departure/return reconciliation</string>
+    <string name="wh_reconciliation_meta">Loaded %1$.2f · Sold %2$.2f · Good %3$.2f · Damaged %4$.2f · Expired %5$.2f · Transporter %6$.2f</string>
+
+    <string name="btn_add_consignment_item">Scan / add item</string>
+    <string name="wh_consignment_items_title">Items left</string>
+    <string name="wh_no_consignment_items">Nothing left here yet</string>
+    <string name="wh_consignment_left_label">Left: %1$.2f</string>
+    <string name="wh_consignment_settled_summary">Settled — sold %1$.2f · returned %2$.2f</string>
+    <string name="wh_consignmentSold_label">Sold</string>
+    <string name="wh_consignmentReturned_label">Returned</string>
+    <string name="btn_settle_consignment">Settle</string>
+    <string name="error_consignment_settle_empty">Enter a sold or returned quantity</string>
+    <string name="error_consignment_settle_exceeds">Sold + returned can\'t exceed what was left (%1$.2f)</string>
+    <string name="msg_consignment_settled">Consignment settled</string>
+    <string name="msg_consignment_registered">Item left with the customer</string>
     <string name="label_condition">Condition</string>
     <string name="wh_btn_save_returns">Save returns</string>
     <string name="msg_returns_saved">Returns saved</string>

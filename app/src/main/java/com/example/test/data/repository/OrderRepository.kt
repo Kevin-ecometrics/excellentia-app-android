@@ -136,6 +136,11 @@ class OrderRepository(
         orderDao.update(id, price, quantity)
     }
 
+    // Fase 115.5 — toggle "Marcar como cortesía" por fila del carrito.
+    fun setCourtesy(id: Int, isCourtesy: Boolean) {
+        orderDao.setCourtesy(id, isCourtesy)
+    }
+
     suspend fun getById(id: Int): com.example.test.data.local.entities.PendingOrderEntity? = withContext(Dispatchers.IO) {
         orderDao.getById(id)
     }

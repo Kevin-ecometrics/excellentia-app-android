@@ -78,6 +78,18 @@
                             android:paddingVertical="5dp"
                             android:textSize="11sp"
                             android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvRouteType"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:background="@drawable/bg_status_chip"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="5dp"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
                     </LinearLayout>
 
                     <View
@@ -296,6 +308,32 @@
                         android:text="@string/label_no_items_loaded"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp"
+                        android:visibility="gone" />
+
+                    <!-- Fase 115.2 — reconciliación salida/regreso: cargado vs.
+                         vendido + devuelto por condición, con la diferencia
+                         resaltada si la ruta ya se revisó y no da 0. Solo
+                         informativo, nunca bloquea. Se llena en
+                         renderReconciliation(), oculto si no hay nada cargado. -->
+                    <TextView
+                        android:id="@+id/tvReconciliationTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:letterSpacing="0.08"
+                        android:text="@string/wh_reconciliation"
+                        android:textAllCaps="true"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/layoutReconciliation"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:orientation="vertical"
                         android:visibility="gone" />
 
                     <!-- Fase 112 — revisión de devoluciones, solo visible con la

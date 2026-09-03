@@ -23,6 +23,7 @@ import com.example.test.data.ReorderStopsRequest
 import com.example.test.data.UpdateStopStatusRequest
 import com.example.test.data.RouteDetailDto
 import com.example.test.data.RouteItemDto
+import com.example.test.data.RouteReturnExpectedDto
 import com.example.test.data.RouteStopDto
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
@@ -39,6 +40,9 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     private lateinit var toolbar: MaterialToolbar
     private lateinit var tvRouteDriver: TextView
     private lateinit var tvRouteStatus: TextView
+    private lateinit var tvRouteType: TextView
+    private lateinit var tvReconciliationTitle: TextView
+    private lateinit var layoutReconciliation: LinearLayout
     private lateinit var tvRouteDate: TextView
     private lateinit var tvRouteNotes: TextView
     private lateinit var layoutStops: LinearLayout
@@ -56,6 +60,9 @@ class WarehouseRouteDetailActivity : BaseActivity() {
 
     private var routeId: Int = -1
     private var detail: RouteDetailDto? = null
+    // Fase 115.4 — elegido en showStopTypeChooser() antes de abrir el picker
+    // de clientes; "CONSIGNMENT" salta el chequeo de pre-orden (nunca aplica).
+    private var pendingStopType: String = "CUSTOMER"
     private lateinit var dwReceiver: BroadcastReceiver
     // Contador en vez de bool — un escaneo rápido seguido puede disparar
     // varios addRouteItem en simultáneo (loading solapado), el aviso se
@@ -79,6 +86,20 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         pendingRetryProduct = null
     }
 
+    // Fase 115.4 — antes de abrir el picker de clientes, decide si la parada
+    // es una visita normal o de consignación (mismo picker de clientes para
+    // las dos, solo cambia stopType en checkPreOrderThenAddStop).
+    private fun showStopTypeChooser() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.title_add_stop))
+            .setItems(arrayOf(getString(R.string.stop_type_customer), getString(R.string.stop_type_consignment))) { _, which ->
+                pendingStopType = if (which == 1) "CONSIGNMENT" else "CUSTOMER"
+                customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
     private val customerPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -92,7 +113,13 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // Antes de agregar la parada, chequea si este cliente ya tiene una
     // pre-orden confirmada pendiente y ofrece vincularla (opcional, no
     // bloqueante) — así la parada trae qué llevarle sin obligar a nada.
+    // CONSIGNMENT nunca vincula pre-orden — es un concepto distinto (dejar
+    // mercadería para vender in situ, no una venta ya armada de antemano).
     private fun checkPreOrderThenAddStop(customerId: String, customerName: String) {
+        if (pendingStopType == "CONSIGNMENT") {
+            addStop(AddStopRequest(stopType = "CONSIGNMENT", customerId = customerId, customerName = customerName))
+            return
+        }
         lifecycleScope.launch {
             var matched: AvailablePreOrder? = null
             try {
@@ -139,6 +166,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         toolbar       = findViewById(R.id.toolbar)
         tvRouteDriver = findViewById(R.id.tvRouteDriver)
         tvRouteStatus = findViewById(R.id.tvRouteStatus)
+        tvRouteType = findViewById(R.id.tvRouteType)
         tvRouteDate   = findViewById(R.id.tvRouteDate)
         tvRouteNotes  = findViewById(R.id.tvRouteNotes)
         layoutStops  = findViewById(R.id.layoutStops)
@@ -152,11 +180,11 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         btnFromReceiving = findViewById(R.id.btnFromReceiving)
         btnReviewReturns = findViewById(R.id.btnReviewReturns)
         tvReturnsReviewedBanner = findViewById(R.id.tvReturnsReviewedBanner)
+        tvReconciliationTitle = findViewById(R.id.tvReconciliationTitle)
+        layoutReconciliation = findViewById(R.id.layoutReconciliation)
 
         toolbar.setNavigationOnClickListener { finish() }
-        btnAddStop.setOnClickListener {
-            customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
-        }
+        btnAddStop.setOnClickListener { showStopTypeChooser() }
         btnManualEntry.setOnClickListener { showManualEntryDialog() }
         btnFromReceiving.setOnClickListener { showAvailableProductsPicker() }
         btnReviewReturns.setOnClickListener {
@@ -205,6 +233,57 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
             }
         }
+        loadReconciliation()
+    }
+
+    // Fase 115.2 — mismo endpoint que ya usa RouteReturnsActivity para
+    // "esperado de vuelta" (getExpectedReturns), desglosado por condición
+    // desde esta fase. Acá se usa para el panel de reconciliación del
+    // detalle de ruta — informativo, no bloquea nada. Falla en silencio
+    // (oculta el panel) si el endpoint no responde, no hace falta un
+    // Snackbar aparte para algo que no es crítico para operar la ruta.
+    private fun loadReconciliation() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getExpectedReturns(routeId)
+                if (resp.isSuccessful) {
+                    renderReconciliation(resp.body()?.data ?: emptyList())
+                } else {
+                    renderReconciliation(emptyList())
+                }
+            } catch (_: Exception) {
+                renderReconciliation(emptyList())
+            }
+        }
+    }
+
+    private fun renderReconciliation(rows: List<RouteReturnExpectedDto>) {
+        layoutReconciliation.removeAllViews()
+        if (rows.isEmpty()) {
+            tvReconciliationTitle.visibility = View.GONE
+            layoutReconciliation.visibility = View.GONE
+            return
+        }
+        tvReconciliationTitle.visibility = View.VISIBLE
+        layoutReconciliation.visibility = View.VISIBLE
+
+        val reviewed = detail?.returnsReviewedAt != null
+        val inflater = LayoutInflater.from(this)
+        for (row in rows) {
+            val card = inflater.inflate(R.layout.item_reconciliation_row, layoutReconciliation, false)
+            card.findViewById<TextView>(R.id.tvReconName).text = row.name
+            card.findViewById<TextView>(R.id.tvReconMeta).text = getString(
+                R.string.wh_reconciliation_meta,
+                row.loadedQty, row.soldQty, row.returnedGoodQty,
+                row.returnedDamagedQty, row.returnedExpiredQty, row.returnedTransporterDamageQty
+            )
+            val flag = reviewed && row.discrepancy != 0.0
+            card.findViewById<TextView>(R.id.tvReconDiscrepancy).apply {
+                text = String.format(Locale.US, "%+.0f", row.discrepancy)
+                setTextColor(getColor(if (flag) R.color.red else R.color.text_secondary))
+            }
+            layoutReconciliation.addView(card)
+        }
     }
 
     private fun bind(d: RouteDetailDto) {
@@ -235,6 +314,19 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             setTextColor(getColor(statusColor))
         }
 
+        // Fase 115 — solo se marca DIRECT (la excepción); MULTI_STOP es el
+        // flujo de siempre, sin chip.
+        tvRouteType.apply {
+            if (d.routeType == "DIRECT") {
+                visibility = View.VISIBLE
+                text = getString(R.string.route_type_direct)
+                setBackgroundResource(R.drawable.bg_chip_pending)
+                setTextColor(getColor(R.color.primary))
+            } else {
+                visibility = View.GONE
+            }
+        }
+
         tvRouteDriver.text = d.driverName ?: getString(R.string.label_no_driver)
         tvRouteDate.text = d.scheduledDate.take(10)
 
@@ -247,8 +339,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
 
         val reviewed = d.returnsReviewedAt != null
         val locked = isLocked(d)
+        // Fase 115 — una ruta DIRECT admite un solo destino; con uno ya
+        // cargado, el backend rechazaría una 2ª parada (addStop, 400) — se
+        // deshabilita acá para no dejar que el almacenista llegue a ese error.
+        val directFull = d.routeType == "DIRECT" && d.stops.isNotEmpty()
         tvReturnsReviewedBanner.visibility = if (reviewed) View.VISIBLE else View.GONE
-        btnAddStop.isEnabled = !locked
+        btnAddStop.isEnabled = !locked && !directFull
         btnManualEntry.isEnabled = !locked
         btnFromReceiving.isEnabled = !locked
         // Fase 112 — revisar devoluciones solo tiene sentido con el camión ya
@@ -299,6 +395,10 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                     }
                     tvDetail.visibility = View.VISIBLE
                 }
+                "CONSIGNMENT" -> {
+                    tvDetail.text = getString(R.string.wh_consignment_label)
+                    tvDetail.visibility = View.VISIBLE
+                }
                 else -> if (stop.preOrder != null) {
                     // CUSTOMER con pre-orden vinculada (opcional, ver checkPreOrderThenAddStop)
                     tvDetail.text = buildString {
@@ -310,6 +410,20 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 } else {
                     tvDetail.visibility = View.GONE
                 }
+            }
+
+            val btnManageConsignment = row.findViewById<View>(R.id.btnManageConsignment)
+            if (stop.stopType == "CONSIGNMENT") {
+                btnManageConsignment.visibility = View.VISIBLE
+                btnManageConsignment.setOnClickListener {
+                    startActivity(Intent(this, ConsignmentActivity::class.java).apply {
+                        putExtra("route_id", routeId)
+                        putExtra("stop_id", stop.id)
+                        putExtra("customer_name", stop.customerName)
+                    })
+                }
+            } else {
+                btnManageConsignment.visibility = View.GONE
             }
 
             val btnUp = row.findViewById<View>(R.id.btnStopUp)

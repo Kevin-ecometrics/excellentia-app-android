@@ -54,7 +54,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 customer_name TEXT,
                 unit TEXT,
                 case_qty INTEGER,
-                is_credit INTEGER DEFAULT 0
+                is_credit INTEGER DEFAULT 0,
+                is_courtesy INTEGER DEFAULT 0
             )
         """)
         db.execSQL("""
@@ -186,11 +187,16 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 )
             """)
         }
+        if (oldVersion < 17) {
+            // Fase 115.5 — cortesía: producto que se factura a QBO a $0. Se
+            // guarda por línea del carrito, mismo patrón que is_credit (Fase 86).
+            try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN is_courtesy INTEGER DEFAULT 0") } catch (_: Exception) {}
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 16
+        private const val DATABASE_VERSION = 17
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

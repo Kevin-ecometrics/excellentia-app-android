@@ -177,6 +177,9 @@ data class BatchItem(
     val total: Double,
     val unit: String? = null,
     @SerializedName("case_qty") val caseQty: Int? = null,
+    // Fase 115.5 — price/total siguen el valor real de catálogo; el $0 se
+    // aplica recién en la línea de QBO (backend, createBatchInvoice).
+    @SerializedName("is_courtesy") val isCourtesy: Boolean = false,
     @Transient val shortName: String? = null
 )
 
@@ -541,7 +544,9 @@ data class RouteDto(
     // WarehouseActivity para distinguir, dentro de las rutas COMPLETED, cuáles
     // ya se revisaron de cuáles todavía necesitan que el almacenista cuente
     // lo que volvió del camión.
-    @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null
+    @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null,
+    // Fase 115 — 'DIRECT' (un solo destino) o 'MULTI_STOP' (default, flujo de siempre).
+    @SerializedName("route_type") val routeType: String = "MULTI_STOP"
 )
 
 data class RouteRequest(
@@ -549,7 +554,10 @@ data class RouteRequest(
     @SerializedName("scheduled_date") val scheduledDate: String? = null,
     @SerializedName("driver_user_id") val driverUserId: Int? = null,
     val notes: String? = null,
-    val status: String? = null
+    val status: String? = null,
+    // Fase 115 — 'DIRECT' (un solo destino, carga pre-asignada) o
+    // 'MULTI_STOP' (default en el backend si se omite).
+    @SerializedName("route_type") val routeType: String? = null
 )
 
 data class RouteStopDto(
@@ -609,7 +617,9 @@ data class RouteDetailDto(
     val items: List<RouteItemDto> = emptyList(),
     // Ver comentario en RouteDto — acá gatilla el banner "ya revisada" y
     // deshabilita todos los botones de edición de WarehouseRouteDetailActivity.
-    @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null
+    @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null,
+    // Fase 115 — ver comentario en RouteDto.
+    @SerializedName("route_type") val routeType: String = "MULTI_STOP"
 )
 
 data class AddStopRequest(
@@ -845,6 +855,15 @@ data class RouteReturnExpectedDto(
     @SerializedName("sold_qty") val soldQty: Double,
     @SerializedName("already_returned_qty") val alreadyReturnedQty: Double,
     @SerializedName("expected_return_qty") val expectedReturnQty: Double,
+    // Fase 115.2 — desglose de already_returned_qty por condición, y la
+    // discrepancia sin clamping (puede ser negativa: se devolvió/contó más
+    // de lo que esta ruta cargó de este producto). Solo informativo, no
+    // bloquea nada — panel de reconciliación en WarehouseRouteDetailActivity.
+    @SerializedName("returned_good_qty") val returnedGoodQty: Double = 0.0,
+    @SerializedName("returned_damaged_qty") val returnedDamagedQty: Double = 0.0,
+    @SerializedName("returned_expired_qty") val returnedExpiredQty: Double = 0.0,
+    @SerializedName("returned_transporter_damage_qty") val returnedTransporterDamageQty: Double = 0.0,
+    val discrepancy: Double = 0.0,
     // Confirmación de salida — ya se graba sola al cargar (addRouteItem solo
     // acepta stock ACTIVE, nunca dañado/vencido), se expone acá para mostrar
     // la línea de base junto al conteo de la devolución.
@@ -884,4 +903,71 @@ data class RouteReturnDto(
     @SerializedName("reviewed_at") val reviewedAt: String? = null,
     val name: String? = null,
     val sku: String? = null
+)
+
+// ── Consignación (Fase 115.4) ──
+// registerConsignment resta stock igual que addRouteItem con source: 'STOCK'
+// (sin FIFO por lote) y acumula en route_consignment_items — una parada
+// puede recibir varias llamadas antes de liquidar. settleConsignment reparte
+// quantity_left entre vendido (venta real, AWAITING_APPROVAL como cualquier
+// otra) y devuelto (restituye stock); no exige que agoten quantity_left.
+
+data class ConsignmentRegisterItem(
+    val barcode: String? = null,
+    @SerializedName("product_id") val productId: Int? = null,
+    val quantity: Double,
+    val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null
+)
+
+data class ConsignmentRegisterRequest(
+    val items: List<ConsignmentRegisterItem>
+)
+
+data class ConsignmentRegisterResultItem(
+    @SerializedName("product_id") val productId: Int? = null,
+    val quantity: Double? = null,
+    val stock: Double? = null,
+    val error: String? = null
+)
+
+data class ConsignmentRegisterResponse(
+    val items: List<ConsignmentRegisterResultItem>
+)
+
+data class ConsignmentItemDto(
+    val id: Int,
+    @SerializedName("route_stop_id") val routeStopId: Int,
+    @SerializedName("product_id") val productId: Int,
+    val name: String,
+    val sku: String? = null,
+    @SerializedName("quantity_left") val quantityLeft: Double,
+    @SerializedName("quantity_sold") val quantitySold: Double,
+    @SerializedName("quantity_returned") val quantityReturned: Double,
+    val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null,
+    @SerializedName("settled_at") val settledAt: String? = null
+)
+
+data class ConsignmentSettleItem(
+    @SerializedName("product_id") val productId: Int,
+    @SerializedName("quantity_sold") val quantitySold: Double = 0.0,
+    @SerializedName("quantity_returned") val quantityReturned: Double = 0.0
+)
+
+data class ConsignmentSettleRequest(
+    val items: List<ConsignmentSettleItem>
+)
+
+data class ConsignmentSettleResultItem(
+    @SerializedName("product_id") val productId: Int? = null,
+    @SerializedName("quantity_sold") val quantitySold: Double? = null,
+    @SerializedName("quantity_returned") val quantityReturned: Double? = null,
+    val error: String? = null
+)
+
+data class ConsignmentSettleResponse(
+    val items: List<ConsignmentSettleResultItem>,
+    @SerializedName("batchId") val batchId: String? = null,
+    @SerializedName("invoiceNumber") val invoiceNumber: Int? = null
 )

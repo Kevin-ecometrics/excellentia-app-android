@@ -36,6 +36,18 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
+        <!-- Fase 115.4 — solo visible en paradas CONSIGNMENT, abre
+             ConsignmentActivity (registrar qué se dejó / liquidar). -->
+        <ImageButton
+            android:id="@+id/btnManageConsignment"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/title_consignment"
+            android:src="@drawable/ic_edit"
+            android:visibility="gone"
+            app:tint="@color/primary" />
+
         <ImageButton
             android:id="@+id/btnStopUp"
             android:layout_width="28dp"

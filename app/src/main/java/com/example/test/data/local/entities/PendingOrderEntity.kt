@@ -18,5 +18,9 @@ data class PendingOrderEntity(
     // CurrentOrderActivity), no un producto vendible. Vive en la misma tabla
     // que el carrito normal para heredar la persistencia SQLite ya existente
     // (sobrevive cierre de la app) sin tabla/DAO paralelos.
-    val isCredit: Boolean = false
+    val isCredit: Boolean = false,
+    // Fase 115.5 — producto marcado para facturarse a QBO a $0. price/quantity
+    // siguen siendo el valor real de catálogo (reportería, "cuánto se
+    // regaló") — el $0 se aplica recién al armar la factura en el backend.
+    val isCourtesy: Boolean = false
 )

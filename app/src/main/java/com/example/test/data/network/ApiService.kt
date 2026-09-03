@@ -183,6 +183,17 @@ interface ApiService {
     @GET("api/routes/{id}/returns")
     suspend fun listReturns(@Path("id") id: Int): Response<ApiResponse<List<RouteReturnDto>>>
 
+    // ── Consignación (Fase 115.4) ──
+
+    @POST("api/routes/{id}/stops/{stopId}/consignment")
+    suspend fun registerConsignment(@Path("id") id: Int, @Path("stopId") stopId: Int, @Body request: ConsignmentRegisterRequest): Response<ConsignmentRegisterResponse>
+
+    @GET("api/routes/{id}/stops/{stopId}/consignment")
+    suspend fun getConsignment(@Path("id") id: Int, @Path("stopId") stopId: Int): Response<ApiResponse<List<ConsignmentItemDto>>>
+
+    @POST("api/routes/{id}/stops/{stopId}/consignment/settle")
+    suspend fun settleConsignment(@Path("id") id: Int, @Path("stopId") stopId: Int, @Body request: ConsignmentSettleRequest): Response<ConsignmentSettleResponse>
+
     // ── Almacén: recepción, FIFO, sub-inventario, liquidación (Fase 112) ──
 
     @GET("api/warehouse/warehouses")

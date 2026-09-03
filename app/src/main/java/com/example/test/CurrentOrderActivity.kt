@@ -230,6 +230,14 @@ class CurrentOrderActivity : BaseActivity() {
                     .setOnClickListener { editItem(order) }
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnDeleteItem)
                     .setOnClickListener { confirmDelete(order.id, order.productName) }
+                // Fase 115.5 — no dispara loadOrder() al tildar: price/quantity
+                // no cambian, solo la marca, así que no hace falta re-renderizar
+                // toda la lista por esto.
+                row.findViewById<com.google.android.material.checkbox.MaterialCheckBox>(R.id.cbCourtesy).apply {
+                    setOnCheckedChangeListener(null)
+                    isChecked = order.isCourtesy
+                    setOnCheckedChangeListener { _, checked -> orderRepository.setCourtesy(order.id, checked) }
+                }
                 layoutOrderItems.addView(row)
             }
 
@@ -255,6 +263,9 @@ class CurrentOrderActivity : BaseActivity() {
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnEditItem).visibility = View.GONE
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnDeleteItem)
                     .setOnClickListener { confirmDelete(credit.id, credit.productName) }
+                // Cortesía no aplica a una línea de crédito (Fase 86) — es
+                // otro tipo de fila, no un producto vendible.
+                row.findViewById<com.google.android.material.checkbox.MaterialCheckBox>(R.id.cbCourtesy).visibility = View.GONE
                 layoutOrderItems.addView(row)
             }
 
@@ -753,6 +764,7 @@ class CurrentOrderActivity : BaseActivity() {
                 total = order.price * order.quantity,
                 unit = order.unit,
                 caseQty = order.caseQty,
+                isCourtesy = order.isCourtesy,
                 shortName = order.shortName
             )
         }

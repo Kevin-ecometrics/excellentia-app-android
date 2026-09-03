@@ -361,6 +361,7 @@
     <string name="btn_finalize_order">Finalizar pedido</string>
     <string name="btn_add_credit_item">+ Agregar crédito</string>
     <string name="label_credit_item_tag">CRÉDITO</string>
+    <string name="label_mark_as_courtesy">Marcar como cortesía</string>
     <string name="label_step_sending_qb">Enviando a QuickBooks</string>
     <string name="label_step_generating_invoice">Generando factura</string>
     <string name="label_step_printing">Imprimiendo ticket</string>
@@ -472,6 +473,8 @@
     <string name="route_status_in_progress">En curso</string>
     <string name="route_status_completed">Completada</string>
     <string name="route_status_cancelled">Cancelada</string>
+    <string name="route_type_direct">Directa</string>
+    <string name="label_direct_route">Ruta directa (un solo destino)</string>
     <string name="title_new_route">Nueva ruta</string>
     <string name="btn_route_from_scratch">Ruta de cero</string>
     <string name="btn_route_from_preorders">Desde pre-órdenes</string>
@@ -526,6 +529,10 @@
     <string name="title_add_stop">Agregar parada</string>
     <string name="wh_order_label">Pedido</string>
     <string name="wh_preorder_label">Pre-orden</string>
+    <string name="wh_consignment_label">Consignación</string>
+    <string name="stop_type_customer">Cliente</string>
+    <string name="stop_type_consignment">Consignación</string>
+    <string name="title_consignment">Consignación</string>
     <string name="label_available_orders">Pedidos disponibles</string>
     <string name="label_available_preorders">Pre-órdenes disponibles</string>
     <string name="label_no_available_stops">No hay pedidos ni pre-órdenes disponibles sin asignar</string>
@@ -575,6 +582,21 @@
     <string name="wh_condition_damaged">Dañada</string>
     <string name="wh_condition_expired">Vencida</string>
     <string name="wh_condition_transporter_damage">Dañada en tránsito</string>
+    <string name="wh_reconciliation">Reconciliación salida/regreso</string>
+    <string name="wh_reconciliation_meta">Cargado %1$.2f · Vendido %2$.2f · Buena %3$.2f · Dañada %4$.2f · Vencida %5$.2f · Tránsito %6$.2f</string>
+
+    <string name="btn_add_consignment_item">Escanear / agregar ítem</string>
+    <string name="wh_consignment_items_title">Ítems dejados</string>
+    <string name="wh_no_consignment_items">Todavía no se dejó nada acá</string>
+    <string name="wh_consignment_left_label">Dejado: %1$.2f</string>
+    <string name="wh_consignment_settled_summary">Liquidado — vendido %1$.2f · devuelto %2$.2f</string>
+    <string name="wh_consignmentSold_label">Vendido</string>
+    <string name="wh_consignmentReturned_label">Devuelto</string>
+    <string name="btn_settle_consignment">Liquidar</string>
+    <string name="error_consignment_settle_empty">Ingresá una cantidad vendida o devuelta</string>
+    <string name="error_consignment_settle_exceeds">Vendido + devuelto no puede superar lo dejado (%1$.2f)</string>
+    <string name="msg_consignment_settled">Consignación liquidada</string>
+    <string name="msg_consignment_registered">Ítem dejado con el cliente</string>
     <string name="label_condition">Condición</string>
     <string name="wh_btn_save_returns">Guardar devoluciones</string>
     <string name="msg_returns_saved">Devoluciones guardadas</string>

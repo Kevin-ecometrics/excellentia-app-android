@@ -23,6 +23,7 @@ import com.example.test.data.network.RetrofitClient
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -197,6 +198,19 @@ class WarehouseActivity : BaseActivity() {
             setTextColor(getColor(statusColor))
         }
 
+        // Fase 115 — solo se marca DIRECT (la excepción); MULTI_STOP es el
+        // flujo de siempre, sin chip.
+        view.findViewById<TextView>(R.id.tvRouteType).apply {
+            if (route.routeType == "DIRECT") {
+                visibility = View.VISIBLE
+                text = getString(R.string.route_type_direct)
+                setBackgroundResource(R.drawable.bg_chip_pending)
+                setTextColor(getColor(R.color.primary))
+            } else {
+                visibility = View.GONE
+            }
+        }
+
         val driverLabel = route.driverName ?: getString(R.string.label_no_driver)
         view.findViewById<TextView>(R.id.tvRouteMeta).text =
             "${route.scheduledDate.take(10)}  ·  $driverLabel  ·  ${getString(R.string.label_stops_count, route.stopCount)}"
@@ -311,6 +325,19 @@ class WarehouseActivity : BaseActivity() {
             }
         }
 
+        // Fase 115 — solo tiene sentido con un único destino: si vienen 2+
+        // pre-órdenes seleccionadas, la ruta ya es multi-parada por
+        // construcción (addStop del backend rechazaría la 2ª parada de
+        // todos modos) — se oculta el switch en vez de dejarlo prender algo
+        // que después falla al agregar la 2ª pre-orden.
+        val switchDirect = MaterialSwitch(this).apply {
+            text = getString(R.string.label_direct_route)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (12 * density).toInt()
+            }
+            visibility = if (preOrders.size <= 1) View.VISIBLE else View.GONE
+        }
+
         btnDate.setOnClickListener {
             val cal = Calendar.getInstance()
             DatePickerDialog(this, { _, y, m, d ->
@@ -339,6 +366,7 @@ class WarehouseActivity : BaseActivity() {
         layout.addView(btnDate)
         layout.addView(btnDriver)
         layout.addView(etNotes)
+        layout.addView(switchDirect)
 
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_new_route))
@@ -350,17 +378,18 @@ class WarehouseActivity : BaseActivity() {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_route_name_date_required), Snackbar.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                createRoute(name, date, selectedDriverId, etNotes.text.toString().trim().ifEmpty { null }, preOrders)
+                val routeType = if (switchDirect.visibility == View.VISIBLE && switchDirect.isChecked) "DIRECT" else "MULTI_STOP"
+                createRoute(name, date, selectedDriverId, etNotes.text.toString().trim().ifEmpty { null }, routeType, preOrders)
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
-    private fun createRoute(name: String, date: String, driverId: Int?, notes: String?, preOrders: List<AvailablePreOrder>) {
+    private fun createRoute(name: String, date: String, driverId: Int?, notes: String?, routeType: String, preOrders: List<AvailablePreOrder>) {
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().createRoute(
-                    RouteRequest(name = name, scheduledDate = date, driverUserId = driverId, notes = notes)
+                    RouteRequest(name = name, scheduledDate = date, driverUserId = driverId, notes = notes, routeType = routeType)
                 )
                 if (resp.isSuccessful) {
                     val newRouteId = resp.body()?.id

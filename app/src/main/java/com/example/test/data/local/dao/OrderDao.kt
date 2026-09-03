@@ -22,6 +22,7 @@ class OrderDao(private val db: AppDatabase) {
             order.unit?.let { put("unit", it) }
             order.caseQty?.let { put("case_qty", it) }
             put("is_credit", if (order.isCredit) 1 else 0)
+            put("is_courtesy", if (order.isCourtesy) 1 else 0)
         }
         return db.writableDatabase.insert("pending_orders", null, values)
     }
@@ -102,6 +103,16 @@ class OrderDao(private val db: AppDatabase) {
         db.writableDatabase.update("pending_orders", values, "id = ?", arrayOf(id.toString()))
     }
 
+    // Fase 115.5 — toggle del checkbox "Marcar como cortesía" por fila del
+    // carrito. No toca price/quantity (siguen siendo el valor real de
+    // catálogo) — is_courtesy es la única marca.
+    fun setCourtesy(id: Int, isCourtesy: Boolean) {
+        val values = ContentValues().apply {
+            put("is_courtesy", if (isCourtesy) 1 else 0)
+        }
+        db.writableDatabase.update("pending_orders", values, "id = ?", arrayOf(id.toString()))
+    }
+
     fun deleteById(id: Int) {
         db.writableDatabase.delete(
             "pending_orders",
@@ -160,6 +171,8 @@ class OrderDao(private val db: AppDatabase) {
         caseQty = c.getColumnIndex("case_qty").takeIf { it >= 0 }
             ?.let { if (c.isNull(it)) null else c.getInt(it) },
         isCredit = c.getColumnIndex("is_credit").takeIf { it >= 0 }
+            ?.let { !c.isNull(it) && c.getInt(it) == 1 } ?: false,
+        isCourtesy = c.getColumnIndex("is_courtesy").takeIf { it >= 0 }
             ?.let { !c.isNull(it) && c.getInt(it) == 1 } ?: false
     )
 }
