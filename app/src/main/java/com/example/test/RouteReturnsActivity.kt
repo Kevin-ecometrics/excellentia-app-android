@@ -31,11 +31,14 @@ import java.util.Locale
 // audita lo físico, no re-valida lo que se vendió.
 //
 // Un mismo producto puede volver parte bueno y parte dañado/vencido — cada
-// fila tiene 3 campos de cantidad (uno por condición) en vez de un único
+// fila tiene 4 campos de cantidad (uno por condición) en vez de un único
 // campo + selector, para poder partirlo. La confirmación de salida
 // (loaded_at/loaded_by_name, ver getExpectedReturns) se muestra como línea de
 // base: como solo se puede cargar stock ACTIVE, todo lo que sale, sale bien —
-// cualquier DAMAGED/EXPIRED acá implica que pasó durante la ruta.
+// cualquier condición distinta de GOOD acá implica que pasó durante la ruta.
+// TRANSPORTER_DAMAGE (Fase 116) distingue "se rompió en el camino" de
+// DAMAGED genérico ("ya estaba mal") — mismo tratamiento en todo lo demás
+// (notas obligatorias, no restituye stock).
 class RouteReturnsActivity : BaseActivity() {
 
     private lateinit var layoutItems: LinearLayout
@@ -50,6 +53,7 @@ class RouteReturnsActivity : BaseActivity() {
         val etQtyGood: EditText,
         val etQtyDamaged: EditText,
         val etQtyExpired: EditText,
+        val etQtyTransporterDamage: EditText,
         val etNotes: EditText
     )
 
@@ -170,9 +174,11 @@ class RouteReturnsActivity : BaseActivity() {
             val etQtyGood = qtyField(prefillGood = true)
             val etQtyDamaged = qtyField(prefillGood = false)
             val etQtyExpired = qtyField(prefillGood = false)
+            val etQtyTransporterDamage = qtyField(prefillGood = false)
             content.addView(conditionRow(getString(R.string.wh_condition_good), etQtyGood))
             content.addView(conditionRow(getString(R.string.wh_condition_damaged), etQtyDamaged))
             content.addView(conditionRow(getString(R.string.wh_condition_expired), etQtyExpired))
+            content.addView(conditionRow(getString(R.string.wh_condition_transporter_damage), etQtyTransporterDamage))
 
             val etNotes = EditText(this).apply {
                 hint = getString(R.string.wh_returns_notes_hint)
@@ -203,6 +209,7 @@ class RouteReturnsActivity : BaseActivity() {
                     etQtyGood.setText(String.format(Locale.US, "%.2f", 0.0))
                     etQtyDamaged.setText(String.format(Locale.US, "%.2f", 0.0))
                     etQtyExpired.setText(String.format(Locale.US, "%.2f", 0.0))
+                    etQtyTransporterDamage.setText(String.format(Locale.US, "%.2f", 0.0))
                 }
             }
             content.addView(btnSoldOut)
@@ -210,7 +217,7 @@ class RouteReturnsActivity : BaseActivity() {
             card.addView(content)
             layoutItems.addView(card)
 
-            rows.add(ReturnRow(exp, etQtyGood, etQtyDamaged, etQtyExpired, etNotes))
+            rows.add(ReturnRow(exp, etQtyGood, etQtyDamaged, etQtyExpired, etQtyTransporterDamage, etNotes))
         }
     }
 
@@ -222,16 +229,19 @@ class RouteReturnsActivity : BaseActivity() {
         val good = qty(r.etQtyGood)
         val damaged = qty(r.etQtyDamaged)
         val expired = qty(r.etQtyExpired)
+        val transporterDamage = qty(r.etQtyTransporterDamage)
         if (good > 0) items.add(RouteReturnItemRequest(productId = r.expected.productId, quantity = good, conditionStatus = "GOOD"))
         if (damaged > 0) items.add(RouteReturnItemRequest(productId = r.expected.productId, quantity = damaged, conditionStatus = "DAMAGED", notes = notes))
         if (expired > 0) items.add(RouteReturnItemRequest(productId = r.expected.productId, quantity = expired, conditionStatus = "EXPIRED", notes = notes))
+        if (transporterDamage > 0) items.add(RouteReturnItemRequest(productId = r.expected.productId, quantity = transporterDamage, conditionStatus = "TRANSPORTER_DAMAGE", notes = notes))
         items
     }
 
-    // Productos con Dañado/Vencido > 0 pero sin motivo — el backend igual lo
-    // rechaza (red de seguridad), pero avisar acá evita el viaje redondo.
+    // Productos con Dañado/Vencido/Dañado en tránsito > 0 pero sin motivo —
+    // el backend igual lo rechaza (red de seguridad), pero avisar acá evita
+    // el viaje redondo.
     private fun rowsMissingNotes(): List<String> = rows.filter { r ->
-        (qty(r.etQtyDamaged) > 0 || qty(r.etQtyExpired) > 0) && r.etNotes.text.toString().trim().isEmpty()
+        (qty(r.etQtyDamaged) > 0 || qty(r.etQtyExpired) > 0 || qty(r.etQtyTransporterDamage) > 0) && r.etNotes.text.toString().trim().isEmpty()
     }.map { it.expected.name }
 
     // Un envío vacío es válido a propósito — es como el almacenista confirma

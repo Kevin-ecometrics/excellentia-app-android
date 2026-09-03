@@ -574,6 +574,7 @@
     <string name="wh_condition_good">Buena</string>
     <string name="wh_condition_damaged">Dañada</string>
     <string name="wh_condition_expired">Vencida</string>
+    <string name="wh_condition_transporter_damage">Dañada en tránsito</string>
     <string name="label_condition">Condición</string>
     <string name="wh_btn_save_returns">Guardar devoluciones</string>
     <string name="msg_returns_saved">Devoluciones guardadas</string>
