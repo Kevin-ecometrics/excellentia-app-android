@@ -18,6 +18,7 @@ import com.example.test.data.ConsignmentRegisterRequest
 import com.example.test.data.ConsignmentSettleItem
 import com.example.test.data.ConsignmentSettleRequest
 import com.example.test.data.ProductDto
+import com.example.test.data.UpdateStopStatusRequest
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.scan.DataWedgeScanner
@@ -325,6 +326,7 @@ class ConsignmentActivity : BaseActivity() {
                         Snackbar.make(findViewById(android.R.id.content), error, Snackbar.LENGTH_LONG).show()
                     } else {
                         Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_consignment_registered), Snackbar.LENGTH_SHORT).show()
+                        markStopDelivered()
                         loadConsignment()
                     }
                 } else {
@@ -333,6 +335,21 @@ class ConsignmentActivity : BaseActivity() {
             } catch (e: Exception) {
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    // Dejar el primer ítem en consignación ES la entrega para esta parada —
+    // mismo criterio que activateCustomerAndSell() en MyRouteDetailActivity
+    // (CUSTOMER se marca DELIVERED solo cuando la venta real ocurre, no con
+    // un botón manual aparte). Reintentar sobre una parada ya DELIVERED es
+    // un UPDATE sin efecto — seguro llamarlo en cada registro, no solo el
+    // primero. Best-effort: un fallo acá no debe bloquear el flujo principal
+    // (el ítem ya quedó registrado del lado de inventario, que es lo crítico).
+    private fun markStopDelivered() {
+        lifecycleScope.launch {
+            try {
+                RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest("DELIVERED"))
+            } catch (_: Exception) { }
         }
     }
 

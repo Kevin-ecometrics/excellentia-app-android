@@ -412,20 +412,6 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 }
             }
 
-            val btnManageConsignment = row.findViewById<View>(R.id.btnManageConsignment)
-            if (stop.stopType == "CONSIGNMENT") {
-                btnManageConsignment.visibility = View.VISIBLE
-                btnManageConsignment.setOnClickListener {
-                    startActivity(Intent(this, ConsignmentActivity::class.java).apply {
-                        putExtra("route_id", routeId)
-                        putExtra("stop_id", stop.id)
-                        putExtra("customer_name", stop.customerName)
-                    })
-                }
-            } else {
-                btnManageConsignment.visibility = View.GONE
-            }
-
             val btnUp = row.findViewById<View>(R.id.btnStopUp)
             val btnDown = row.findViewById<View>(R.id.btnStopDown)
             val btnRemove = row.findViewById<View>(R.id.btnRemoveStop)

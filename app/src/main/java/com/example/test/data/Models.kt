@@ -131,7 +131,10 @@ data class OrderDto(
     @SerializedName("check_number") val checkNumber: String? = null,
     @SerializedName("credit_applied") val creditApplied: Double? = null,
     @SerializedName("damage_credits") val damageCredits: Double? = null,
-    @SerializedName("short_name") val shortName: String? = null
+    @SerializedName("short_name") val shortName: String? = null,
+    // Fase 115.5 — para que un reprint desde Historial/detalle de ticket
+    // conserve el resumen "Courtesy Summary" del ticket original.
+    @SerializedName("is_courtesy") val isCourtesy: Boolean = false
 )
 
 data class DeviceRegisterRequest(

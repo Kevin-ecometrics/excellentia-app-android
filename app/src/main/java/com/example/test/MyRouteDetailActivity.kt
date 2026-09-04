@@ -234,6 +234,7 @@ class MyRouteDetailActivity : BaseActivity() {
                     stop.preOrder?.id?.let { append(" #$it") }
                     itemsSummary?.let { append("\n"); append(it) }
                 }
+                "CONSIGNMENT" -> getString(R.string.wh_consignment_label)
                 else -> stop.preOrder?.let { po ->
                     buildString {
                         append(getString(R.string.wh_preorder_label))
@@ -259,8 +260,23 @@ class MyRouteDetailActivity : BaseActivity() {
             // PreOrderDetailActivity). "Saltar" sigue siendo manual (el
             // cliente no compró). Un pedido BATCH ya está facturado — no hay
             // venta que disparar acá, sigue siendo 100% manual como antes.
-            val hasSaleAction = stop.preOrder != null || stop.stopType == "CUSTOMER"
-            if (!resolved && canAct && !selling) {
+            val hasSaleAction = stop.preOrder != null || stop.stopType == "CUSTOMER" || stop.stopType == "CONSIGNMENT"
+            // Fase 115.4 — a diferencia de PRE_ORDER/CUSTOMER, el botón de
+            // Consignación queda visible sin importar resolved/canAct/selling:
+            // registrar qué se deja y liquidar son dos momentos separados (a
+            // veces en visitas distintas), así que la acción tiene que seguir
+            // disponible incluso después de que la parada ya quedó DELIVERED.
+            if (stop.stopType == "CONSIGNMENT") {
+                btnAction.visibility = View.VISIBLE
+                btnAction.text = getString(R.string.btn_manage_consignment)
+                btnAction.setOnClickListener {
+                    startActivity(Intent(this, ConsignmentActivity::class.java).apply {
+                        putExtra("route_id", routeId)
+                        putExtra("stop_id", stop.id)
+                        putExtra("customer_name", stop.customerName)
+                    })
+                }
+            } else if (!resolved && canAct && !selling) {
                 when {
                     stop.preOrder != null -> {
                         btnAction.visibility = View.VISIBLE

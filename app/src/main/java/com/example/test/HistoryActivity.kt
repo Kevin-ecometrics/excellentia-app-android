@@ -258,7 +258,8 @@ class HistoryActivity : BaseActivity() {
                     productName = order.productName,
                     price = order.price,
                     quantity = order.quantity,
-                    total = order.price * order.quantity
+                    total = order.price * order.quantity,
+                    isCourtesy = order.isCourtesy
                 )
                 val result = orderRepository.sendBatch(
                     items = listOf(item),

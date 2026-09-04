@@ -371,6 +371,8 @@
     <string name="label_scan_to_start">Scan a product to start</string>
     <string name="label_order_total">ORDER TOTAL</string>
     <string name="label_order_credits">Credits: -$%1$.2f</string>
+    <string name="label_order_courtesy">Courtesy: -$%1$.2f</string>
+    <string name="label_courtesy_tag">Courtesy</string>
     <string name="btn_view_ticket">View ticket</string>
     <string name="btn_finalize_order">Finalize order</string>
     <string name="btn_add_credit_item">+ Add credit item</string>
@@ -618,6 +620,7 @@
     <string name="error_consignment_settle_exceeds">Sold + returned can\'t exceed what was left (%1$.2f)</string>
     <string name="msg_consignment_settled">Consignment settled</string>
     <string name="msg_consignment_registered">Item left with the customer</string>
+    <string name="btn_manage_consignment">Manage consignment</string>
     <string name="label_condition">Condition</string>
     <string name="wh_btn_save_returns">Save returns</string>
     <string name="msg_returns_saved">Returns saved</string>

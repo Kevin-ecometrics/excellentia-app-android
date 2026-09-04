@@ -315,6 +315,26 @@ object PrintService {
             }
         }
 
+        // ── Resumen Cortesías (Fase 115.5, mismo enfoque que Negative Sale
+        // Summary de abajo) — la línea ya salió arriba a precio real (igual
+        // que un ítem dañado no aparece ahí, uno cortesía sí porque es una
+        // venta real, solo que gratis); acá se lista aparte y se descuenta
+        // del total, igual que hace la factura de QBO con UnitPrice: 0.
+        val courtesyItems = items.filter { it.isCourtesy }
+        val courtesyTotal = courtesyItems.sumOf { it.total }
+        if (courtesyItems.isNotEmpty()) {
+            body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 6
+            body.t(BODY_FONT, X_LEFT, y, "Courtesy Summary:");                 y += BODY_H + 4
+            for (item in courtesyItems) {
+                val lineAmount = String.format(Locale.US, "\$%.2f", item.total)
+                val qtyStr = com.example.test.data.formatDamageQty(item.quantity, item.unit)
+                for (line in wrapText("${item.productName}: $qtyStr · -$lineAmount")) {
+                    body.t(BODY_FONT, X_LEFT + 4, y, line);                        y += BODY_H + 3
+                }
+            }
+            body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 10
+        }
+
         // ── Resumen Negative Sale (si hay alguno) ───────
         val totalDamage = damageItems.sumOf { it.qty }
         val credits = creditsTotalOf(damageItems, creditsTotal)
@@ -333,16 +353,21 @@ object PrintService {
 
         // ── Total ──────────────────────────────────────
         body.t(BODY_FONT, X_LEFT, y, SEP);                                     y += BODY_H + 10
-        if (credits > 0) {
+        if (credits > 0 || courtesyTotal > 0) {
             body.t(BODY_FONT, X_LEFT, y, twoCol("Subtotal:", String.format(Locale.US, "\$%.2f", grandTotal))); y += BODY_H + 4
-            body.t(BODY_FONT, X_LEFT, y, twoCol("Credits:", String.format(Locale.US, "-\$%.2f", credits)));    y += BODY_H + 4
+            if (courtesyTotal > 0) {
+                body.t(BODY_FONT, X_LEFT, y, twoCol("Courtesy:", String.format(Locale.US, "-\$%.2f", courtesyTotal))); y += BODY_H + 4
+            }
+            if (credits > 0) {
+                body.t(BODY_FONT, X_LEFT, y, twoCol("Credits:", String.format(Locale.US, "-\$%.2f", credits)));    y += BODY_H + 4
+            }
         }
         val creditAppliedVal = creditApplied ?: 0.0
         val finalTotal = if (creditAppliedVal > 0) {
             body.t(BODY_FONT, X_LEFT, y, twoCol("Credit Applied:", String.format(Locale.US, "-\$%.2f", creditAppliedVal))); y += BODY_H + 4
-            grandTotal - credits - creditAppliedVal
+            grandTotal - courtesyTotal - credits - creditAppliedVal
         } else {
-            grandTotal - credits
+            grandTotal - courtesyTotal - credits
         }
         body.t(BODY_FONT, X_LEFT, y, twoCol("TOTAL:", String.format(Locale.US, "\$%.2f", finalTotal))); y += BODY_H + 8
         // Con una sola categoría se puede sumar cantidad + unidad ("22.80 lb total").

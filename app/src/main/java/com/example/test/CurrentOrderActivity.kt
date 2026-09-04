@@ -44,6 +44,7 @@ class CurrentOrderActivity : BaseActivity() {
     private lateinit var tvStep3Label: TextView
     private lateinit var tvGrandTotal: TextView
     private lateinit var tvCreditsTotal: TextView
+    private lateinit var tvCourtesyTotal: TextView
     private lateinit var tvTotalQty: TextView
     private lateinit var tvTotalItems: TextView
     private lateinit var tvOrderCount: TextView
@@ -135,6 +136,7 @@ class CurrentOrderActivity : BaseActivity() {
         tvStep3Label = findViewById(R.id.tvStep3Label)
         tvGrandTotal = findViewById(R.id.tvGrandTotal)
         tvCreditsTotal = findViewById(R.id.tvCreditsTotal)
+        tvCourtesyTotal = findViewById(R.id.tvCourtesyTotal)
         tvTotalQty = findViewById(R.id.tvTotalQty)
         tvTotalItems = findViewById(R.id.tvTotalItems)
         tvOrderCount = findViewById(R.id.tvOrderCount)
@@ -202,6 +204,7 @@ class CurrentOrderActivity : BaseActivity() {
                 layoutEmpty.visibility = View.VISIBLE
                 tvGrandTotal.text = getString(R.string.default_total_zero)
                 tvCreditsTotal.visibility = View.GONE
+                tvCourtesyTotal.visibility = View.GONE
                 tvTotalQty.text = getString(R.string.default_qty_zero)
                 tvTotalItems.text = getString(R.string.label_products_count, 0)
                 tvOrderCount.text = getString(R.string.default_count_zero)
@@ -224,19 +227,34 @@ class CurrentOrderActivity : BaseActivity() {
                 row.findViewById<TextView>(R.id.tvPendingName).text = order.productName
                 row.findViewById<TextView>(R.id.tvPendingMeta).text =
                     "${order.barcode}  ·  ${String.format(Locale.US, "$%.2f total", order.price * order.quantity)}"
-                row.findViewById<TextView>(R.id.tvPendingQtyTotal).text =
-                    String.format(Locale.US, "%.2f %s  =  $%.2f", order.quantity, unitLabel, order.price * order.quantity)
+                // Fase 115.5 — cortesía se muestra en $0.00 acá, igual que ya
+                // pasa en el ticket (Subtotal/Courtesy/Total) — price/quantity
+                // reales no cambian en la DB, es puramente el texto de esta
+                // fila el que refleja "esto sale gratis". El valor real sigue
+                // visible en tvPendingMeta (línea de arriba, sin tocar).
+                row.findViewById<TextView>(R.id.tvPendingQtyTotal).apply {
+                    if (order.isCourtesy) {
+                        text = String.format(Locale.US, "%.2f %s  =  $0.00 · %s", order.quantity, unitLabel, getString(R.string.label_courtesy_tag))
+                        setTextColor(getColor(R.color.ex_navy))
+                    } else {
+                        text = String.format(Locale.US, "%.2f %s  =  $%.2f", order.quantity, unitLabel, order.price * order.quantity)
+                        setTextColor(getColor(R.color.primary))
+                    }
+                }
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnEditItem)
                     .setOnClickListener { editItem(order) }
                 row.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnDeleteItem)
                     .setOnClickListener { confirmDelete(order.id, order.productName) }
-                // Fase 115.5 — no dispara loadOrder() al tildar: price/quantity
-                // no cambian, solo la marca, así que no hace falta re-renderizar
-                // toda la lista por esto.
+                // Fase 115.5 — sí dispara loadOrder(): a diferencia del primer
+                // intento, ahora el texto de esta fila y el ORDER TOTAL de
+                // abajo cambian con el tilde, así que hace falta re-renderizar.
                 row.findViewById<com.google.android.material.checkbox.MaterialCheckBox>(R.id.cbCourtesy).apply {
                     setOnCheckedChangeListener(null)
                     isChecked = order.isCourtesy
-                    setOnCheckedChangeListener { _, checked -> orderRepository.setCourtesy(order.id, checked) }
+                    setOnCheckedChangeListener { _, checked ->
+                        orderRepository.setCourtesy(order.id, checked)
+                        loadOrder()
+                    }
                 }
                 layoutOrderItems.addView(row)
             }
@@ -271,16 +289,26 @@ class CurrentOrderActivity : BaseActivity() {
 
             val grandTotal = normalItems.sumOf { it.price * it.quantity }
             val creditsTotal = creditRows.sumOf { it.price * it.quantity }
+            // Fase 115.5 — mismo criterio que creditsTotal: se resta del ORDER
+            // TOTAL mostrado acá, estimación local (el backend recalcula la
+            // cifra autoritativa al armar la factura, ver createBatchInvoice).
+            val courtesyTotal = normalItems.filter { it.isCourtesy }.sumOf { it.price * it.quantity }
             val totalQty = normalItems.sumOf { it.quantity }
             val overallUnit = normalItems.firstOrNull()?.let {
                 if (it.unit.isNullOrBlank() || it.unit == "Lbs") "lb" else it.unit
             } ?: "lb"
-            tvGrandTotal.text = String.format(Locale.US, "$%.2f", grandTotal - creditsTotal)
+            tvGrandTotal.text = String.format(Locale.US, "$%.2f", grandTotal - creditsTotal - courtesyTotal)
             if (creditsTotal > 0) {
                 tvCreditsTotal.text = getString(R.string.label_order_credits, creditsTotal)
                 tvCreditsTotal.visibility = View.VISIBLE
             } else {
                 tvCreditsTotal.visibility = View.GONE
+            }
+            if (courtesyTotal > 0) {
+                tvCourtesyTotal.text = getString(R.string.label_order_courtesy, courtesyTotal)
+                tvCourtesyTotal.visibility = View.VISIBLE
+            } else {
+                tvCourtesyTotal.visibility = View.GONE
             }
             tvTotalQty.text = String.format(Locale.US, "%.2f %s", totalQty, overallUnit)
             tvTotalItems.text = getString(R.string.label_products_count, normalItems.size)
@@ -484,7 +512,8 @@ class CurrentOrderActivity : BaseActivity() {
                     customerName = customerName,
                     unit = order.unit,
                     caseQty = order.caseQty,
-                    shortName = order.shortName
+                    shortName = order.shortName,
+                    isCourtesy = order.isCourtesy
                 )
             }
             // Si pendingDamageItems ya tiene contenido es porque askDamagedItems()
@@ -864,7 +893,11 @@ class CurrentOrderActivity : BaseActivity() {
                     val balance = resp.body()!!
                     if (balance.balance > 0) {
                         val pendingAll = orderRepository.getPendingOrders()
-                        val netTotal = pendingAll.filter { !it.isCredit }.sumOf { it.price * it.quantity } -
+                        // Fase 115.5 — lo cortesía no es parte de lo que hay
+                        // que pagar; sin restarlo, el máximo aplicable de
+                        // crédito quedaría inflado por encima de lo que la
+                        // venta realmente cobra.
+                        val netTotal = pendingAll.filter { !it.isCredit && !it.isCourtesy }.sumOf { it.price * it.quantity } -
                             pendingAll.filter { it.isCredit }.sumOf { it.price * it.quantity }
                         val maxApply = minOf(balance.balance, netTotal.coerceAtLeast(0.0))
                         val msg = getString(R.string.msg_credit_apply,
@@ -1098,7 +1131,8 @@ class CurrentOrderActivity : BaseActivity() {
                                 creditApplied = creditAppliedForTicket,
                                 paymentMethod = paymentForPrinting,
                                 checkNumber = checkForPrinting,
-                                shortName = bi.shortName
+                                shortName = bi.shortName,
+                                isCourtesy = bi.isCourtesy
                             )
                         }
                     ))

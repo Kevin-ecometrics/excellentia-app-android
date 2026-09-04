@@ -208,7 +208,7 @@ class TicketDetailActivity : AppCompatActivity() {
                 val items = orders.map { o ->
                     BatchItem(barcode = o.barcode, productName = o.productName,
                               price = o.price, quantity = o.quantity, total = o.total,
-                              unit = o.unit, caseQty = o.caseQty, shortName = o.shortName)
+                              unit = o.unit, caseQty = o.caseQty, isCourtesy = o.isCourtesy, shortName = o.shortName)
                 }
                 lifecycleScope.launch {
                     val result = PrintService.printTicket(
@@ -404,18 +404,28 @@ class TicketDetailActivity : AppCompatActivity() {
         }
 
         // ── Total ───────────────────────────────────────
+        // Fase 115.5 — este preview en pantalla es una implementación aparte
+        // de buildCpcl() (PrintService.kt, el ticket físico) — mismo bug de
+        // "se me olvidó acá" que casi pasa con Negative Sale si no se
+        // replica el cálculo a mano en los dos lugares.
+        val courtesyTotal = orders.filter { it.isCourtesy }.sumOf { it.total }
         val credits = creditsTotalOf(damageItems, authoritative = null)
         val creditAppliedVal = creditApplied ?: 0.0
         addSep(heavy = true)
-        if (credits > 0) {
+        if (credits > 0 || courtesyTotal > 0) {
             addTwoCol(left = "Subtotal:", right = String.format(Locale.US, "\$%.2f", grandTotal), sizeSp = 12f)
-            addTwoCol(left = "Credits:", right = String.format(Locale.US, "-\$%.2f", credits), sizeSp = 12f)
+            if (courtesyTotal > 0) {
+                addTwoCol(left = "Courtesy:", right = String.format(Locale.US, "-\$%.2f", courtesyTotal), sizeSp = 12f)
+            }
+            if (credits > 0) {
+                addTwoCol(left = "Credits:", right = String.format(Locale.US, "-\$%.2f", credits), sizeSp = 12f)
+            }
         }
         val displayTotal = if (creditAppliedVal > 0) {
             addTwoCol(left = "Credit Applied:", right = String.format(Locale.US, "-\$%.2f", creditAppliedVal), sizeSp = 12f)
-            grandTotal - credits - creditAppliedVal
+            grandTotal - courtesyTotal - credits - creditAppliedVal
         } else {
-            grandTotal - credits
+            grandTotal - courtesyTotal - credits
         }
         addTwoCol(
             left   = "TOTAL:",
@@ -438,6 +448,19 @@ class TicketDetailActivity : AppCompatActivity() {
         }
         addLine(qtyLine, sizeSp = 12f)
         addLine(companyNameFooter, sizeSp = 12f)
+
+        // ── Courtesy Summary ──────────────────────────────
+        val courtesyItems = orders.filter { it.isCourtesy }
+        if (courtesyItems.isNotEmpty()) {
+            addSep(heavy = false)
+            addLine("Courtesy Summary:", bold = true, sizeSp = 12f)
+            for (item in courtesyItems) {
+                addLine(
+                    "${item.productName}: ${formatDamageQty(item.quantity, item.unit)} · ${String.format(Locale.US, "-\$%.2f", item.total)}",
+                    sizeSp = 12f, indent = true
+                )
+            }
+        }
 
         // ── Negative Sale Summary ────────────────────────
         val hasDamage = damageItems.any { it.qty > 0 }

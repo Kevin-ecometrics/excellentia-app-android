@@ -45,7 +45,6 @@ class OrderSuccessActivity : BaseActivity() {
             Gson().fromJson(damageItemsJson ?: "[]", type) ?: emptyList()
         } catch (_: Exception) { emptyList() }
         val credits = creditsTotalOf(damageItems, authoritative = creditsTotalExtra)
-        val displayTotal = total - credits - creditApplied
 
         findViewById<View>(R.id.layoutPendingSync).visibility =
             if (isOfflinePending) View.VISIBLE else View.GONE
@@ -87,6 +86,18 @@ class OrderSuccessActivity : BaseActivity() {
             findViewById<TextView>(R.id.tvSuccessCredits).text =
                 String.format(Locale.US, "-$%.2f", totalCredits)
         }
+
+        // Fase 115.5 — mismo criterio que Credits: se resta del total mostrado
+        // acá (necesita `orders`, recién parseado arriba, para saber qué
+        // ítems son cortesía).
+        val courtesyTotal = orders.filter { it.isCourtesy }.sumOf { it.total }
+        if (courtesyTotal > 0) {
+            findViewById<View>(R.id.rowCourtesy).visibility = View.VISIBLE
+            findViewById<View>(R.id.dividerCourtesy).visibility = View.VISIBLE
+            findViewById<TextView>(R.id.tvSuccessCourtesy).text =
+                String.format(Locale.US, "-$%.2f", courtesyTotal)
+        }
+        val displayTotal = total - courtesyTotal - credits - creditApplied
 
         findViewById<TextView>(R.id.tvSuccessTotal).text =
             String.format(Locale.US, "$%.2f", displayTotal)
