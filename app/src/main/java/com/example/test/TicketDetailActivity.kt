@@ -93,6 +93,11 @@ class TicketDetailActivity : AppCompatActivity() {
             orders.any { it.status == "FAILED" }             -> "FAILED"
             orders.any { it.status == "AWAITING_APPROVAL" }  -> "AWAITING_APPROVAL"
             orders.any { it.status == "PENDING" }            -> "PENDING"
+            // Fase 117 (fix) — sin este branch caía en el "else -> null" de
+            // abajo y el ticket no mostraba ningún estado para una venta
+            // cancelada (buildReceipt no dibuja la línea de estado si
+            // status es null).
+            orders.any { it.status == "CANCELLED" }          -> "CANCELLED"
             else                                              -> null
         }
 

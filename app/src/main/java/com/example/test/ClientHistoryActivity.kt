@@ -207,6 +207,13 @@ class ClientHistoryActivity : BaseActivity() {
                     setBackgroundResource(R.drawable.bg_chip_pending)
                     setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, R.color.primary))
                 }
+                // Fase 117 (fix) — sin este branch caía en "else" y se veía
+                // como "Pending", lo opuesto de lo que pasó.
+                "CANCELLED" -> {
+                    text = getString(R.string.status_cancelled)
+                    setBackgroundResource(R.drawable.bg_status_chip)
+                    setTextColor(ContextCompat.getColor(this@ClientHistoryActivity, R.color.text_secondary))
+                }
                 else -> {
                     text = getString(R.string.label_pending_status)
                     setBackgroundResource(R.drawable.bg_chip_pending)

@@ -194,10 +194,12 @@
     <string name="chip_today">Hoy</string>
     <string name="chip_all_dates">Todos</string>
     <string name="chip_failed">Fallidos</string>
+    <string name="filter_cancelled">Cancelados</string>
     <string name="btn_load_more_orders">Cargar más pedidos</string>
     <string name="empty_sent">Sin pedidos enviados</string>
     <string name="empty_pending">Sin pedidos pendientes</string>
     <string name="empty_failed">Sin pedidos fallidos</string>
+    <string name="empty_cancelled">Sin pedidos cancelados</string>
     <string name="empty_all">Sin pedidos registrados</string>
     <string name="orders_will_appear_here">Los pedidos enviados aparecerán aquí</string>
     <string name="status_sent">ENVIADO</string>

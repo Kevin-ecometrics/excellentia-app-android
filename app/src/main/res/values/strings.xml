@@ -199,10 +199,12 @@
     <string name="chip_today">Today</string>
     <string name="chip_all_dates">All</string>
     <string name="chip_failed">Failed</string>
+    <string name="filter_cancelled">Cancelled</string>
     <string name="btn_load_more_orders">Load more orders</string>
     <string name="empty_sent">No sent orders</string>
     <string name="empty_pending">No pending orders</string>
     <string name="empty_failed">No failed orders</string>
+    <string name="empty_cancelled">No cancelled orders</string>
     <string name="empty_all">No orders on record</string>
     <string name="orders_will_appear_here">Orders sent will appear here</string>
     <string name="status_sent">SENT</string>

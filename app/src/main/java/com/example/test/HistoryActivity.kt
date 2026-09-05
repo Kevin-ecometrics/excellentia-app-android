@@ -84,9 +84,10 @@ class HistoryActivity : BaseActivity() {
 
         chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
             currentFilter = when {
-                checkedIds.contains(R.id.chipSent)    -> "SENT"
-                checkedIds.contains(R.id.chipPending) -> "PENDING"
-                checkedIds.contains(R.id.chipFailed)  -> "FAILED"
+                checkedIds.contains(R.id.chipSent)      -> "SENT"
+                checkedIds.contains(R.id.chipPending)   -> "PENDING"
+                checkedIds.contains(R.id.chipFailed)    -> "FAILED"
+                checkedIds.contains(R.id.chipCancelled) -> "CANCELLED"
                 else -> "ALL"
             }
             currentPage = 1
@@ -141,8 +142,11 @@ class HistoryActivity : BaseActivity() {
                 if (!append) layoutEntries.removeAllViews()
                 val inflater = LayoutInflater.from(this@HistoryActivity)
 
-                // Órdenes locales
-                if (currentFilter != "SENT") {
+                // Órdenes locales — nunca están SENT ni CANCELLED (cancelar
+                // es una acción sobre un batch ya en el servidor, ver
+                // cancelBatch/Fase 117), así que esos dos filtros no
+                // aplican acá.
+                if (currentFilter != "SENT" && currentFilter != "CANCELLED") {
                     for (order in localFiltered) {
                         val isFailed = order.retryCount == -1
                         if (currentFilter == "PENDING" && isFailed)  continue
@@ -166,11 +170,17 @@ class HistoryActivity : BaseActivity() {
 
                 // Batches remotos
                 for ((batchId, orders) in batchesFiltered) {
-                    val allSent   = orders.all { it.status == "SENT" }
-                    val hasFailed = orders.any { it.status == "FAILED" }
-                    if (currentFilter == "PENDING" && allSent)   continue
-                    if (currentFilter == "SENT"    && !allSent)  continue
-                    if (currentFilter == "FAILED"  && !hasFailed) continue
+                    val allSent      = orders.all { it.status == "SENT" }
+                    val hasFailed    = orders.any { it.status == "FAILED" }
+                    val hasCancelled = orders.any { it.status == "CANCELLED" }
+                    // "Pending" es el cajón de "todavía necesita atención" —
+                    // Cancelled es terminal (ya no va a cambiar), así que se
+                    // saca de ese cajón para que tenga su propia pestaña de
+                    // verdad en vez de mezclarse ahí (Fase 117, fix).
+                    if (currentFilter == "PENDING"   && (allSent || hasCancelled)) continue
+                    if (currentFilter == "SENT"      && !allSent)      continue
+                    if (currentFilter == "FAILED"    && !hasFailed)    continue
+                    if (currentFilter == "CANCELLED" && !hasCancelled) continue
 
                     val headerView = inflater.inflate(R.layout.item_batch_header, layoutEntries, false)
                     bindBatchHeader(headerView, batchId, orders, orders.firstOrNull()?.qbInvoiceId)
@@ -184,9 +194,10 @@ class HistoryActivity : BaseActivity() {
                     btnLoadMore.visibility   = View.GONE
                     val tvEmpty = layoutEmpty.findViewById<android.widget.TextView>(R.id.tvEmptyMessage)
                     tvEmpty?.text = when (currentFilter) {
-                        "SENT"    -> getString(R.string.empty_sent)
-                        "PENDING" -> getString(R.string.empty_pending)
-                        "FAILED"  -> getString(R.string.empty_failed)
+                        "SENT"      -> getString(R.string.empty_sent)
+                        "PENDING"   -> getString(R.string.empty_pending)
+                        "FAILED"    -> getString(R.string.empty_failed)
+                        "CANCELLED" -> getString(R.string.empty_cancelled)
                         else      -> getString(R.string.empty_all)
                     }
                 } else {
@@ -323,6 +334,11 @@ class HistoryActivity : BaseActivity() {
         val allSent = orders.all { it.status == "SENT" }
         val anyAwaiting = orders.any { it.status == "AWAITING_APPROVAL" }
         val anyFailed = orders.any { it.status == "FAILED" }
+        // Fase 117 — cancelBatch solo cancela batches AWAITING_APPROVAL
+        // enteros (nunca queda una mezcla), así que "todas canceladas" y
+        // "alguna cancelada" dan lo mismo en la práctica — se usa any() por
+        // consistencia con los demás checks de acá.
+        val anyCancelled = orders.any { it.status == "CANCELLED" }
         view.findViewById<TextView>(R.id.tvBatchStatus).apply {
             when {
                 allSent -> {
@@ -342,6 +358,14 @@ class HistoryActivity : BaseActivity() {
                     text = getString(R.string.label_awaiting_approval)
                     setBackgroundResource(R.drawable.bg_chip_pending)
                     setTextColor(ContextCompat.getColor(this@HistoryActivity, R.color.primary))
+                }
+                // Fase 117 (fix) — sin este branch, una venta cancelada caía
+                // en el "else" de abajo y se mostraba como "Pending", que es
+                // justo lo opuesto de lo que pasó.
+                anyCancelled -> {
+                    text = getString(R.string.status_cancelled)
+                    setBackgroundResource(R.drawable.bg_status_chip)
+                    setTextColor(ContextCompat.getColor(this@HistoryActivity, R.color.text_secondary))
                 }
                 else -> {
                     text = getString(R.string.label_pending_status)
