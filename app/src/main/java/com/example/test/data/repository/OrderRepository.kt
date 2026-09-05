@@ -261,6 +261,40 @@ class OrderRepository(
         }
     }
 
+    // Fase 117 — solo aplican mientras el batch sigue AWAITING_APPROVAL,
+    // 100% local (no tocan QBO). Mismo manejo de error que retryBatchSync.
+    suspend fun cancelBatch(batchId: String, reason: String? = null): Result<CancelBatchResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = RetrofitClient.getApi().cancelBatch(batchId, CancelBatchRequest(reason))
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val message = try {
+                    response.errorBody()?.string()?.let { gson.fromJson(it, ApiErrorBody::class.java)?.error }
+                } catch (_: Exception) { null }
+                Result.failure(Exception(message ?: "Error del servidor: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun editBatch(batchId: String, items: List<BatchItem>): Result<EditBatchResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = RetrofitClient.getApi().editBatch(batchId, EditBatchRequest(items))
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val message = try {
+                    response.errorBody()?.string()?.let { gson.fromJson(it, ApiErrorBody::class.java)?.error }
+                } catch (_: Exception) { null }
+                Result.failure(Exception(message ?: "Error del servidor: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getRemoteOrders(page: Int = 1, limit: Int = 20): Result<ApiResponse<List<OrderDto>>> = withContext(Dispatchers.IO) {
         try {
             val response = RetrofitClient.getApi().listOrders(page = page, limit = limit)

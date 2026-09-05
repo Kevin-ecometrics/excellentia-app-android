@@ -7,14 +7,18 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Base64
+import android.widget.EditText
 import android.widget.ImageView
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Context
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -50,6 +54,14 @@ class TicketDetailActivity : AppCompatActivity() {
     private val dp get() = resources.displayMetrics.density
     private var damageItemsForReprint: List<DamageItem> = emptyList()
     private var signatureForReprint: String? = null
+
+    // Fase 117 — al volver de EditBatchActivity con éxito, esta pantalla
+    // quedó desactualizada (los ítems cambiaron) y no tiene forma barata de
+    // refrescarse sola — se cierra y vuelve a HistoryActivity, que ya
+    // refresca en onResume().
+    private val editBatchLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) finish()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -295,6 +307,69 @@ class TicketDetailActivity : AppCompatActivity() {
                     btnRetryQbo.isEnabled = true
                     btnRetryQbo.text = getString(R.string.btn_retry_qbo)
                 }
+            }
+        }
+
+        // Botones Cancelar/Editar (Fase 117) — solo mientras el batch sigue
+        // AWAITING_APPROVAL, y solo para admin o el operador dueño de TODAS
+        // las filas del batch (mismo criterio que el backend). La factura
+        // todavía no existe en QBO en este estado, así que las dos acciones
+        // son 100% locales — ver CLAUDE.md, "Editar / Cancelar venta
+        // AWAITING_APPROVAL".
+        val currentUserId = prefs.getUserId()
+        val isAdminUser = prefs.getUserRole() == "admin"
+        val ownsBatch = currentUserId != null && orders.isNotEmpty() && orders.all { it.userId == currentUserId }
+        val canManageBatch = orderStatus == "AWAITING_APPROVAL" && (isAdminUser || ownsBatch)
+
+        val btnEditBatch = findViewById<MaterialButton>(R.id.btnEditBatch)
+        val btnCancelBatch = findViewById<MaterialButton>(R.id.btnCancelBatch)
+        if (canManageBatch && batchId.isNotBlank()) {
+            btnEditBatch.visibility = android.view.View.VISIBLE
+            btnCancelBatch.visibility = android.view.View.VISIBLE
+
+            btnEditBatch.setOnClickListener {
+                editBatchLauncher.launch(Intent(this, EditBatchActivity::class.java).apply {
+                    putExtra("batch_id", batchId)
+                    putExtra("orders_json", ordersJson)
+                })
+            }
+
+            btnCancelBatch.setOnClickListener {
+                val etReason = EditText(this).apply {
+                    hint = getString(R.string.hint_cancel_reason)
+                }
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(getString(R.string.title_cancel_batch_confirm))
+                    .setMessage(getString(R.string.msg_cancel_batch_confirm))
+                    .setView(etReason)
+                    .setPositiveButton(getString(R.string.btn_cancel_batch)) { _, _ ->
+                        btnCancelBatch.isEnabled = false
+                        btnEditBatch.isEnabled = false
+                        btnCancelBatch.text = getString(R.string.btn_cancelling)
+                        lifecycleScope.launch {
+                            val result = orderRepository.cancelBatch(
+                                batchId,
+                                etReason.text?.toString()?.trim()?.takeIf { it.isNotBlank() }
+                            )
+                            result.onSuccess {
+                                Snackbar.make(findViewById(android.R.id.content),
+                                    getString(R.string.msg_batch_cancelled), Snackbar.LENGTH_SHORT).show()
+                                finish()
+                            }
+                            result.onFailure { e ->
+                                btnCancelBatch.isEnabled = true
+                                btnEditBatch.isEnabled = true
+                                btnCancelBatch.text = getString(R.string.btn_cancel_batch)
+                                MaterialAlertDialogBuilder(this@TicketDetailActivity)
+                                    .setTitle(getString(R.string.title_cancel_batch_error))
+                                    .setMessage(getString(R.string.error_cancel_batch_generic, e.localizedMessage ?: getString(R.string.error_unknown)))
+                                    .setPositiveButton(getString(R.string.btn_understood), null)
+                                    .show()
+                            }
+                        }
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                    .show()
             }
         }
     }

@@ -94,6 +94,19 @@ interface ApiService {
         @Path("batchId") batchId: String
     ): Response<RetryBatchResponse>
 
+    // Fase 117 — solo aplican mientras el batch sigue AWAITING_APPROVAL.
+    @POST("api/orders/batch/{batchId}/cancel")
+    suspend fun cancelBatch(
+        @Path("batchId") batchId: String,
+        @Body request: CancelBatchRequest
+    ): Response<CancelBatchResponse>
+
+    @POST("api/orders/batch/{batchId}/edit")
+    suspend fun editBatch(
+        @Path("batchId") batchId: String,
+        @Body request: EditBatchRequest
+    ): Response<EditBatchResponse>
+
     // ── Pre-Orders ──
 
     @POST("api/preorders")

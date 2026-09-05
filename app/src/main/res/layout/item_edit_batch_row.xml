@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fase 117 — fila editable dentro de EditBatchActivity: nombre/barcode
+     fijos, cantidad y precio editables, total calculado, botón quitar. -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="10dp"
+    app:cardBackgroundColor="@color/surface"
+    app:cardCornerRadius="0dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/ex_line"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:background="@color/primary" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/tvRowName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvRowMeta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:fontFamily="monospace"
+                android:textColor="@color/text_secondary"
+                android:textSize="10sp" />
+
+            <!-- Fase 117 — desglose por unidad, mismo criterio que
+                 ProductDetailActivity.showProduct()/recalcTotal(): distinto
+                 según el tipo (Lbs = precio/lb directo; Case/Unit = precio
+                 de la caja completa + precio/unidad individual entre
+                 paréntesis cuando caseQty > 1; Bucket/otros = precio/unidad
+                 sin más). Se recalcula en vivo cuando cambian qty/price. -->
+            <TextView
+                android:id="@+id/tvRowUnitHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/primary"
+                android:textSize="10sp"
+                android:textStyle="italic" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_input_field"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <TextView
+                        android:id="@+id/tvRowQtyLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.04"
+                        android:text="@string/label_qty_short"
+                        android:textAllCaps="true"
+                        android:textColor="@color/ex_green"
+                        android:textSize="9sp"
+                        android:textStyle="bold" />
+
+                    <EditText
+                        android:id="@+id/etRowQty"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:inputType="numberDecimal"
+                        android:minHeight="0dp"
+                        android:paddingVertical="1dp"
+                        android:textColor="@color/ex_ink"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_input_field"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <TextView
+                        android:id="@+id/tvRowPriceLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.04"
+                        android:text="@string/label_price_short"
+                        android:textAllCaps="true"
+                        android:textColor="@color/ex_green"
+                        android:textSize="9sp"
+                        android:textStyle="bold" />
+
+                    <EditText
+                        android:id="@+id/etRowPrice"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:inputType="numberDecimal"
+                        android:minHeight="0dp"
+                        android:paddingVertical="1dp"
+                        android:textColor="@color/ex_ink"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvRowTotal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:minWidth="56dp"
+                    android:gravity="end"
+                    android:textColor="@color/primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRowRemove"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    app:backgroundTint="@color/ex_danger_tint"
+                    app:icon="@drawable/ic_delete"
+                    app:iconSize="16dp"
+                    app:iconTint="@color/red" />
+
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

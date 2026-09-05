@@ -64,7 +64,6 @@ class CurrentOrderActivity : BaseActivity() {
     private var pendingPaymentMethod: String? = null
     private var pendingCheckNumber: String? = null
     private var pendingApplyCredit: Double? = null
-    private var launchSignatureAfterCustomer = false
 
     // Fase 82 — el batch se manda a QBO antes del ticket #1 (para tener el
     // invoice real ahí); esto guarda esa respuesta para reusarla al elegir
@@ -90,10 +89,6 @@ class CurrentOrderActivity : BaseActivity() {
             customerName = name
             customerAddress = address
             updateCustomerLabel()
-            if (launchSignatureAfterCustomer) {
-                launchSignatureAfterCustomer = false
-                askDamagedItems()
-            }
         }
     }
 
@@ -147,16 +142,21 @@ class CurrentOrderActivity : BaseActivity() {
         btnAddCreditItem = findViewById(R.id.btnAddCreditItem)
 
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
-        btnViewTicket.setOnClickListener { openTicket() }
+        btnViewTicket.setOnClickListener {
+            if (customerId.isNullOrBlank()) {
+                warnSelectCustomerFirst()
+            } else {
+                openTicket()
+            }
+        }
         btnAddCreditItem.setOnClickListener { showAddCreditItemDialog() }
         btnFinalize.setOnClickListener {
-            pendingApplyCredit = null // reset al inicio del flujo (Fase 83 — el crédito se decide antes de la firma)
-            if (customerId != null && customerName != null) {
-                askDamagedItems()
-            } else {
-                launchSignatureAfterCustomer = true
-                customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
+            if (customerId.isNullOrBlank()) {
+                warnSelectCustomerFirst()
+                return@setOnClickListener
             }
+            pendingApplyCredit = null // reset al inicio del flujo (Fase 83 — el crédito se decide antes de la firma)
+            askDamagedItems()
         }
 
         tvCustomerLabel.setOnClickListener {
@@ -187,9 +187,27 @@ class CurrentOrderActivity : BaseActivity() {
                 tvCustomerAddress.visibility = View.GONE
             }
         } else {
-            tvCustomerLabel.visibility = View.GONE
+            // Antes quedaba oculto del todo sin cliente — la única forma de
+            // elegir uno era tocar "Finalizar pedido" (que abría el picker
+            // como fallback silencioso). Ahora ese fallback se reemplazó por
+            // un aviso explícito (warnSelectCustomerFirst) y este label
+            // queda siempre visible como el punto de entrada real al picker.
+            tvCustomerLabel.text = getString(R.string.label_select_customer)
+            tvCustomerLabel.visibility = View.VISIBLE
             tvCustomerAddress.visibility = View.GONE
         }
+    }
+
+    // "Ver ticket"/"Finalizar pedido" se quedan tocables aunque falte
+    // cliente (ver loadOrder) — deshabilitarlos sin más no explica nada;
+    // este aviso sí. No abre el picker solo — el usuario lo hace tocando
+    // tvCustomerLabel, que ya queda visible con el prompt "Select customer".
+    private fun warnSelectCustomerFirst() {
+        Snackbar.make(
+            findViewById(android.R.id.content),
+            getString(R.string.error_select_customer_first),
+            Snackbar.LENGTH_SHORT
+        ).show()
     }
 
     private fun loadOrder() {
@@ -216,7 +234,12 @@ class CurrentOrderActivity : BaseActivity() {
             layoutEmpty.visibility = View.GONE
             // No se puede finalizar solo con créditos — el backend exige
             // items[] no vacío (BatchRequest siempre manda al menos un
-            // producto real).
+            // producto real). Los botones se quedan HABILITADOS aunque no
+            // haya cliente seleccionado a propósito — deshabilitarlos no da
+            // ninguna explicación de por qué no responden; en cambio, el
+            // propio click listener valida `customerId` y avisa con un
+            // Snackbar ("Select a customer first") si falta, ver
+            // warnSelectCustomerFirst().
             btnFinalize.isEnabled = normalItems.isNotEmpty()
             btnViewTicket.isEnabled = normalItems.isNotEmpty()
 
@@ -884,8 +907,10 @@ class CurrentOrderActivity : BaseActivity() {
         }
     }
 
+    // customerId siempre viene seteado acá — el único punto de entrada a este
+    // flujo es btnFinalize (ver onCreate), que ya corta con
+    // warnSelectCustomerFirst() si falta cliente antes de llegar hasta acá.
     private fun askApplyCredit() {
-        if (customerId.isNullOrBlank()) { launchSignature(); return }
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().getCustomerCreditBalance(customerId!!)

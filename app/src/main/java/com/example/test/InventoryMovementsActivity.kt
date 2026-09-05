@@ -494,14 +494,20 @@ class InventoryMovementsActivity : BaseActivity() {
     }
 
     private fun showEditLotDialog(lot: ProductLotDto) {
+        // Fase 118 (fix) — decimal solo para Lbs, entero para Case/Unit/Bucket,
+        // mismo criterio que el resto de la app (antes era siempre decimal).
+        val isLbs = com.example.test.data.isLbsUnit(lot.unit)
         val density = resources.displayMetrics.density
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
         }
         val etQty = EditText(this).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(String.format(Locale.US, "%.2f", lot.receivedQty))
+            inputType = if (isLbs)
+                android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            else
+                android.text.InputType.TYPE_CLASS_NUMBER
+            setText(com.example.test.data.formatQty(lot.receivedQty))
             selectAll()
         }
         var chosenDate: String? = lot.expirationDate?.take(10)

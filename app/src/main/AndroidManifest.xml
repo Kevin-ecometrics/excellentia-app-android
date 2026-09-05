@@ -114,6 +114,10 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".EditBatchActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".MyRoutesActivity"
             android:exported="false"
             android:screenOrientation="portrait" />

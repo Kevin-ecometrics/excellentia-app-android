@@ -407,6 +407,32 @@
     <!-- i18n additions -->
     <string name="title_ticket_detail">Sale Ticket</string>
     <string name="btn_reprint">Reimprimir ticket</string>
+
+    <!-- Fase 117 — Cancelar/Editar venta AWAITING_APPROVAL -->
+    <string name="btn_edit_batch">Editar venta</string>
+    <string name="btn_cancel_batch">Cancelar venta</string>
+    <string name="title_cancel_batch_confirm">¿Cancelar esta venta?</string>
+    <string name="msg_cancel_batch_confirm">Se revertirá el stock y los créditos aplicados. Esta acción no se puede deshacer.</string>
+    <string name="hint_cancel_reason">Motivo (opcional)</string>
+    <string name="btn_cancelling">Cancelando…</string>
+    <string name="msg_batch_cancelled">Venta cancelada</string>
+    <string name="error_cancel_batch_generic">No se pudo cancelar la venta: %1$s</string>
+    <string name="title_cancel_batch_error">Error al cancelar</string>
+    <string name="title_edit_batch">Editar venta</string>
+    <string name="btn_add_product">Agregar producto</string>
+    <string name="btn_save_changes">Guardar cambios</string>
+    <string name="btn_saving_changes">Guardando…</string>
+    <string name="label_qty_short">Cant.</string>
+    <string name="label_price_short">Precio</string>
+    <string name="msg_batch_edited">Venta editada — queda esperando aprobación</string>
+    <string name="error_edit_batch_generic">No se pudo guardar la edición: %1$s</string>
+    <string name="error_edit_batch_empty">Agregá al menos un producto</string>
+    <string name="empty_edit_batch">Sin productos — agregá al menos uno para guardar</string>
+    <string name="label_qty_weight">Peso (lb)</string>
+    <string name="label_qty_cases">Cajas</string>
+    <string name="label_price_per_lb">Precio/lb</string>
+    <string name="label_price_per_case">Precio/caja</string>
+
     <string name="app_title">EXCELLENTIA</string>
     <string name="app_title_sub">FOODS</string>
     <string name="hint_email">Email</string>
@@ -544,7 +570,7 @@
     <string name="title_load_quantity">Cantidad a cargar</string>
     <string name="title_remove_route_item">Quitar ítem</string>
     <string name="msg_remove_route_item_confirm">¿Quitar %1$s de la carga de esta ruta? El stock se restaura.</string>
-    <string name="msg_route_item_added">%1$d %2$s cargado(s)</string>
+    <string name="msg_route_item_added">%1$s %2$s cargado(s)</string>
     <string name="msg_route_item_added_no_sync">Cargado localmente — no se pudo sincronizar el stock a QuickBooks</string>
 
     <!-- ── Fase 112 — Almacén: FIFO, recepción, sub-inventario, liquidación, devoluciones ── -->

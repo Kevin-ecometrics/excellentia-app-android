@@ -142,14 +142,23 @@ class ConsignmentActivity : BaseActivity() {
                     setTextColor(getColor(R.color.success))
                 })
             } else {
+                // Mismo criterio que showQuantityDialog() — decimal solo
+                // para Lbs, entero para Case/Unit y Bucket (no tiene
+                // sentido "vendí 2.5 buckets").
+                val isLbs = com.example.test.data.isLbsUnit(ci.unit)
+                val zeroText = if (isLbs) String.format(Locale.US, "%.2f", 0.0) else "0"
+                val qtyInputType = if (isLbs)
+                    InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+                else
+                    InputType.TYPE_CLASS_NUMBER
                 val etSold = EditText(this).apply {
-                    inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-                    setText(String.format(Locale.US, "%.2f", 0.0))
+                    inputType = qtyInputType
+                    setText(zeroText)
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
                 val etReturned = EditText(this).apply {
-                    inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-                    setText(String.format(Locale.US, "%.2f", 0.0))
+                    inputType = qtyInputType
+                    setText(zeroText)
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                         marginStart = 8.dp
                     }
@@ -294,8 +303,14 @@ class ConsignmentActivity : BaseActivity() {
     }
 
     private fun showQuantityDialog(product: ProductDto) {
+        // Decimal solo para Lbs (peso real) — Case/Unit y Bucket son
+        // conteos enteros, mismo criterio que ReceivingActivity.askQtyThenDate().
+        val isLbs = com.example.test.data.isLbsUnit(product.unit)
         val etQty = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            inputType = if (isLbs)
+                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            else
+                InputType.TYPE_CLASS_NUMBER
             setText("1")
             selectAll()
         }
@@ -304,7 +319,7 @@ class ConsignmentActivity : BaseActivity() {
             .setMessage(product.name)
             .setView(etQty)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
-                val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(0.01) ?: 1.0
+                val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: 1.0
                 registerItem(product, qty)
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)

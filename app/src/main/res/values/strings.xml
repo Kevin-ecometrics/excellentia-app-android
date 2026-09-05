@@ -425,6 +425,32 @@
     <string name="msg_qbo_retry_success">Sent to QuickBooks — Invoice #%1$s</string>
     <string name="error_qbo_retry_generic">Could not send to QuickBooks: %1$s</string>
     <string name="title_qbo_retry_error">QuickBooks sync failed</string>
+
+    <!-- Fase 117 — Cancelar/Editar venta AWAITING_APPROVAL -->
+    <string name="btn_edit_batch">Edit sale</string>
+    <string name="btn_cancel_batch">Cancel sale</string>
+    <string name="title_cancel_batch_confirm">Cancel this sale?</string>
+    <string name="msg_cancel_batch_confirm">This will revert stock and any applied credits. This action cannot be undone.</string>
+    <string name="hint_cancel_reason">Reason (optional)</string>
+    <string name="btn_cancelling">Cancelling…</string>
+    <string name="msg_batch_cancelled">Sale cancelled</string>
+    <string name="error_cancel_batch_generic">Could not cancel the sale: %1$s</string>
+    <string name="title_cancel_batch_error">Cancel failed</string>
+    <string name="title_edit_batch">Edit Sale</string>
+    <string name="btn_add_product">Add product</string>
+    <string name="btn_saving_changes">Saving…</string>
+    <string name="label_qty_short">Qty</string>
+    <string name="label_price_short">Price</string>
+    <string name="msg_batch_edited">Sale edited — waiting for approval again</string>
+    <string name="error_edit_batch_generic">Could not save changes: %1$s</string>
+    <string name="error_edit_batch_empty">Add at least one product</string>
+    <string name="empty_edit_batch">No products — add at least one to save</string>
+    <!-- Fase 117 — etiquetas de cantidad/precio por tipo de producto en
+         EditBatchActivity, mismo criterio que ProductDetailActivity -->
+    <string name="label_qty_weight">Weight (lb)</string>
+    <string name="label_qty_cases">Cases</string>
+    <string name="label_price_per_lb">Price/lb</string>
+    <string name="label_price_per_case">Price/case</string>
     <string name="app_title">EXCELLENTIA</string>
     <string name="app_title_sub">FOODS</string>
     <string name="hint_email">Email</string>
@@ -565,7 +591,9 @@
     <string name="title_load_quantity">Quantity to load</string>
     <string name="title_remove_route_item">Remove item</string>
     <string name="msg_remove_route_item_confirm">Remove %1$s from this route\'s load? Stock will be restored.</string>
-    <string name="msg_route_item_added">%1$d %2$s loaded</string>
+    <!-- %1$s ya viene formateado (formatQty en data/Models.kt) — Fase 118,
+         antes %1$d, no soportaba Lbs con decimales -->
+    <string name="msg_route_item_added">%1$s %2$s loaded</string>
     <string name="msg_route_item_added_no_sync">Loaded locally — could not sync stock to QuickBooks</string>
 
     <!-- ── Phase 112 — Warehouse: FIFO, receiving, sub-inventory, settlement, returns ── -->

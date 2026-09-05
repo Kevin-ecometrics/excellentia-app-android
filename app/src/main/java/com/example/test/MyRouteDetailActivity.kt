@@ -454,7 +454,7 @@ class MyRouteDetailActivity : BaseActivity() {
             row.findViewById<TextView>(R.id.tvItemName).text = item.name
             row.findViewById<TextView>(R.id.tvItemMeta).text =
                 (item.sku ?: item.barcode ?: "—") + (item.unit?.let { " · $it" } ?: "")
-            row.findViewById<TextView>(R.id.tvItemQty).text = item.quantity.toString()
+            row.findViewById<TextView>(R.id.tvItemQty).text = com.example.test.data.formatQty(item.quantity)
             row.findViewById<View>(R.id.btnRemoveItem).visibility = View.GONE
 
             val barcode = item.barcode

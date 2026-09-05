@@ -153,9 +153,18 @@ class RouteReturnsActivity : BaseActivity() {
                 content.addView(tvDeparted)
             }
 
+            // Fase 118 (fix) — decimal solo para Lbs (peso real); Case/Unit y
+            // Bucket son conteos enteros, mismo criterio que el resto de la
+            // app (Consignación, Recepción, cargar a ruta).
+            val isLbs = com.example.test.data.isLbsUnit(exp.unit)
+            fun formatEntered(qty: Double): String =
+                if (isLbs) String.format(Locale.US, "%.2f", qty) else com.example.test.data.formatQty(qty)
             fun qtyField(prefillGood: Boolean): EditText = EditText(this).apply {
-                inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-                setText(String.format(Locale.US, "%.2f", if (prefillGood) exp.expectedReturnQty else 0.0))
+                inputType = if (isLbs)
+                    InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+                else
+                    InputType.TYPE_CLASS_NUMBER
+                setText(formatEntered(if (prefillGood) exp.expectedReturnQty else 0.0))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
             fun conditionRow(label: String, field: EditText): LinearLayout = LinearLayout(this).apply {
@@ -206,10 +215,11 @@ class RouteReturnsActivity : BaseActivity() {
                 minWidth = 0
                 minimumWidth = 0
                 setOnClickListener {
-                    etQtyGood.setText(String.format(Locale.US, "%.2f", 0.0))
-                    etQtyDamaged.setText(String.format(Locale.US, "%.2f", 0.0))
-                    etQtyExpired.setText(String.format(Locale.US, "%.2f", 0.0))
-                    etQtyTransporterDamage.setText(String.format(Locale.US, "%.2f", 0.0))
+                    val zero = formatEntered(0.0)
+                    etQtyGood.setText(zero)
+                    etQtyDamaged.setText(zero)
+                    etQtyExpired.setText(zero)
+                    etQtyTransporterDamage.setText(zero)
                 }
             }
             content.addView(btnSoldOut)

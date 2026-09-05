@@ -74,7 +74,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // agregar exactamente lo mismo que había fallado, sin pedirle al
     // almacenista que vuelva a escanear en esta pantalla.
     private var pendingRetryProduct: ProductDto? = null
-    private var pendingRetryQuantity: Int = 1
+    private var pendingRetryQuantity: Double = 1.0
 
     private val receivingLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -279,7 +279,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             )
             val flag = reviewed && row.discrepancy != 0.0
             card.findViewById<TextView>(R.id.tvReconDiscrepancy).apply {
-                text = String.format(Locale.US, "%+.0f", row.discrepancy)
+                // Fase 118 (fix) — era %+.0f, redondeaba a entero. Con Lbs
+                // ahora cargando peso real, un sobrante/faltante chico (ej.
+                // 0.3 lb) quedaba oculto como "+0" — mismo %.2f que ya usa
+                // wh_reconciliation_meta arriba, para que las dos líneas
+                // coincidan en precisión.
+                text = String.format(Locale.US, "%+.2f", row.discrepancy)
                 setTextColor(getColor(if (flag) R.color.red else R.color.text_secondary))
             }
             layoutReconciliation.addView(card)
@@ -487,7 +492,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             val expPart = item.minExpirationDate?.take(10)?.let { getString(R.string.wh_item_expiration_suffix, it) } ?: ""
             val overridePart = if (item.usedOverride == 1) " · ${getString(R.string.wh_override_badge)}" else ""
             row.findViewById<TextView>(R.id.tvItemMeta).text = metaBase + expPart + overridePart
-            row.findViewById<TextView>(R.id.tvItemQty).text = item.quantity.toString()
+            row.findViewById<TextView>(R.id.tvItemQty).text = com.example.test.data.formatQty(item.quantity)
             val btnRemoveItem = row.findViewById<View>(R.id.btnRemoveItem)
             btnRemoveItem.isEnabled = !locked
             btnRemoveItem.alpha = if (locked) 0.3f else 1f
@@ -516,13 +521,22 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     }
 
     private fun showQuantityDialog(product: ProductDto) {
+        // Decimal solo para Lbs (peso real) — Case/Unit y Bucket son
+        // conteos enteros, mismo criterio que ReceivingActivity/
+        // ConsignmentActivity (Fase 118 — antes esta pantalla forzaba
+        // entero para todo, incluido Lbs, a diferencia del resto del
+        // sistema, que ya trata Lbs como peso real desde varias fases).
+        val isLbs = com.example.test.data.isLbsUnit(product.unit)
         val density = resources.displayMetrics.density
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
         }
         val etQty = EditText(this).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            inputType = if (isLbs)
+                android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            else
+                android.text.InputType.TYPE_CLASS_NUMBER
             setText("1")
             selectAll()
         }
@@ -545,7 +559,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 // El modal se cierra al toque — el aviso de carga va en la
                 // pantalla (junto a "Cargado en el camión"), no acá, para no
                 // bloquear al almacenista si viene escaneando varios seguidos.
-                val qty = etQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: 1.0
                 if (cbUseStock.isChecked) {
                     addRouteItem(product, qty, lotId = null, source = "STOCK")
                 } else {
@@ -561,11 +575,11 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // almacenista para que confirme o elija otro a mano (override, queda
     // registrado). Si la consulta falla o no hay lotes registrados para este
     // producto, se manda igual sin lot_id — el backend decide si hay stock.
-    private fun fetchFifoSuggestionThenAdd(product: ProductDto, quantity: Int) {
+    private fun fetchFifoSuggestionThenAdd(product: ProductDto, quantity: Double) {
         lifecycleScope.launch {
             var suggested: List<FifoAllocationDto> = emptyList()
             try {
-                val resp = RetrofitClient.getApi().suggestLots(product.id, quantity.toDouble())
+                val resp = RetrofitClient.getApi().suggestLots(product.id, quantity)
                 if (resp.isSuccessful) suggested = resp.body()?.data ?: emptyList()
             } catch (_: Exception) { }
 
@@ -587,7 +601,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         }
     }
 
-    private fun showLotPicker(product: ProductDto, quantity: Int) {
+    private fun showLotPicker(product: ProductDto, quantity: Double) {
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().listLots(productId = product.id)
@@ -618,7 +632,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // que el backend elija. source = "STOCK" salta lotes por completo y
     // descuenta products.stock directo (checkbox "Usar stock general" en
     // showQuantityDialog) — lotId se ignora en ese caso.
-    private fun addRouteItem(product: ProductDto, quantity: Int, lotId: Int?, source: String? = null) {
+    private fun addRouteItem(product: ProductDto, quantity: Double, lotId: Int?, source: String? = null) {
         pendingItemLoads++
         tvAddingItemLabel.text = getString(R.string.label_adding_item)
         layoutAddingItem.visibility = View.VISIBLE
@@ -635,7 +649,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                     // sincroniza QtyOnHand al toque) — el mensaje de éxito acá no
                     // depende de qbSynced, es solo informativo por si falla en
                     // silencio (no revierte lo local).
-                    val msg = getString(R.string.msg_route_item_added, quantity, product.name)
+                    val msg = getString(R.string.msg_route_item_added, com.example.test.data.formatQty(quantity), product.name)
                     Snackbar.make(findViewById(android.R.id.content), msg, Snackbar.LENGTH_SHORT).show()
                     // Se pinta al toque con lo que ya devuelve el POST, sin esperar
                     // el refetch — antes dependía solo de loadDetail() acá y el
@@ -662,7 +676,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // Fase 112 — en vez de mostrar el 409 crudo, distingue "cero recibido"
     // (ofrece ir a Recepción con el barcode precargado y, al volver, reintenta
     // solo) de "hay pero no alcanza" (solo informa cuánto hay).
-    private fun handleInsufficientStock(errorBodyRaw: String?, product: ProductDto, quantity: Int) {
+    private fun handleInsufficientStock(errorBodyRaw: String?, product: ProductDto, quantity: Double) {
         val body = try {
             errorBodyRaw?.let { com.google.gson.Gson().fromJson(it, com.example.test.data.InsufficientStockErrorBody::class.java) }
         } catch (_: Exception) { null }
@@ -737,10 +751,18 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     }
 
     private fun showQuantityDialogForAvailable(product: ProductDto) {
-        val defaultQty = (product.availableQty ?: 1.0).toInt().coerceAtLeast(1)
+        // Fase 118 — mismo criterio que showQuantityDialog(): decimal solo
+        // para Lbs, disponible ya viene como peso real si aplica.
+        val isLbs = com.example.test.data.isLbsUnit(product.unit)
+        val defaultQty = (product.availableQty ?: 1.0).let {
+            if (isLbs) it.coerceAtLeast(0.01) else kotlin.math.floor(it).coerceAtLeast(1.0)
+        }
         val etQty = EditText(this).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setText(defaultQty.toString())
+            inputType = if (isLbs)
+                android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            else
+                android.text.InputType.TYPE_CLASS_NUMBER
+            setText(com.example.test.data.formatQty(defaultQty))
             selectAll()
         }
         MaterialAlertDialogBuilder(this)
@@ -748,7 +770,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             .setMessage(product.name)
             .setView(etQty)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
-                val qty = etQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: defaultQty
+                val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: defaultQty
                 addRouteItem(product, qty, null)
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)

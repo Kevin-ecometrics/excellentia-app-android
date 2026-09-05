@@ -257,6 +257,20 @@ fun formatDamageQty(qty: Double, unit: String?): String =
     if (isLbsUnit(unit)) String.format(Locale.US, "%.2f lb", qty)
     else String.format(Locale.US, "%d unit(s)", qty.toInt())
 
+// Cantidad "limpia" sin ceros de relleno — "3" en vez de "3.00", pero
+// conserva la parte decimal real cuando la hay ("2.35"). Usado donde se
+// muestra un número de cantidad suelto (sin sufijo de unidad), ej.
+// route_items.quantity (Fase 118) — un Case/Unit/Bucket entero no debe
+// mostrar ".0" solo porque el campo ahora es Double.
+fun formatQty(value: Double): String {
+    val rounded = Math.round(value * 100) / 100.0
+    return if (rounded == rounded.toLong().toDouble()) {
+        rounded.toLong().toString()
+    } else {
+        String.format(Locale.US, "%.2f", rounded).trimEnd('0').trimEnd('.')
+    }
+}
+
 // ── Ticket: agrupación por categoría de unidad (LBS / CASE/UNIT / BUCKET) ──
 // Usado por PrintService.buildCpcl() y TicketDetailActivity.buildReceipt() — misma
 // lógica en los dos para que el ticket impreso y la vista en pantalla coincidan.
@@ -406,6 +420,30 @@ data class RetryBatchResponse(
     val status: String,
     @SerializedName("invoiceId") val invoiceId: String? = null,
     @SerializedName("invoiceNumber") val invoiceNumber: Int? = null
+)
+
+// ── Fase 117 — Cancelar / Editar venta AWAITING_APPROVAL ──
+// Ninguno de los dos toca QBO: la venta todavía no se aprobó, así que la
+// factura no existe ahí (ver CLAUDE.md, sección "Editar / Cancelar venta
+// AWAITING_APPROVAL"). Solo disponibles mientras el batch sigue en ese
+// status y para admin u operador dueño (mismo criterio que retryBatchSync).
+
+data class CancelBatchRequest(val reason: String? = null)
+
+data class CancelBatchResponse(
+    @SerializedName("batchId") val batchId: String,
+    val status: String
+)
+
+// Reemplazo TOTAL de items — la lista que se manda es la versión final
+// completa del batch (agregar/quitar/modificar son la misma operación, ver
+// EditBatchActivity). Reusa BatchItem, mismo shape que createBatch.
+data class EditBatchRequest(val items: List<BatchItem>)
+
+data class EditBatchResponse(
+    @SerializedName("batchId") val batchId: String,
+    val status: String,
+    @SerializedName("itemCount") val itemCount: Int? = null
 )
 
 data class ApiErrorBody(val error: String? = null)
@@ -596,7 +634,8 @@ data class RouteItemDto(
     @SerializedName("route_id") val routeId: Int,
     @SerializedName("product_id") val productId: Int,
     val barcode: String? = null,
-    val quantity: Int,
+    // Fase 118 — era Int; pasó a Double, mismo motivo que AddRouteItemRequest.
+    val quantity: Double,
     val name: String,
     val sku: String? = null,
     val unit: String? = null,
@@ -676,7 +715,10 @@ data class ReorderStopsRequest(
 data class AddRouteItemRequest(
     val barcode: String? = null,
     @SerializedName("product_id") val productId: Int? = null,
-    val quantity: Int = 1,
+    // Fase 118 — era Int; pasó a Double para poder cargar Lbs por peso real
+    // (route_items.quantity ya es DECIMAL en la base). Case/Unit y Bucket
+    // siguen mandando un entero, solo que como Double (ej. 3.0).
+    val quantity: Double = 1.0,
     // Override manual de FIFO — si se omite, el backend elige el/los lote(s)
     // (Fase 112).
     @SerializedName("lot_id") val lotId: Int? = null,
@@ -779,7 +821,11 @@ data class ProductLotDto(
     val status: String,
     @SerializedName("received_at") val receivedAt: String? = null,
     @SerializedName("product_name") val productName: String? = null,
-    val sku: String? = null
+    val sku: String? = null,
+    // Fase 118 (fix) — faltaba para que InventoryMovementsActivity supiera
+    // si "Editar" un lote debe pedir cantidad decimal (Lbs) o entera
+    // (Case/Unit/Bucket), mismo criterio que el resto de la app.
+    val unit: String? = null
 )
 
 // Respuesta de /api/warehouse/lots/suggest — qué lote(s) usaría FIFO para una
@@ -854,6 +900,10 @@ data class RouteReturnExpectedDto(
     @SerializedName("product_id") val productId: Int,
     val name: String,
     val sku: String? = null,
+    // Fase 118 (fix) — faltaba para que RouteReturnsActivity supiera si el
+    // input de cantidad de esta línea debe ser decimal (Lbs) o entero
+    // (Case/Unit/Bucket), mismo criterio que el resto de la app.
+    val unit: String? = null,
     @SerializedName("loaded_qty") val loadedQty: Double,
     @SerializedName("sold_qty") val soldQty: Double,
     @SerializedName("already_returned_qty") val alreadyReturnedQty: Double,

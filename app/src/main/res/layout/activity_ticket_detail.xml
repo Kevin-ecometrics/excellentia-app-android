@@ -26,6 +26,54 @@
             app:titleTextColor="@color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- Fase 117 — Cancelar/Editar, solo AWAITING_APPROVAL y solo admin u
+         operador dueño del batch (ver TicketDetailActivity.kt) -->
+    <LinearLayout
+        android:id="@+id/layoutManageActions"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toTopOf="@id/layoutTicketActions"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnEditBatch"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="@string/btn_edit_batch"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:cornerRadius="0dp"
+            app:icon="@drawable/ic_edit"
+            app:iconGravity="textStart"
+            app:iconSize="16dp"
+            app:iconTint="@color/white"
+            app:strokeColor="@color/white"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancelBatch"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="@string/btn_cancel_batch"
+            android:textColor="@color/red"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:cornerRadius="0dp"
+            app:strokeColor="@color/red"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/layoutTicketActions"
         android:layout_width="0dp"
@@ -82,7 +130,7 @@
         android:paddingHorizontal="12dp"
         android:paddingVertical="12dp"
         android:clipToPadding="false"
-        app:layout_constraintBottom_toTopOf="@id/layoutTicketActions"
+        app:layout_constraintBottom_toTopOf="@id/layoutManageActions"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/layoutHeader">
