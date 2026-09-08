@@ -7,6 +7,17 @@
     android:gravity="center_vertical"
     android:orientation="horizontal">
 
+    <!-- Punto de estado de venta parcial (Tanda 3) — GONE fuera de una venta
+         activa, o rojo/ámbar/verde según cuánto de lo cargado ya se agregó
+         al carrito. Ver MyRouteDetailActivity.renderItems(). -->
+    <View
+        android:id="@+id/viewStatusDot"
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:layout_marginEnd="10dp"
+        android:background="@drawable/dot_status"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"

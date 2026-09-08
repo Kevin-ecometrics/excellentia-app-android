@@ -297,6 +297,7 @@
     <string name="title_edit_price">Editar precio total</string>
     <string name="label_min_price">Mínimo: $%1$s</string>
     <string name="label_min_price_display">Precio mínimo: $%1$s</string>
+    <string name="label_avg_price_display">Precio promedio pagado: $%1$s</string>
     <string name="btn_apply">Aplicar</string>
     <string name="error_invalid_price">Precio inválido</string>
     <string name="error_load_price_history">No se pudo cargar historial de precios</string>
@@ -613,13 +614,14 @@
     <string name="wh_condition_expired">Vencida</string>
     <string name="wh_condition_transporter_damage">Dañada en tránsito</string>
     <string name="wh_reconciliation">Reconciliación salida/regreso</string>
-    <string name="wh_reconciliation_meta">Cargado %1$.2f · Vendido %2$.2f · Buena %3$.2f · Dañada %4$.2f · Vencida %5$.2f · Tránsito %6$.2f</string>
+    <string name="wh_reconciliation_meta">Cargado %1$.2f · Vendido %2$.2f · Buena %3$.2f · Dañada %4$.2f · Vencida %5$.2f · Tránsito %6$.2f · Consignación %7$.2f</string>
 
     <string name="btn_add_consignment_item">Escanear / agregar ítem</string>
     <string name="wh_consignment_items_title">Ítems dejados</string>
     <string name="wh_no_consignment_items">Todavía no se dejó nada acá</string>
     <string name="wh_consignment_left_label">Dejado: %1$.2f</string>
     <string name="wh_consignment_settled_summary">Liquidado — vendido %1$.2f · devuelto %2$.2f</string>
+    <string name="wh_consignment_partial_progress">Ya liquidado: %1$.2f vendido · %2$.2f devuelto · %3$.2f pendiente</string>
     <string name="wh_consignmentSold_label">Vendido</string>
     <string name="wh_consignmentReturned_label">Devuelto</string>
     <string name="btn_settle_consignment">Liquidar</string>

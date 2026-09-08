@@ -231,6 +231,16 @@
                         android:textSize="12sp"
                         android:visibility="gone" />
 
+                    <TextView
+                        android:id="@+id/tvAvgPrice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:textColor="@color/text_primary"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+
                     <LinearLayout
                         android:id="@+id/layoutHistory"
                         android:layout_width="match_parent"

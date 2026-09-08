@@ -275,7 +275,8 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             card.findViewById<TextView>(R.id.tvReconMeta).text = getString(
                 R.string.wh_reconciliation_meta,
                 row.loadedQty, row.soldQty, row.returnedGoodQty,
-                row.returnedDamagedQty, row.returnedExpiredQty, row.returnedTransporterDamageQty
+                row.returnedDamagedQty, row.returnedExpiredQty, row.returnedTransporterDamageQty,
+                row.consignmentSettledQty
             )
             val flag = reviewed && row.discrepancy != 0.0
             card.findViewById<TextView>(R.id.tvReconDiscrepancy).apply {

@@ -142,6 +142,22 @@ class ConsignmentActivity : BaseActivity() {
                     setTextColor(getColor(R.color.success))
                 })
             } else {
+                // Fix (2026-09-07) — una liquidación parcial ya no cierra la
+                // fila (backend: settleConsignment solo estampa settled_at
+                // cuando se agota quantity_left), así que puede haber
+                // progreso previo (quantitySold/quantityReturned > 0) sin que
+                // settledAt esté seteado todavía. Sin esta línea, reabrir la
+                // pantalla mostraba el formulario en blanco sin ningún
+                // indicio de lo ya liquidado en una visita anterior.
+                if (ci.quantitySold > 0 || ci.quantityReturned > 0) {
+                    val remaining = (ci.quantityLeft - ci.quantitySold - ci.quantityReturned).coerceAtLeast(0.0)
+                    content.addView(TextView(this).apply {
+                        text = getString(R.string.wh_consignment_partial_progress, ci.quantitySold, ci.quantityReturned, remaining)
+                        textSize = 12f
+                        setTextColor(getColor(R.color.text_secondary))
+                        setPadding(0, 0, 0, 6.dp)
+                    })
+                }
                 // Mismo criterio que showQuantityDialog() — decimal solo
                 // para Lbs, entero para Case/Unit y Bucket (no tiene
                 // sentido "vendí 2.5 buckets").
@@ -209,8 +225,13 @@ class ConsignmentActivity : BaseActivity() {
             Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_consignment_settle_empty), Snackbar.LENGTH_SHORT).show()
             return
         }
-        if (quantitySold + quantityReturned > item.quantityLeft) {
-            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_consignment_settle_exceeds, item.quantityLeft), Snackbar.LENGTH_SHORT).show()
+        // Fix (2026-09-07) — validar contra lo realmente pendiente
+        // (quantityLeft es el total histórico registrado, no lo que queda
+        // después de liquidaciones parciales previas), mismo criterio que el
+        // fix de settleConsignment en el backend.
+        val outstanding = (item.quantityLeft - item.quantitySold - item.quantityReturned).coerceAtLeast(0.0)
+        if (quantitySold + quantityReturned > outstanding) {
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_consignment_settle_exceeds, outstanding), Snackbar.LENGTH_SHORT).show()
             return
         }
         lifecycleScope.launch {

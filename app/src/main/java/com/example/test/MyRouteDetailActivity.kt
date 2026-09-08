@@ -103,11 +103,9 @@ class MyRouteDetailActivity : BaseActivity() {
             try {
                 val resp = RetrofitClient.getApi().getRoute(routeId)
                 if (resp.isSuccessful) {
-                    val pendingBarcodes = orderRepository.getPendingOrders()
+                    val pendingOrders = orderRepository.getPendingOrders()
                         .filter { !it.isCredit }
-                        .map { it.barcode }
-                        .toSet()
-                    resp.body()?.data?.let { bind(it, pendingBarcodes) }
+                    resp.body()?.data?.let { bind(it, pendingOrders) }
                 } else {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
                 }
@@ -126,7 +124,7 @@ class MyRouteDetailActivity : BaseActivity() {
         securePrefs.getActiveRouteId() == routeId &&
         securePrefs.getActiveStopId() == stop.id
 
-    private fun bind(d: RouteDetailDto, pendingBarcodes: Set<String>) {
+    private fun bind(d: RouteDetailDto, pendingOrders: List<com.example.test.data.local.entities.PendingOrderEntity>) {
         toolbar.title = d.name
         tvRouteDate.text = d.scheduledDate.take(10)
 
@@ -179,7 +177,7 @@ class MyRouteDetailActivity : BaseActivity() {
         cardSellActions.visibility = if (sellingActive) View.VISIBLE else View.GONE
 
         renderStops(d.stops, d.status)
-        renderItems(d.items, sellingActive, pendingBarcodes)
+        renderItems(d.items, sellingActive, pendingOrders)
     }
 
     private fun confirmRouteTransition(newStatus: String) {
@@ -413,7 +411,7 @@ class MyRouteDetailActivity : BaseActivity() {
     // barcode cacheado (raro — viene del mismo backend), se avisa por
     // Snackbar en vez de replicar acá el diálogo completo de "no encontrado"
     // de MainActivity — para ese caso está "Escanear otro producto".
-    private fun openProductForBarcode(barcode: String) {
+    private fun openProductForBarcode(barcode: String, routeLoadedUnits: Double? = null) {
         lifecycleScope.launch {
             val product = productRepository.findByBarcode(barcode)
             if (product == null) {
@@ -436,18 +434,20 @@ class MyRouteDetailActivity : BaseActivity() {
                     putExtra("CASE_QTY", product.caseQty ?: 0)
                     putExtra("QB_ITEM_ID", product.qbItemId)
                     product.qbActive?.let { putExtra("QB_ACTIVE", it) }
+                    routeLoadedUnits?.let { putExtra(ProductDetailActivity.KEY_ROUTE_LOADED_UNITS, it) }
                 }
             )
         }
     }
 
-    private fun renderItems(items: List<RouteItemDto>, sellingActive: Boolean, pendingBarcodes: Set<String>) {
+    private fun renderItems(items: List<RouteItemDto>, sellingActive: Boolean, pendingOrders: List<com.example.test.data.local.entities.PendingOrderEntity>) {
         layoutItems.removeAllViews()
         if (items.isEmpty()) {
             tvNoItems.visibility = View.VISIBLE
             return
         }
         tvNoItems.visibility = View.GONE
+        val ordersByBarcode = pendingOrders.groupBy { it.barcode }
         val inflater = LayoutInflater.from(this)
         for (item in items) {
             val row = inflater.inflate(R.layout.item_route_item, layoutItems, false)
@@ -456,14 +456,36 @@ class MyRouteDetailActivity : BaseActivity() {
                 (item.sku ?: item.barcode ?: "—") + (item.unit?.let { " · $it" } ?: "")
             row.findViewById<TextView>(R.id.tvItemQty).text = com.example.test.data.formatQty(item.quantity)
             row.findViewById<View>(R.id.btnRemoveItem).visibility = View.GONE
+            val statusDot = row.findViewById<View>(R.id.viewStatusDot)
 
             val barcode = item.barcode
             if (sellingActive && barcode != null) {
-                val inCart = pendingBarcodes.contains(barcode)
-                row.setBackgroundColor(getColor(if (inCart) R.color.success_light else R.color.error_light))
-                row.setOnClickListener { openProductForBarcode(barcode) }
+                val isLbs = com.example.test.data.isLbsUnit(item.unit)
+                val matching = ordersByBarcode[barcode].orEmpty()
+                // Lbs: cada bolsa pesada guarda su propia fila en el carrito
+                // (ver ProductDetailActivity, un savePendingOrder por peso) —
+                // contar filas equivale a bolsas ya agregadas. Case/Unit/Bucket:
+                // una sola fila con quantity = unidades, se suma directo.
+                val soldQty = if (isLbs) matching.size.toDouble() else matching.sumOf { it.quantity }
+                val colorRes = when {
+                    soldQty <= 0.0 -> R.color.red
+                    soldQty >= item.quantity -> R.color.success
+                    else -> R.color.amber
+                }
+                // Punto de color junto al nombre — la fila entera se queda con
+                // su fondo normal, no se pinta completa (Tanda 3, ajuste
+                // 2026-09-08 a pedido del usuario: quería un indicador chico,
+                // no toda la fila coloreada).
+                statusDot.visibility = View.VISIBLE
+                statusDot.backgroundTintList = android.content.res.ColorStateList.valueOf(getColor(colorRes))
+                // Solo para Lbs: route_items.quantity ahí es cantidad de bolsas
+                // (no peso, confirmado con el usuario) — se manda para prefillear
+                // el número de unidades en ProductDetailActivity. Case/Unit/Bucket
+                // se quedan con el comportamiento de siempre (arranca en 1).
+                val routeUnits = if (isLbs) item.quantity else null
+                row.setOnClickListener { openProductForBarcode(barcode, routeUnits) }
             } else {
-                row.background = null
+                statusDot.visibility = View.GONE
                 row.setOnClickListener(null)
             }
 

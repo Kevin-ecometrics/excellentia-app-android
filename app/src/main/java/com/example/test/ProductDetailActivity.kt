@@ -36,6 +36,14 @@ class ProductDetailActivity : BaseActivity() {
         private const val KEY_QB_ACTIVE = "QB_ACTIVE"
         private const val KEY_EDIT_ORDER_ID = "EDIT_ORDER_ID"
         private const val KEY_PREFILL_UNITS = "PREFILL_UNITS"
+        // Solo lo manda MyRouteDetailActivity.openProductForBarcode() cuando se
+        // vende "por scratch" un producto Lbs ya cargado en la ruta (route_items.
+        // quantity — que para Lbs es cantidad de bolsas, no peso, según confirmó
+        // el usuario) — distinto de PREFILL_UNITS, que ya se usa para otra cosa
+        // (peso de una sola bolsa al editar una elección previa en pre-órdenes).
+        // El escaneo normal (MainActivity) nunca manda este extra, así que ese
+        // flujo se queda arrancando en 1 unidad como siempre.
+        const val KEY_ROUTE_LOADED_UNITS = "ROUTE_LOADED_UNITS"
         const val PRE_ORDER_MODE = "pre_order_mode"
         const val RESULT_ITEMS_JSON = "items_json"
     }
@@ -47,6 +55,7 @@ class ProductDetailActivity : BaseActivity() {
     private lateinit var tvUnits: TextView
     private lateinit var tvTotalWeight: TextView
     private lateinit var tvMinPrice: TextView
+    private lateinit var tvAvgPrice: TextView
     private lateinit var tvStock: TextView
     private lateinit var tvQbStatus: TextView
     private lateinit var layoutWeights: LinearLayout
@@ -84,6 +93,10 @@ class ProductDetailActivity : BaseActivity() {
     // case-based representa el tamaño de la caja, no cuántas cajas ya se
     // habían elegido. Null en el resto de los flujos (no cambia nada ahí).
     private var prefillUnits: Double? = null
+    // Cantidad de bolsas ya cargadas en la ruta para este producto (Lbs) —
+    // ver comentario en KEY_ROUTE_LOADED_UNITS. Null fuera del flujo de venta
+    // por ruta.
+    private var routeLoadedUnits: Double? = null
     private lateinit var orderRepository: OrderRepository
 
     private val isCaseBased: Boolean
@@ -115,6 +128,8 @@ class ProductDetailActivity : BaseActivity() {
         editOrderId = intent.getIntExtra(KEY_EDIT_ORDER_ID, -1).takeIf { it >= 0 }
         prefillUnits = if (intent.hasExtra(KEY_PREFILL_UNITS))
             intent.getDoubleExtra(KEY_PREFILL_UNITS, 0.0).takeIf { it > 0 } else null
+        routeLoadedUnits = if (intent.hasExtra(KEY_ROUTE_LOADED_UNITS))
+            intent.getDoubleExtra(KEY_ROUTE_LOADED_UNITS, 0.0).takeIf { it > 0 } else null
         // productPrice ya es el precio de la caja completa (no el de una unidad
         // dentro de la caja) — no se multiplica por caseQty.
         baseTotal = productPrice
@@ -206,6 +221,7 @@ class ProductDetailActivity : BaseActivity() {
         tvUnits = findViewById(R.id.tvUnits)
         tvTotalWeight = findViewById(R.id.tvTotalWeight)
         tvMinPrice = findViewById(R.id.tvMinPrice)
+        tvAvgPrice = findViewById(R.id.tvAvgPrice)
         tvStock = findViewById(R.id.tvStock)
         tvQbStatus = findViewById(R.id.tvQbStatus)
         layoutWeights = findViewById(R.id.layoutWeights)
@@ -251,9 +267,13 @@ class ProductDetailActivity : BaseActivity() {
     }
 
     private fun resetWeights() {
-        units = 1
+        // Venta por ruta de un producto Lbs ya cargado (2, 3... bolsas) — arranca
+        // con esa cantidad de unidades en vez de 1, cada una con el peso nominal
+        // (weight_per_unit vía defaultWeight), editable igual que siempre. El
+        // escaneo normal no manda este extra, así que se sigue arrancando en 1.
+        units = routeLoadedUnits?.toInt()?.coerceAtLeast(1) ?: 1
         weights.clear()
-        weights.add(defaultWeight)
+        repeat(units) { weights.add(defaultWeight) }
         rebuildWeightRows()
         recalcTotal()
     }
@@ -499,6 +519,11 @@ class ProductDetailActivity : BaseActivity() {
                     minTotal = rawMin
                     tvMinPrice.text = getString(R.string.label_min_price_display, String.format(Locale.US, "%.2f", minTotal))
                     tvMinPrice.visibility = View.VISIBLE
+                }
+
+                response.avgPrice?.let { avg ->
+                    tvAvgPrice.text = getString(R.string.label_avg_price_display, String.format(Locale.US, "%.2f", avg))
+                    tvAvgPrice.visibility = View.VISIBLE
                 }
 
                 if (response.history.isNotEmpty()) {

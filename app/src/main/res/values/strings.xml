@@ -308,6 +308,7 @@
     <string name="title_edit_price">Edit total price</string>
     <string name="label_min_price">Minimum: $%1$s</string>
     <string name="label_min_price_display">Minimum price: $%1$s</string>
+    <string name="label_avg_price_display">Average price paid: $%1$s</string>
     <string name="btn_apply">Apply</string>
     <string name="error_invalid_price">Invalid price</string>
     <string name="error_load_price_history">Could not load price history</string>
@@ -636,13 +637,14 @@
     <string name="wh_condition_expired">Expired</string>
     <string name="wh_condition_transporter_damage">Transporter damage</string>
     <string name="wh_reconciliation">Departure/return reconciliation</string>
-    <string name="wh_reconciliation_meta">Loaded %1$.2f · Sold %2$.2f · Good %3$.2f · Damaged %4$.2f · Expired %5$.2f · Transporter %6$.2f</string>
+    <string name="wh_reconciliation_meta">Loaded %1$.2f · Sold %2$.2f · Good %3$.2f · Damaged %4$.2f · Expired %5$.2f · Transporter %6$.2f · Consignment %7$.2f</string>
 
     <string name="btn_add_consignment_item">Scan / add item</string>
     <string name="wh_consignment_items_title">Items left</string>
     <string name="wh_no_consignment_items">Nothing left here yet</string>
     <string name="wh_consignment_left_label">Left: %1$.2f</string>
     <string name="wh_consignment_settled_summary">Settled — sold %1$.2f · returned %2$.2f</string>
+    <string name="wh_consignment_partial_progress">Already settled: %1$.2f sold · %2$.2f returned · %3$.2f remaining</string>
     <string name="wh_consignmentSold_label">Sold</string>
     <string name="wh_consignmentReturned_label">Returned</string>
     <string name="btn_settle_consignment">Settle</string>

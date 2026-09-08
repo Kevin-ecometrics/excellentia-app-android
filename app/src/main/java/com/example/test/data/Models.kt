@@ -514,7 +514,8 @@ data class PriceHistoryItem(
 
 data class PriceHistoryResponse(
     val product: ProductHistoryInfo?,
-    val history: List<PriceHistoryItem>
+    val history: List<PriceHistoryItem>,
+    @SerializedName("avg_price") val avgPrice: Double? = null
 )
 
 // ── Pre-Order Models ──
@@ -916,6 +917,10 @@ data class RouteReturnExpectedDto(
     @SerializedName("returned_damaged_qty") val returnedDamagedQty: Double = 0.0,
     @SerializedName("returned_expired_qty") val returnedExpiredQty: Double = 0.0,
     @SerializedName("returned_transporter_damage_qty") val returnedTransporterDamageQty: Double = 0.0,
+    // Fix (2026-09-07) — lo vendido/devuelto vía settleConsignment ya se
+    // resta de discrepancy/expected_return_qty en el backend; este campo es
+    // solo para mostrar de dónde sale ese ajuste en el desglose visual.
+    @SerializedName("consignment_settled_qty") val consignmentSettledQty: Double = 0.0,
     val discrepancy: Double = 0.0,
     // Confirmación de salida — ya se graba sola al cargar (addRouteItem solo
     // acepta stock ACTIVE, nunca dañado/vencido), se expone acá para mostrar
