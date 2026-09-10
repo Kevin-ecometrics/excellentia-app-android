@@ -458,6 +458,52 @@ class InventoryMovementsActivity : BaseActivity() {
                 val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = 6.dp }
                 badgeRow.addView(tvAvailable, lp)
             }
+            // qb_synced == 0 (2026-09-10) — el push a QBO de este movimiento
+            // falló; antes quedaba invisible (solo un logger.warn server-side).
+            // null = no aplica (producto sin qb_item_id), 1 = éxito: ninguno
+            // de los dos muestra nada, mismo criterio "silencioso salvo
+            // anomalía" que el resto de la app.
+            if (m.qbSynced == 0) {
+                val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = 6.dp }
+                val tvNotSynced = TextView(this).apply {
+                    text = getString(R.string.wh_qb_not_synced_badge)
+                    textSize = 10f
+                    setTextColor(getColor(R.color.red))
+                    setBackgroundResource(R.drawable.bg_chip_sent)
+                    setPadding(8.dp, 3.dp, 8.dp, 3.dp)
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                }
+                badgeRow.addView(tvNotSynced, lp)
+                if (securePrefs.getUserRole() == "admin") {
+                    val tvRetry = TextView(this).apply {
+                        text = getString(R.string.wh_retry_sync_action)
+                        textSize = 10f
+                        setTextColor(getColor(R.color.red))
+                        setTypeface(typeface, android.graphics.Typeface.BOLD)
+                        setPadding(10.dp, 3.dp, 0, 3.dp)
+                        setOnClickListener {
+                            isEnabled = false
+                            lifecycleScope.launch {
+                                try {
+                                    val resp = RetrofitClient.getApi().retryMovementSync(m.id)
+                                    if (resp.isSuccessful) {
+                                        val synced = resp.body()?.qbSynced
+                                        allMovements = allMovements.map { if (it.id == m.id) it.copy(qbSynced = synced) else it }
+                                        renderFiltered()
+                                    } else {
+                                        isEnabled = true
+                                        Snackbar.make(layoutMovements, getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    isEnabled = true
+                                    Snackbar.make(layoutMovements, e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                    badgeRow.addView(tvRetry, lp)
+                }
+            }
             val tvMeta = TextView(this).apply {
                 val exp = m.lotExpirationDate?.take(10)
                 val expPart = if (exp != null) getString(R.string.wh_item_expiration_suffix, exp) else ""

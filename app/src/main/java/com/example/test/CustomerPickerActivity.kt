@@ -249,17 +249,37 @@ class CustomerPickerActivity : BaseActivity() {
         }
     }
 
+    // .setItems() renderiza filas de texto plano sin el estilo de botón de
+    // la marca (no toma buttonBarPositiveButtonStyle/etc. de
+    // ThemeOverlay.Excellentia.MaterialAlertDialog, ver themes.xml) — mismo
+    // fix aplicado en Warehouse/CurrentOrderActivity: MaterialButton reales
+    // de ancho completo en vez de una lista de opciones.
     private fun showCustomerOptions(customer: QbCustomer) {
-        val options = arrayOf(getString(R.string.option_assign_active_customer), getString(R.string.option_view_order_history))
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+        val density = resources.displayMetrics.density
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+        }
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(customer.displayName)
-            .setItems(options) { _, i ->
-                when (i) {
-                    0 -> confirmSelection(customer)
-                    1 -> openClientHistory(customer)
-                }
+            .setView(layout)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .create()
+        val btnAssign = MaterialButton(this).apply {
+            text = getString(R.string.option_assign_active_customer)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setOnClickListener { dialog.dismiss(); confirmSelection(customer) }
+        }
+        val btnHistory = MaterialButton(this).apply {
+            text = getString(R.string.option_view_order_history)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (8 * density).toInt()
             }
-            .show()
+            setOnClickListener { dialog.dismiss(); openClientHistory(customer) }
+        }
+        layout.addView(btnAssign)
+        layout.addView(btnHistory)
+        dialog.show()
     }
 
     private fun openClientHistory(customer: QbCustomer) {

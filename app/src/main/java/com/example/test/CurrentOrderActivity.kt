@@ -821,51 +821,74 @@ class CurrentOrderActivity : BaseActivity() {
             )
         }
 
+    // .setItems() renderiza filas de texto plano sin el estilo de botón de
+    // la marca (no toma buttonBarPositiveButtonStyle/etc. de
+    // ThemeOverlay.Excellentia.MaterialAlertDialog, ver themes.xml) — mismo
+    // fix aplicado en Warehouse (showNewRouteChooser/showStopTypeChooser):
+    // tres MaterialButton reales de ancho completo en vez de una lista de 3
+    // opciones. No lleva botón de cancelar (mismo `setCancelable(false)` de
+    // antes — el método de pago no es opcional para cerrar la venta).
     private fun askPaymentMethod(skipPrint: Boolean) {
-        val options = arrayOf(
-            getString(R.string.btn_cash),
-            getString(R.string.btn_check),
-            getString(R.string.btn_account)
-        )
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+        val density = resources.displayMetrics.density
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+        }
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_payment_method))
+            .setView(layout)
             .setCancelable(false)
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> {
-                        pendingPaymentMethod = "Cash"
-                        pendingCheckNumber = null
-                        sendBatchAndPrint(skipPrint)
+            .create()
+
+        fun choose(which: Int) {
+            dialog.dismiss()
+            when (which) {
+                0 -> {
+                    pendingPaymentMethod = "Cash"
+                    pendingCheckNumber = null
+                    sendBatchAndPrint(skipPrint)
+                }
+                1 -> {
+                    pendingPaymentMethod = "Check"
+                    val input = android.widget.EditText(this).apply {
+                        inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                        hint = getString(R.string.hint_check_number)
                     }
-                    1 -> {
-                        pendingPaymentMethod = "Check"
-                        val input = android.widget.EditText(this).apply {
-                            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                            hint = getString(R.string.hint_check_number)
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                        .setTitle(getString(R.string.title_check_number))
+                        .setMessage(getString(R.string.msg_check_number))
+                        .setView(input)
+                        .setCancelable(false)
+                        .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                            pendingCheckNumber = input.text.toString().take(20)
+                            sendBatchAndPrint(skipPrint)
                         }
-                        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                            .setTitle(getString(R.string.title_check_number))
-                            .setMessage(getString(R.string.msg_check_number))
-                            .setView(input)
-                            .setCancelable(false)
-                            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
-                                pendingCheckNumber = input.text.toString().take(20)
-                                sendBatchAndPrint(skipPrint)
-                            }
-                            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
-                                // Vuelve al diálogo de método de pago
-                                askPaymentMethod(skipPrint)
-                            }
-                            .show()
-                    }
-                    2 -> {
-                        pendingPaymentMethod = "On Account"
-                        pendingCheckNumber = null
-                        sendBatchAndPrint(skipPrint)
-                    }
+                        .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
+                            // Vuelve al diálogo de método de pago
+                            askPaymentMethod(skipPrint)
+                        }
+                        .show()
+                }
+                2 -> {
+                    pendingPaymentMethod = "On Account"
+                    pendingCheckNumber = null
+                    sendBatchAndPrint(skipPrint)
                 }
             }
-            .show()
+        }
+
+        val labels = listOf(R.string.btn_cash, R.string.btn_check, R.string.btn_account)
+        labels.forEachIndexed { index, resId ->
+            val btn = MaterialButton(this).apply {
+                text = getString(resId)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    if (index > 0) topMargin = (8 * density).toInt()
+                }
+                setOnClickListener { choose(index) }
+            }
+            layout.addView(btn)
+        }
+        dialog.show()
     }
 
     // Fase 83 — confirmar impresora corre después de la firma, no antes del

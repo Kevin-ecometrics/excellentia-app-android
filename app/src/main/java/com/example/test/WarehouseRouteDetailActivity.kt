@@ -89,15 +89,45 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // Fase 115.4 — antes de abrir el picker de clientes, decide si la parada
     // es una visita normal o de consignación (mismo picker de clientes para
     // las dos, solo cambia stopType en checkPreOrderThenAddStop).
+    // .setItems() renderiza filas de texto plano sin el estilo de botón de
+    // la marca (no toma buttonBarPositiveButtonStyle/etc. de
+    // ThemeOverlay.Excellentia.MaterialAlertDialog, ver themes.xml) — mismo
+    // fix que showNewRouteChooser() en WarehouseActivity: dos MaterialButton
+    // reales de ancho completo en vez de una lista de 2 opciones.
     private fun showStopTypeChooser() {
-        MaterialAlertDialogBuilder(this)
+        val density = resources.displayMetrics.density
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_add_stop))
-            .setItems(arrayOf(getString(R.string.stop_type_customer), getString(R.string.stop_type_consignment))) { _, which ->
-                pendingStopType = if (which == 1) "CONSIGNMENT" else "CUSTOMER"
-                customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
-            }
+            .setView(layout)
             .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
+            .create()
+        val btnCustomer = MaterialButton(this).apply {
+            text = getString(R.string.stop_type_customer)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setOnClickListener {
+                dialog.dismiss()
+                pendingStopType = "CUSTOMER"
+                customerPickerLauncher.launch(Intent(this@WarehouseRouteDetailActivity, CustomerPickerActivity::class.java))
+            }
+        }
+        val btnConsignment = MaterialButton(this).apply {
+            text = getString(R.string.stop_type_consignment)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (8 * density).toInt()
+            }
+            setOnClickListener {
+                dialog.dismiss()
+                pendingStopType = "CONSIGNMENT"
+                customerPickerLauncher.launch(Intent(this@WarehouseRouteDetailActivity, CustomerPickerActivity::class.java))
+            }
+        }
+        layout.addView(btnCustomer)
+        layout.addView(btnConsignment)
+        dialog.show()
     }
 
     private val customerPickerLauncher = registerForActivityResult(
@@ -542,16 +572,31 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             selectAll()
         }
         // Alternativa a cargar de un lote (Recepción/FIFO): usar directo el
-        // stock general del producto — para stock real que nunca pasó por
-        // Recepción y por eso no tiene ningún lote que lo respalde.
+        // stock que NO tiene ningún lote detrás — no product.stock a secas,
+        // que incluye lo que ya está reservado por un lote visible en
+        // "Disponible" (mismo bug que se corrigió del lado del backend en
+        // addRouteItem/source:'STOCK'). Arranca deshabilitado con "0" y se
+        // completa al toque con lo que responda /api/warehouse/lots/unbacked
+        // — si no hay nada sin respaldo, se queda deshabilitado en vez de
+        // ofrecer una cantidad que el backend igual va a rechazar.
         val cbUseStock = android.widget.CheckBox(this).apply {
-            text = getString(R.string.wh_use_stock_checkbox, product.stock)
+            text = getString(R.string.wh_use_stock_checkbox, 0)
+            isEnabled = false
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = (12 * density).toInt()
             }
         }
         layout.addView(etQty)
         layout.addView(cbUseStock)
+        lifecycleScope.launch {
+            var unbacked = 0.0
+            try {
+                val resp = RetrofitClient.getApi().getUnbackedStock(product.id)
+                if (resp.isSuccessful) unbacked = resp.body()?.data?.unbacked ?: 0.0
+            } catch (_: Exception) { }
+            cbUseStock.text = getString(R.string.wh_use_stock_checkbox, unbacked.toInt())
+            cbUseStock.isEnabled = unbacked > 0
+        }
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_load_quantity))
             .setMessage(product.name)

@@ -598,6 +598,7 @@ class MainActivity : BaseActivity() {
         runOnUiThread {
             if (data.isBlank() || data.equals("null", true)) return@runOnUiThread
             resetScanState()
+            if (!requireCustomerSelected()) return@runOnUiThread
             openDetail(data)
         }
     }

@@ -229,6 +229,12 @@ interface ApiService {
         @Query("warehouse_id") warehouseId: Int? = null
     ): Response<ApiResponse<List<FifoAllocationDto>>>
 
+    @GET("api/warehouse/lots/unbacked")
+    suspend fun getUnbackedStock(
+        @Query("product_id") productId: Int,
+        @Query("warehouse_id") warehouseId: Int? = null
+    ): Response<ApiResponse<UnbackedStockDto>>
+
     @GET("api/warehouse/lots/available-products")
     suspend fun listAvailableProducts(@Query("warehouse_id") warehouseId: Int? = null): Response<ApiResponse<List<ProductDto>>>
 
@@ -244,4 +250,7 @@ interface ApiService {
         @Query("date") date: String? = null,
         @Query("settled") settled: Boolean? = null
     ): Response<ApiResponse<List<InventoryMovementDto>>>
+
+    @POST("api/warehouse/movements/{id}/retry-sync")
+    suspend fun retryMovementSync(@Path("id") id: Int): Response<RetryMovementSyncResponse>
 }

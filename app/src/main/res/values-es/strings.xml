@@ -120,7 +120,7 @@
     <string name="title_daily_summary">Resumen del día</string>
     <string name="msg_daily_summary">📅 %1$s\n\nPedidos enviados hoy: %2$d\nIngresos hoy: $%3$s\n\nEn cola (pendientes): %4$d</string>
     <string name="title_configure_datawedge">Configurar escáner DataWedge</string>
-    <string name="msg_configure_datawedge">Para usar el escáner físico del Zebra:\n\n1. Abre la app DataWedge\n2. Crea un perfil \"%1$s\"\n3. Asocia la app y activa Intent output\n   Acción: %2$s\n   Delivery: Broadcast\n\nO usa el botón \'Ingresar código\' para entrada manual.</string>
+    <string name="msg_configure_datawedge">Para usar el escáner físico del Zebra:\n\n1. Abre la app DataWedge\n2. Crea/abre el perfil \"%1$s\"\n3. Associated Apps → agrega esta app y elegí \"All Activities\" (*)\n4. Intent Output → Enabled\n   Acción: %2$s\n   Delivery: Broadcast Intent\n5. Keystroke Output → Disabled (si queda activado, el escaneo no le llega a la app)\n\nO usa el botón \'Ingresar código\' para entrada manual.</string>
     <string name="label_searching_by_name">Buscando por nombre…</string>
 
     <!-- CustomerPickerActivity -->
@@ -603,6 +603,8 @@
     <string name="title_receiving_qty">Cantidad recibida</string>
     <string name="wh_btn_save_receipt">Guardar recepción</string>
     <string name="msg_receipt_saved">Recepción guardada: %1$d línea(s)</string>
+    <string name="wh_receipt_qb_sync_warning_title">Recepción guardada</string>
+    <string name="wh_receipt_qb_sync_warning_msg">%1$d línea(s) guardadas, pero esto no se sincronizó a QuickBooks: %2$s. El stock local ya está correcto — reintentá el sync más tarde desde Almacén → Inventario → Historial.</string>
     <string name="error_receipt_failed">No se pudo guardar la recepción (%1$s)</string>
     <string name="wh_receipt_line_summary">%1$s\n%2$.2f · %3$s</string>
 
@@ -649,6 +651,8 @@
     <string name="wh_available_hint">Stock recibido y activo en el almacén, ordenado por vencimiento más próximo</string>
     <string name="wh_available_qty_badge">%1$.2f disponible</string>
     <string name="wh_lot_available_badge">Disponible</string>
+    <string name="wh_qb_not_synced_badge">No sincronizado a QBO</string>
+    <string name="wh_retry_sync_action">Reintentar</string>
     <string name="wh_route_ref">Ruta #%1$d</string>
     <string name="wh_no_movements_for_filter">No hay movimientos para este filtro</string>
     <string name="wh_yesterday">Ayer</string>

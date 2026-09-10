@@ -241,14 +241,39 @@ class WarehouseActivity : BaseActivity() {
         }
     }
 
+    // .setItems() renderiza como filas de texto plano (RecycleListView de
+    // Material Dialogs) — no toma buttonBarPositiveButtonStyle/etc. de
+    // ThemeOverlay.Excellentia.MaterialAlertDialog (themes.xml), a
+    // diferencia de setPositiveButton/setNegativeButton. Resultado: "Cancel"
+    // se veía como botón de la marca pero las dos opciones de arriba no
+    // parecían botones en absoluto. Reemplazado por dos MaterialButton
+    // reales de ancho completo dentro de un setView().
     private fun showNewRouteChooser() {
-        MaterialAlertDialogBuilder(this)
+        val density = resources.displayMetrics.density
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_new_route))
-            .setItems(arrayOf(getString(R.string.btn_route_from_scratch), getString(R.string.btn_route_from_preorders))) { _, which ->
-                if (which == 1) checkPreOrdersThenPick() else showCreateRouteDialog(emptyList())
-            }
+            .setView(layout)
             .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
+            .create()
+        val btnFromScratch = MaterialButton(this).apply {
+            text = getString(R.string.btn_route_from_scratch)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setOnClickListener { dialog.dismiss(); showCreateRouteDialog(emptyList()) }
+        }
+        val btnFromPreOrders = MaterialButton(this).apply {
+            text = getString(R.string.btn_route_from_preorders)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (8 * density).toInt()
+            }
+            setOnClickListener { dialog.dismiss(); checkPreOrdersThenPick() }
+        }
+        layout.addView(btnFromScratch)
+        layout.addView(btnFromPreOrders)
+        dialog.show()
     }
 
     // Elige las pre-órdenes ANTES de pedir fecha/repartidor — así se puede

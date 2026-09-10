@@ -125,7 +125,7 @@
     <string name="title_daily_summary">Daily summary</string>
     <string name="msg_daily_summary">📅 %1$s\n\nOrders sent today: %2$d\nRevenue today: $%3$s\n\nIn queue (pending): %4$d</string>
     <string name="title_configure_datawedge">Configure DataWedge scanner</string>
-    <string name="msg_configure_datawedge">To use the physical scanner on your Zebra:\n\n1. Open the DataWedge app\n2. Create a profile \"%1$s\"\n3. Associate the app and enable Intent output\n   Action: %2$s\n   Delivery: Broadcast\n\nOr use the \'Enter code\' button for manual entry.</string>
+    <string name="msg_configure_datawedge">To use the physical scanner on your Zebra:\n\n1. Open the DataWedge app\n2. Create/open the profile \"%1$s\"\n3. Associated Apps → add this app and choose \"All Activities\" (*)\n4. Intent Output → Enabled\n   Action: %2$s\n   Delivery: Broadcast Intent\n5. Keystroke Output → Disabled (if left enabled, scans never reach the app)\n\nOr use the \'Enter code\' button for manual entry.</string>
     <string name="label_searching_by_name">Searching by name…</string>
 
     <!-- CustomerPickerActivity -->
@@ -626,6 +626,8 @@
     <string name="title_receiving_qty">Quantity received</string>
     <string name="wh_btn_save_receipt">Save receipt</string>
     <string name="msg_receipt_saved">Receipt saved: %1$d line(s)</string>
+    <string name="wh_receipt_qb_sync_warning_title">Receipt saved</string>
+    <string name="wh_receipt_qb_sync_warning_msg">%1$d line(s) saved, but this didn\'t sync to QuickBooks: %2$s. Stock is correct locally — retry the sync later from Warehouse → Inventory → History.</string>
     <string name="error_receipt_failed">Could not save the receipt (%1$s)</string>
     <string name="wh_receipt_line_summary">%1$s\n%2$.2f · %3$s</string>
 
@@ -672,6 +674,8 @@
     <string name="wh_available_hint">Stock received and active in the warehouse, closest expiration first</string>
     <string name="wh_available_qty_badge">%1$.2f available</string>
     <string name="wh_lot_available_badge">Available</string>
+    <string name="wh_qb_not_synced_badge">Not synced to QBO</string>
+    <string name="wh_retry_sync_action">Retry</string>
     <string name="wh_route_ref">Route #%1$d</string>
     <string name="wh_no_movements_for_filter">No movements for this filter</string>
     <string name="wh_yesterday">Yesterday</string>

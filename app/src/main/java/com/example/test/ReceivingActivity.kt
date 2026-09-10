@@ -305,10 +305,26 @@ class ReceivingActivity : BaseActivity() {
             try {
                 val resp = RetrofitClient.getApi().createReceipt(request)
                 if (resp.isSuccessful) {
-                    val count = resp.body()?.items?.size ?: lines.size
-                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_receipt_saved, count), Snackbar.LENGTH_LONG).show()
+                    val items = resp.body()?.items ?: emptyList()
+                    val count = items.size.takeIf { it > 0 } ?: lines.size
                     setResult(Activity.RESULT_OK)
-                    finish()
+                    // qb_synced == 0 (2026-09-10) — antes esto era invisible acá
+                    // (solo un logger.warn server-side); ahora se le avisa al
+                    // almacenista en el momento en vez de que se entere después
+                    // mirando el Historial. La recepción ya quedó guardada local
+                    // de cualquier forma (nunca se revierte por esto).
+                    val failedNames = items.filter { it.qbSynced == 0 }.mapNotNull { it.productName }
+                    if (failedNames.isEmpty()) {
+                        Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_receipt_saved, count), Snackbar.LENGTH_LONG).show()
+                        finish()
+                    } else {
+                        MaterialAlertDialogBuilder(this@ReceivingActivity)
+                            .setTitle(getString(R.string.wh_receipt_qb_sync_warning_title))
+                            .setMessage(getString(R.string.wh_receipt_qb_sync_warning_msg, count, failedNames.joinToString(", ")))
+                            .setCancelable(false)
+                            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ -> finish() }
+                            .show()
+                    }
                 } else {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_receipt_failed, resp.code().toString()), Snackbar.LENGTH_LONG).show()
                     btnSaveReceipt.isEnabled = true

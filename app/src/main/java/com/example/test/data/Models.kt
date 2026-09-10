@@ -839,6 +839,17 @@ data class FifoAllocationDto(
     @SerializedName("received_at") val receivedAt: String? = null
 )
 
+// Respuesta de /api/warehouse/lots/unbacked — cuánto de products.stock NO
+// tiene ningún lote ACTIVE detrás. Distinto de ProductDto.stock (el total,
+// con o sin lote) — es lo que el checkbox "Usar stock general" debe mostrar
+// y validar en el cliente, para no prometer una cantidad que el backend va
+// a rechazar porque ya está reservada por un lote visible en "Disponible".
+data class UnbackedStockDto(
+    @SerializedName("product_id") val productId: Int,
+    val stock: Double,
+    val unbacked: Double
+)
+
 data class ReceiptItemRequest(
     val barcode: String? = null,
     @SerializedName("product_id") val productId: Int? = null,
@@ -858,7 +869,10 @@ data class ReceiptResultItem(
     @SerializedName("product_name") val productName: String? = null,
     val quantity: Double? = null,
     @SerializedName("expiration_date") val expirationDate: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    // null = no aplica (producto sin qb_item_id); 1/0 = resultado real del
+    // intento de sync a QBO para esta línea (2026-09-10).
+    @SerializedName("qb_synced") val qbSynced: Int? = null
 )
 
 data class CreateReceiptResponse(
@@ -884,8 +898,13 @@ data class InventoryMovementDto(
     // sin otra consulta. lot_status == "ACTIVE" es lo que habilita "Editar".
     @SerializedName("lot_expiration_date") val lotExpirationDate: String? = null,
     @SerializedName("lot_status") val lotStatus: String? = null,
-    @SerializedName("lot_received_qty") val lotReceivedQty: Double? = null
+    @SerializedName("lot_received_qty") val lotReceivedQty: Double? = null,
+    // null = no aplica (producto sin qb_item_id); 1/0 = resultado real del
+    // último intento de sync a QBO para este movimiento (2026-09-10).
+    @SerializedName("qb_synced") val qbSynced: Int? = null
 )
+
+data class RetryMovementSyncResponse(@SerializedName("qb_synced") val qbSynced: Int? = null)
 
 data class UpdateLotRequest(
     val quantity: Double? = null,
