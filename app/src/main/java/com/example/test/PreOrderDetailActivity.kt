@@ -1070,7 +1070,13 @@ class PreOrderDetailActivity : BaseActivity() {
                                 price        = bi.price,
                                 quantity     = bi.quantity,
                                 total        = bi.total,
-                                status       = if (sent.isOfflinePending) "PENDING" else "SENT",
+                                // convertPreOrder deja TODAS las filas nuevas en
+                                // AWAITING_APPROVAL (Fase 113, preOrderController.ts:409)
+                                // cuando se manda online — nunca SENT directo. Sin esto,
+                                // TicketDetailActivity no mostraba Editar/Cancelar hasta
+                                // reabrir el ticket desde Historial.
+                                status       = if (sent.isOfflinePending) "PENDING" else "AWAITING_APPROVAL",
+                                userId       = securePrefs.getUserId(),
                                 customerId   = po.customerId,
                                 customerName = po.customerName,
                                 unit         = bi.unit,

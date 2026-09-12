@@ -1171,7 +1171,13 @@ class CurrentOrderActivity : BaseActivity() {
                                 price = bi.price,
                                 quantity = bi.quantity,
                                 total = bi.total,
-                                status = if (sent.isOfflinePending) "PENDING" else "SENT",
+                                // El servidor ya no responde SENT al crear un batch online
+                                // (Fase 113 — nace AWAITING_APPROVAL hasta que el admin lo
+                                // aprueba) — usar el status real de sent.response.orders en
+                                // vez de asumirlo, para que TicketDetailActivity muestre bien
+                                // los botones Editar/Cancelar apenas se cierra la venta.
+                                status = if (sent.isOfflinePending) "PENDING" else (sent.response.orders.firstOrNull()?.status ?: "AWAITING_APPROVAL"),
+                                userId = securePrefs.getUserId(),
                                 customerId = customerId,
                                 customerName = customerName,
                                 unit = bi.unit,
