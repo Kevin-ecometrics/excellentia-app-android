@@ -173,11 +173,20 @@ class MyRouteDetailActivity : BaseActivity() {
             else -> btnRouteAction.visibility = View.GONE
         }
 
-        val sellingActive = d.stops.any { isSellingStop(it) }
+        val activeStop = d.stops.firstOrNull { isSellingStop(it) }
+        val sellingActive = activeStop != null
         cardSellActions.visibility = if (sellingActive) View.VISIBLE else View.GONE
 
         renderStops(d.stops, d.status)
-        renderItems(d.items, sellingActive, pendingOrders)
+        // route_stop_id (2026-09-18) — antes esta lista era el total de TODA
+        // la ruta, mezclando lo cargado para todos los clientes; ahora que
+        // cada línea ya sabe para qué parada es, mientras se está vendiendo
+        // se filtra a solo lo de ESE cliente — así "cargado" y el indicador
+        // vendido-vs-cargado comparan contra lo que de verdad le corresponde,
+        // no contra el camión entero. Sin venta activa se sigue viendo el
+        // manifiesto completo (vista general de la ruta).
+        val itemsForDisplay = activeStop?.let { stop -> d.items.filter { it.routeStopId == stop.id } } ?: d.items
+        renderItems(itemsForDisplay, d.stops, sellingActive, pendingOrders)
     }
 
     private fun confirmRouteTransition(newStatus: String) {
@@ -213,6 +222,13 @@ class MyRouteDetailActivity : BaseActivity() {
             return
         }
         tvNoStops.visibility = View.GONE
+        // Solo puede haber una venta "por scratch" activa a la vez (un solo
+        // cliente/parada activo en SecurePreferences) — mientras hay una en
+        // curso, el botón "Vender" de las DEMÁS paradas queda deshabilitado
+        // en vez de tocable, para que el operador no pueda pisar el
+        // contexto activo (carrito de A todavía sin mandar) tocando "Vender"
+        // en B a mitad de camino.
+        val anySellingActive = stops.any { isSellingStop(it) }
         val inflater = LayoutInflater.from(this)
         for ((i, stop) in stops.sortedBy { it.position }.withIndex()) {
             val row = inflater.inflate(R.layout.item_route_stop_operator, layoutStops, false)
@@ -290,6 +306,12 @@ class MyRouteDetailActivity : BaseActivity() {
                     stop.stopType == "CUSTOMER" -> {
                         btnAction.visibility = View.VISIBLE
                         btnAction.text = getString(R.string.btn_sell_to_customer)
+                        // anySellingActive acá es "otra parada tiene una venta
+                        // en curso" — esta rama ya excluyó selling==true (la
+                        // propia) más arriba, así que si anySellingActive es
+                        // true tiene que ser de OTRA parada.
+                        btnAction.isEnabled = !anySellingActive
+                        btnAction.alpha = if (anySellingActive) 0.4f else 1f
                         btnAction.setOnClickListener { activateCustomerAndSell(stop.id, stop.customerId, stop.customerName) }
                     }
                     else -> btnAction.visibility = View.GONE
@@ -440,7 +462,7 @@ class MyRouteDetailActivity : BaseActivity() {
         }
     }
 
-    private fun renderItems(items: List<RouteItemDto>, sellingActive: Boolean, pendingOrders: List<com.example.test.data.local.entities.PendingOrderEntity>) {
+    private fun renderItems(items: List<RouteItemDto>, stops: List<RouteStopDto>, sellingActive: Boolean, pendingOrders: List<com.example.test.data.local.entities.PendingOrderEntity>) {
         layoutItems.removeAllViews()
         if (items.isEmpty()) {
             tvNoItems.visibility = View.VISIBLE
@@ -448,12 +470,22 @@ class MyRouteDetailActivity : BaseActivity() {
         }
         tvNoItems.visibility = View.GONE
         val ordersByBarcode = pendingOrders.groupBy { it.barcode }
+        // route_stop_id (2026-09-18) — en la vista general (sin venta activa,
+        // ej. entre un cliente y el siguiente) esta lista vuelve a mostrar
+        // TODO lo cargado en la ruta, mezclando lo ya vendido de paradas
+        // resueltas con lo pendiente. Sin filtrar eso, se ve idéntico a algo
+        // que todavía hay que vender. Una parada DELIVERED implica que su
+        // venta ya se mandó — se marca "Vendido" en vez de sacarla, para que
+        // el operador la siga viendo como referencia de lo que se llevó.
+        val stopById = stops.associateBy { it.id }
         val inflater = LayoutInflater.from(this)
         for (item in items) {
             val row = inflater.inflate(R.layout.item_route_item, layoutItems, false)
             row.findViewById<TextView>(R.id.tvItemName).text = item.name
+            val itemStop = item.routeStopId?.let { stopById[it] }
+            val soldBadge = if (itemStop?.status == "DELIVERED") " · ${getString(R.string.wh_item_sold_badge)}" else ""
             row.findViewById<TextView>(R.id.tvItemMeta).text =
-                (item.sku ?: item.barcode ?: "—") + (item.unit?.let { " · $it" } ?: "")
+                (item.sku ?: item.barcode ?: "—") + (item.unit?.let { " · $it" } ?: "") + soldBadge
             row.findViewById<TextView>(R.id.tvItemQty).text = com.example.test.data.formatQty(item.quantity)
             row.findViewById<View>(R.id.btnRemoveItem).visibility = View.GONE
             val statusDot = row.findViewById<View>(R.id.viewStatusDot)

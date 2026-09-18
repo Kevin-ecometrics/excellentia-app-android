@@ -167,6 +167,13 @@ interface ApiService {
     @GET("api/routes/available")
     suspend fun listAvailableStops(@Query("date") date: String? = null): Response<AvailableStopsResponse>
 
+    // route_day_stops (2026-09-18) — lo que el admin ya pre-aprobó para un
+    // día desde el dashboard. GET es warehouseOnly (almacenista elige de
+    // acá al agregar una parada); crear/borrar es admin-only, no expuesto
+    // en Android.
+    @GET("api/routes/day-stops")
+    suspend fun listDayStops(@Query("date") date: String): Response<DayStopsResponse>
+
     @POST("api/routes/{id}/stops")
     suspend fun addRouteStop(@Path("id") id: Int, @Body request: AddStopRequest): Response<AddStopResponse>
 
@@ -178,6 +185,9 @@ interface ApiService {
 
     @PUT("api/routes/{id}/stops/{stopId}/status")
     suspend fun updateStopStatus(@Path("id") id: Int, @Path("stopId") stopId: Int, @Body request: UpdateStopStatusRequest): Response<UpdateStopStatusResponse>
+
+    @GET("api/routes/{id}/stops/{stopId}/expected-items")
+    suspend fun getExpectedStopItems(@Path("id") id: Int, @Path("stopId") stopId: Int): Response<ExpectedStopItemsResponse>
 
     @POST("api/routes/{id}/items")
     suspend fun addRouteItem(@Path("id") id: Int, @Body request: AddRouteItemRequest): Response<RouteItemResponse>

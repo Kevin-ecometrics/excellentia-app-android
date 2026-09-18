@@ -227,6 +227,18 @@
                         android:textColor="@color/text_secondary"
                         android:textSize="10sp" />
 
+                    <!-- route_stop_id (2026-09-18) — obligatorio elegir para qué
+                         parada es la carga antes de escanear/buscar. Se
+                         autocompleta sola si la ruta tiene una única parada. -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnLoadingForStop"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/wh_choose_loading_stop"
+                        android:textSize="12sp" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

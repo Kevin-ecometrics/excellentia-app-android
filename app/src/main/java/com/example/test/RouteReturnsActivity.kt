@@ -90,13 +90,39 @@ class RouteReturnsActivity : BaseActivity() {
             try {
                 val resp = RetrofitClient.getApi().getExpectedReturns(routeId)
                 if (resp.isSuccessful) {
-                    renderRows(resp.body()?.data ?: emptyList())
+                    renderRows(mergeByProduct(resp.body()?.data ?: emptyList()))
                 } else {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    // route_stop_id (2026-09-18) — getExpectedReturns ahora devuelve una fila
+    // por (producto, parada), para el desglose de reconciliación por
+    // cliente. Contar devoluciones físicas sigue siendo por PRODUCTO nomás
+    // — el camión vuelve con todo mezclado, no hay forma de separar por
+    // cliente lo que regresó — así que acá se fusiona de vuelta a una sola
+    // fila por producto antes de armar los inputs. Sin este merge, un
+    // producto cargado para 2 paradas mostraría 2 filas de conteo
+    // separadas, y guardar cantidades en ambas mandaría 2 líneas GOOD del
+    // mismo producto en el mismo request — createReturns las rechaza.
+    private fun mergeByProduct(expected: List<RouteReturnExpectedDto>): List<RouteReturnExpectedDto> {
+        return expected.groupBy { it.productId }.map { (_, rows) ->
+            rows.first().copy(
+                loadedQty = rows.sumOf { it.loadedQty },
+                soldQty = rows.sumOf { it.soldQty },
+                alreadyReturnedQty = rows.sumOf { it.alreadyReturnedQty },
+                expectedReturnQty = rows.sumOf { it.expectedReturnQty },
+                returnedGoodQty = rows.sumOf { it.returnedGoodQty },
+                returnedDamagedQty = rows.sumOf { it.returnedDamagedQty },
+                returnedExpiredQty = rows.sumOf { it.returnedExpiredQty },
+                returnedTransporterDamageQty = rows.sumOf { it.returnedTransporterDamageQty },
+                consignmentSettledQty = rows.sumOf { it.consignmentSettledQty },
+                discrepancy = rows.sumOf { it.discrepancy }
+            )
         }
     }
 

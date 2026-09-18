@@ -321,10 +321,18 @@ class TicketDetailActivity : AppCompatActivity() {
         // todavía no existe en QBO en este estado, así que las dos acciones
         // son 100% locales — ver CLAUDE.md, "Editar / Cancelar venta
         // AWAITING_APPROVAL".
+        //
+        // Fix — si el batch pertenece a una ruta cuyas devoluciones ya
+        // revisó el almacén (route_returns_reviewed_at), esa revisión ya
+        // asumió como definitivo lo vendido acá: editar/cancelar después
+        // descuadraría el sub-inventario sin que nada lo detecte. El
+        // backend rechaza igual con 400 (defensa real), esto es solo para
+        // que los botones ni aparezcan.
         val currentUserId = prefs.getUserId()
         val isAdminUser = prefs.getUserRole() == "admin"
         val ownsBatch = currentUserId != null && orders.isNotEmpty() && orders.all { it.userId == currentUserId }
-        val canManageBatch = orderStatus == "AWAITING_APPROVAL" && (isAdminUser || ownsBatch)
+        val routeReturnsReviewed = orders.any { !it.routeReturnsReviewedAt.isNullOrBlank() }
+        val canManageBatch = orderStatus == "AWAITING_APPROVAL" && !routeReturnsReviewed && (isAdminUser || ownsBatch)
 
         val btnEditBatch = findViewById<MaterialButton>(R.id.btnEditBatch)
         val btnCancelBatch = findViewById<MaterialButton>(R.id.btnCancelBatch)

@@ -498,6 +498,7 @@
     <string name="label_all_dates">Todas las fechas</string>
     <string name="btn_new_route">Nueva ruta</string>
     <string name="empty_routes">Todavía no hay rutas</string>
+    <string name="empty_routes_today">Todavía no hay rutas creadas para hoy. Creá una para poder continuar.</string>
     <string name="label_no_driver">Sin asignar</string>
     <string name="label_stops_count">%1$d parada(s)</string>
     <string name="route_status_planned">Planificada</string>
@@ -567,6 +568,8 @@
     <string name="label_available_orders">Pedidos disponibles</string>
     <string name="label_available_preorders">Pre-órdenes disponibles</string>
     <string name="label_no_available_stops">No hay pedidos ni pre-órdenes disponibles sin asignar</string>
+    <string name="label_no_day_stops">El admin todavía no asignó ningún cliente para este día</string>
+    <string name="msg_stops_added">%1$d parada(s) agregada(s)</string>
     <string name="label_route_loaded">Cargado</string>
     <string name="label_no_items_loaded">Sin productos cargados todavía</string>
     <string name="label_scan_prompt_warehouse">Escaneá un producto para cargarlo en esta ruta</string>
@@ -590,6 +593,7 @@
     <string name="wh_returns_reviewed_badge">✓ Devoluciones revisadas</string>
     <string name="wh_returns_pending_review_badge">⚠ Falta revisar devoluciones</string>
     <string name="wh_returns_already_reviewed_banner">Devoluciones ya revisadas — esta ruta quedó bloqueada, no admite más cambios</string>
+    <string name="wh_route_completed_banner">Ruta completada — ya no se puede cargar ni cambiar paradas. Usá "Revisar devoluciones" para lo que vuelva del camión.</string>
     <string name="wh_use_stock_checkbox">Usar stock general (tengo %1$d)</string>
     <string name="wh_btn_return_lot">Devolver</string>
     <string name="wh_return_lot_title">Devolver lote</string>
@@ -625,6 +629,7 @@
     <string name="wh_consignment_settled_summary">Liquidado — vendido %1$.2f · devuelto %2$.2f</string>
     <string name="wh_consignment_partial_progress">Ya liquidado: %1$.2f vendido · %2$.2f devuelto · %3$.2f pendiente</string>
     <string name="wh_consignmentSold_label">Vendido</string>
+    <string name="wh_item_sold_badge">Vendido</string>
     <string name="wh_consignmentReturned_label">Devuelto</string>
     <string name="btn_settle_consignment">Liquidar</string>
     <string name="error_consignment_settle_empty">Ingresá una cantidad vendida o devuelta</string>
@@ -673,6 +678,12 @@
     <string name="wh_not_enough_stock_title">No hay suficiente stock</string>
     <string name="wh_not_enough_stock_message">Solo hay %2$.2f de %1$s disponible en el almacén.</string>
     <string name="wh_btn_from_receiving">Cargar desde recepción</string>
+    <string name="wh_choose_loading_stop">Elegir para quién es esta carga</string>
+    <string name="wh_loading_for">Cargando para: %1$s</string>
+    <string name="wh_pick_stop_first">Elegí primero para quién es esta carga</string>
+    <string name="wh_no_stops_to_load">Agregá una parada a esta ruta antes de cargar productos</string>
+    <string name="wh_expected_items_title">Se espera para esta parada</string>
+    <string name="wh_expected_item_line">%1$s — %2$s</string>
     <string name="wh_from_receiving_title">Disponible en el almacén</string>
     <string name="wh_available_product_line">%1$s  ·  %2$.2f disponible</string>
     <string name="wh_no_available_products">No hay nada recibido disponible por ahora</string>

@@ -562,14 +562,19 @@ class CurrentOrderActivity : BaseActivity() {
     // MyRouteDetailActivity.activateCustomerAndSell). Se limpia el contexto
     // apenas se usa, para no arrastrarlo a la próxima venta suelta que no
     // tenga nada que ver con una ruta.
-    private fun markRouteStopDeliveredIfAny() {
+    // batchId (2026-09-18) — de la venta recién mandada, para que
+    // updateStopStatus vincule esta parada CUSTOMER con su batch_id (mismo
+    // dato que las paradas BATCH ya traían desde que se crean) — así la
+    // reconciliación por parada sabe qué se vendió acá. null en batches
+    // offline (OFFLINE_PENDING no es un batch_id real todavía).
+    private fun markRouteStopDeliveredIfAny(batchId: String? = null) {
         val routeId = securePrefs.getActiveRouteId()
         val stopId = securePrefs.getActiveStopId()
         securePrefs.clearActiveRouteStop()
         if (routeId == null || stopId == null) return
         lifecycleScope.launch {
             try {
-                RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest("DELIVERED"))
+                RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest("DELIVERED", batchId = batchId))
             } catch (_: Exception) { }
         }
     }
@@ -1031,7 +1036,7 @@ class CurrentOrderActivity : BaseActivity() {
 
                 orderRepository.clearPending()
                 securePrefs.clearActiveCustomer()
-                markRouteStopDeliveredIfAny()
+                markRouteStopDeliveredIfAny(if (isOfflinePending) null else response.batchId)
 
                 val printerAddress = securePrefs.getPrinterAddress()
                 if (!skipPrint && !printerAddress.isNullOrBlank()) {

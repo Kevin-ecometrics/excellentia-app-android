@@ -134,7 +134,12 @@ data class OrderDto(
     @SerializedName("short_name") val shortName: String? = null,
     // Fase 115.5 — para que un reprint desde Historial/detalle de ticket
     // conserve el resumen "Courtesy Summary" del ticket original.
-    @SerializedName("is_courtesy") val isCourtesy: Boolean = false
+    @SerializedName("is_courtesy") val isCourtesy: Boolean = false,
+    // Fase 117 (fix) — no-null cuando el almacén ya revisó las devoluciones
+    // de la ruta a la que pertenece este batch. Esa revisión ya asumió como
+    // definitivo lo vendido acá — Editar/Cancelar deben desaparecer aunque
+    // el batch siga AWAITING_APPROVAL (ver TicketDetailActivity.canManageBatch).
+    @SerializedName("route_returns_reviewed_at") val routeReturnsReviewedAt: String? = null
 )
 
 data class DeviceRegisterRequest(
@@ -634,6 +639,7 @@ data class RouteItemDto(
     val id: Int,
     @SerializedName("route_id") val routeId: Int,
     @SerializedName("product_id") val productId: Int,
+    @SerializedName("route_stop_id") val routeStopId: Int? = null,
     val barcode: String? = null,
     // Fase 118 — era Int; pasó a Double, mismo motivo que AddRouteItemRequest.
     val quantity: Double,
@@ -678,6 +684,26 @@ data class AvailableStopsResponse(
     val preOrders: List<AvailablePreOrder> = emptyList()
 )
 
+// route_day_stops (2026-09-18) — lo que el admin pre-aprobó para un día
+// desde el dashboard, antes de que exista ninguna ruta/camión. El
+// almacenista arma su ruta como siempre, pero "+ Agregar parada" ahora
+// elige de acá (assignedRouteId == null = todavía libre) en vez de buscar
+// cualquier cliente — ver WarehouseRouteDetailActivity.showDayStopPicker().
+data class DayStopsResponse(val data: List<DayStopDto> = emptyList())
+
+// Solo clientes (2026-09-18) — se sacó la opción de pre-aprobar pedidos/
+// pre-órdenes ya existentes, nunca se usó en la práctica. BATCH/PRE_ORDER
+// siguen existiendo como stop_type de una ruta real (route_stops) y se
+// siguen agregando libres, sin pasar por esta lista.
+data class DayStopDto(
+    val id: Int,
+    @SerializedName("scheduled_date") val scheduledDate: String,
+    @SerializedName("customer_id") val customerId: String,
+    @SerializedName("customer_name") val customerName: String,
+    @SerializedName("assigned_route_id") val assignedRouteId: Int? = null,
+    @SerializedName("assigned_route_name") val assignedRouteName: String? = null
+)
+
 data class AvailableOrder(
     @SerializedName("batch_id") val batchId: String,
     @SerializedName("customer_id") val customerId: String?,
@@ -697,7 +723,13 @@ data class AvailablePreOrder(
 )
 
 data class UpdateStopStatusRequest(
-    val status: String
+    val status: String,
+    // batch_id (2026-09-18) — vincula recién acá una parada CUSTOMER con la
+    // venta que se acaba de mandar (las BATCH ya lo traen desde que se
+    // crean). Sin esto, la reconciliación por parada no puede saber qué se
+    // vendió en una parada "por scratch". Nunca pisa un batch_id existente
+    // (el backend valida eso).
+    @SerializedName("batch_id") val batchId: String? = null
 )
 
 data class UpdateStopStatusResponse(
@@ -726,12 +758,28 @@ data class AddRouteItemRequest(
     // "STOCK" carga directo de products.stock, sin pasar por ningún lote —
     // para stock real que nunca pasó por Recepción. Default null = "LOT",
     // mismo comportamiento de siempre.
-    val source: String? = null
+    val source: String? = null,
+    // route_stop_id (2026-09-18) — obligatorio: para qué parada/cliente es
+    // esta carga. El backend lo rechaza si falta.
+    @SerializedName("route_stop_id") val routeStopId: Int
 )
 
 data class CreateRouteResponse(
     val id: Int,
     val status: String
+)
+
+// Auto-sugerencia (2026-09-18) — lo que "debería" cargarse para una parada
+// BATCH/PRE_ORDER, según la venta o pre-orden original. Solo referencia —
+// el almacenista sigue confirmando cantidades reales al escanear.
+data class ExpectedStopItemsResponse(val data: List<ExpectedStopItemDto> = emptyList())
+
+data class ExpectedStopItemDto(
+    val barcode: String? = null,
+    @SerializedName("product_name") val productName: String,
+    val quantity: Double,
+    val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null
 )
 
 data class AddStopResponse(
@@ -920,6 +968,11 @@ data class RouteReturnExpectedDto(
     @SerializedName("product_id") val productId: Int,
     val name: String,
     val sku: String? = null,
+    // route_stop_id (2026-09-18) — a qué parada corresponde esta fila. Cada
+    // producto ahora puede aparecer una vez por parada (desglose por
+    // cliente) en vez de un solo total por ruta.
+    @SerializedName("route_stop_id") val routeStopId: Int? = null,
+    @SerializedName("customer_name") val customerName: String? = null,
     // Fase 118 (fix) — faltaba para que RouteReturnsActivity supiera si el
     // input de cantidad de esta línea debe ser decimal (Lbs) o entero
     // (Case/Unit/Bucket), mismo criterio que el resto de la app.

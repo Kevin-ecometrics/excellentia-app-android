@@ -519,6 +519,7 @@
     <string name="label_all_dates">All dates</string>
     <string name="btn_new_route">New route</string>
     <string name="empty_routes">No routes yet</string>
+    <string name="empty_routes_today">No routes created for today yet. Create one to continue.</string>
     <string name="label_no_driver">Unassigned</string>
     <string name="label_stops_count">%1$d stop(s)</string>
     <string name="route_status_planned">Planned</string>
@@ -588,6 +589,8 @@
     <string name="label_available_orders">Available orders</string>
     <string name="label_available_preorders">Available pre-orders</string>
     <string name="label_no_available_stops">No unassigned orders or pre-orders available</string>
+    <string name="label_no_day_stops">The admin hasn\'t assigned any customers to this day yet</string>
+    <string name="msg_stops_added">%1$d stop(s) added</string>
     <string name="label_route_loaded">Loaded</string>
     <string name="label_no_items_loaded">No products loaded yet</string>
     <string name="label_scan_prompt_warehouse">Scan a product to load it onto this route</string>
@@ -613,6 +616,7 @@
     <string name="wh_returns_reviewed_badge">✓ Returns reviewed</string>
     <string name="wh_returns_pending_review_badge">⚠ Review returns</string>
     <string name="wh_returns_already_reviewed_banner">Returns already reviewed — this route is now locked, no more edits</string>
+    <string name="wh_route_completed_banner">Route completed — no more loading or stop changes. Use "Review returns" for anything that comes back.</string>
     <string name="wh_use_stock_checkbox">Use general stock (have %1$d)</string>
     <string name="wh_btn_return_lot">Return</string>
     <string name="wh_return_lot_title">Return lot</string>
@@ -648,6 +652,7 @@
     <string name="wh_consignment_settled_summary">Settled — sold %1$.2f · returned %2$.2f</string>
     <string name="wh_consignment_partial_progress">Already settled: %1$.2f sold · %2$.2f returned · %3$.2f remaining</string>
     <string name="wh_consignmentSold_label">Sold</string>
+    <string name="wh_item_sold_badge">Sold</string>
     <string name="wh_consignmentReturned_label">Returned</string>
     <string name="btn_settle_consignment">Settle</string>
     <string name="error_consignment_settle_empty">Enter a sold or returned quantity</string>
@@ -696,6 +701,12 @@
     <string name="wh_not_enough_stock_title">Not enough stock</string>
     <string name="wh_not_enough_stock_message">Only %2$.2f of %1$s available in the warehouse.</string>
     <string name="wh_btn_from_receiving">Load from receiving</string>
+    <string name="wh_choose_loading_stop">Choose who this load is for</string>
+    <string name="wh_loading_for">Loading for: %1$s</string>
+    <string name="wh_pick_stop_first">Pick who this load is for first</string>
+    <string name="wh_no_stops_to_load">Add a stop to this route before loading products</string>
+    <string name="wh_expected_items_title">Expected for this stop</string>
+    <string name="wh_expected_item_line">%1$s — %2$s</string>
     <string name="wh_from_receiving_title">Available in the warehouse</string>
     <string name="wh_available_product_line">%1$s  ·  %2$.2f available</string>
     <string name="wh_no_available_products">Nothing received is available right now</string>

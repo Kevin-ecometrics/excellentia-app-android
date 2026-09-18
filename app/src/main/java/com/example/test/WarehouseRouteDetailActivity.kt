@@ -16,7 +16,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.AddRouteItemRequest
 import com.example.test.data.AddStopRequest
-import com.example.test.data.AvailablePreOrder
+import com.example.test.data.DayStopDto
 import com.example.test.data.FifoAllocationDto
 import com.example.test.data.ProductDto
 import com.example.test.data.ReorderStopsRequest
@@ -54,6 +54,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     private lateinit var tvAddingItemLabel: TextView
     private lateinit var btnManualEntry: MaterialButton
     private lateinit var btnFromReceiving: MaterialButton
+    private lateinit var btnLoadingForStop: MaterialButton
     private lateinit var btnReviewReturns: MaterialButton
     private lateinit var tvReturnsReviewedBanner: TextView
     private lateinit var securePrefs: SecurePreferences
@@ -76,6 +77,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     private var pendingRetryProduct: ProductDto? = null
     private var pendingRetryQuantity: Double = 1.0
 
+    // route_stop_id (2026-09-18) — para qué parada/cliente es la carga
+    // actual; addRouteItem lo exige siempre. Se autocompleta sola si la
+    // ruta tiene una única parada, si no hay que elegirla a mano con
+    // btnLoadingForStop antes de poder escanear/buscar.
+    private var currentLoadingStopId: Int? = null
+
     private val receivingLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -87,13 +94,19 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     }
 
     // Fase 115.4 — antes de abrir el picker de clientes, decide si la parada
-    // es una visita normal o de consignación (mismo picker de clientes para
-    // las dos, solo cambia stopType en checkPreOrderThenAddStop).
+    // es una visita normal o de consignación.
     // .setItems() renderiza filas de texto plano sin el estilo de botón de
     // la marca (no toma buttonBarPositiveButtonStyle/etc. de
     // ThemeOverlay.Excellentia.MaterialAlertDialog, ver themes.xml) — mismo
     // fix que showNewRouteChooser() en WarehouseActivity: dos MaterialButton
     // reales de ancho completo en vez de una lista de 2 opciones.
+    //
+    // route_day_stops (2026-09-18) — "Cliente" ya no busca libremente en QBO
+    // (CustomerPickerActivity): el admin pre-aprueba, desde el dashboard
+    // nuevo de Rutas, qué clientes/pedidos/pre-órdenes hay para este día —
+    // acá solo se elige de esa lista (showDayStopPicker). "Consignación"
+    // queda afuera de esa planificación a propósito (parada espontánea de
+    // campo) y sigue siendo búsqueda libre de cliente, sin cambios.
     private fun showStopTypeChooser() {
         val density = resources.displayMetrics.density
         val layout = LinearLayout(this).apply {
@@ -108,11 +121,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         val btnCustomer = MaterialButton(this).apply {
             text = getString(R.string.stop_type_customer)
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            setOnClickListener {
-                dialog.dismiss()
-                pendingStopType = "CUSTOMER"
-                customerPickerLauncher.launch(Intent(this@WarehouseRouteDetailActivity, CustomerPickerActivity::class.java))
-            }
+            setOnClickListener { dialog.dismiss(); showDayStopPicker() }
         }
         val btnConsignment = MaterialButton(this).apply {
             text = getString(R.string.stop_type_consignment)
@@ -136,44 +145,60 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         if (result.resultCode == Activity.RESULT_OK) {
             val id = result.data?.getStringExtra("customer_id") ?: return@registerForActivityResult
             val name = result.data?.getStringExtra("customer_name") ?: return@registerForActivityResult
-            checkPreOrderThenAddStop(id, name)
+            // Único caller posible hoy es "Consignación" (ver showStopTypeChooser).
+            addStop(AddStopRequest(stopType = "CONSIGNMENT", customerId = id, customerName = name))
         }
     }
 
-    // Antes de agregar la parada, chequea si este cliente ya tiene una
-    // pre-orden confirmada pendiente y ofrece vincularla (opcional, no
-    // bloqueante) — así la parada trae qué llevarle sin obligar a nada.
-    // CONSIGNMENT nunca vincula pre-orden — es un concepto distinto (dejar
-    // mercadería para vender in situ, no una venta ya armada de antemano).
-    private fun checkPreOrderThenAddStop(customerId: String, customerName: String) {
-        if (pendingStopType == "CONSIGNMENT") {
-            addStop(AddStopRequest(stopType = "CONSIGNMENT", customerId = customerId, customerName = customerName))
-            return
-        }
+    // route_day_stops — trae lo que el admin ya aprobó para el día de ESTA
+    // ruta y todavía nadie tomó (assignedRouteId == null); deja elegir
+    // varios de una, igual que el viejo picker de pre-órdenes en
+    // WarehouseActivity. addStop sigue validando esto server-side, así que
+    // si dos almacenistas tocan el mismo cliente casi a la vez, el segundo
+    // simplemente no suma en el contador final — no hace falta manejarlo
+    // acá como error especial.
+    private fun showDayStopPicker() {
+        val date = detail?.scheduledDate?.take(10) ?: return
         lifecycleScope.launch {
-            var matched: AvailablePreOrder? = null
             try {
-                val resp = RetrofitClient.getApi().listAvailableStops(null)
-                if (resp.isSuccessful) {
-                    matched = resp.body()?.preOrders?.firstOrNull { it.customerId == customerId }
+                val resp = RetrofitClient.getApi().listDayStops(date)
+                val available = if (resp.isSuccessful)
+                    (resp.body()?.data ?: emptyList()).filter { it.assignedRouteId == null }
+                else emptyList()
+                if (available.isEmpty()) {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_no_day_stops), Snackbar.LENGTH_SHORT).show()
+                    return@launch
                 }
-            } catch (_: Exception) { }
-
-            val po = matched
-            if (po == null) {
-                addStop(AddStopRequest(stopType = "CUSTOMER", customerId = customerId, customerName = customerName))
-                return@launch
+                val labels = available.map { it.customerName }.toTypedArray()
+                val checked = BooleanArray(available.size)
+                MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
+                    .setTitle(getString(R.string.title_add_stop))
+                    .setMultiChoiceItems(labels, checked) { _, which, isChecked -> checked[which] = isChecked }
+                    .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
+                        val selected = available.filterIndexed { i, _ -> checked[i] }
+                        if (selected.isNotEmpty()) addDayStops(selected)
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                    .show()
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
             }
-            MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
-                .setTitle(getString(R.string.title_link_preorder))
-                .setMessage(getString(R.string.msg_link_preorder, customerName, po.itemCount, po.total))
-                .setPositiveButton(getString(R.string.btn_link)) { _, _ ->
-                    addStop(AddStopRequest(stopType = "CUSTOMER", customerId = customerId, customerName = customerName, preOrderId = po.id))
-                }
-                .setNegativeButton(getString(R.string.btn_no_thanks)) { _, _ ->
-                    addStop(AddStopRequest(stopType = "CUSTOMER", customerId = customerId, customerName = customerName))
-                }
-                .show()
+        }
+    }
+
+    private fun addDayStops(stops: List<DayStopDto>) {
+        lifecycleScope.launch {
+            var added = 0
+            for (ds in stops) {
+                try {
+                    val resp = RetrofitClient.getApi().addRouteStop(
+                        routeId, AddStopRequest(stopType = "CUSTOMER", customerId = ds.customerId, customerName = ds.customerName)
+                    )
+                    if (resp.isSuccessful) added++
+                } catch (_: Exception) { }
+            }
+            loadDetail()
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_stops_added, added), Snackbar.LENGTH_SHORT).show()
         }
     }
 
@@ -208,6 +233,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         tvAddingItemLabel = findViewById(R.id.tvAddingItemLabel)
         btnManualEntry = findViewById(R.id.btnManualEntry)
         btnFromReceiving = findViewById(R.id.btnFromReceiving)
+        btnLoadingForStop = findViewById(R.id.btnLoadingForStop)
         btnReviewReturns = findViewById(R.id.btnReviewReturns)
         tvReturnsReviewedBanner = findViewById(R.id.tvReturnsReviewedBanner)
         tvReconciliationTitle = findViewById(R.id.tvReconciliationTitle)
@@ -215,8 +241,9 @@ class WarehouseRouteDetailActivity : BaseActivity() {
 
         toolbar.setNavigationOnClickListener { finish() }
         btnAddStop.setOnClickListener { showStopTypeChooser() }
-        btnManualEntry.setOnClickListener { showManualEntryDialog() }
-        btnFromReceiving.setOnClickListener { showAvailableProductsPicker() }
+        btnManualEntry.setOnClickListener { if (ensureLoadingStopChosen()) showManualEntryDialog() }
+        btnFromReceiving.setOnClickListener { if (ensureLoadingStopChosen()) showAvailableProductsPicker() }
+        btnLoadingForStop.setOnClickListener { showLoadingStopPicker() }
         btnReviewReturns.setOnClickListener {
             startActivity(Intent(this, RouteReturnsActivity::class.java).apply {
                 putExtra("route_id", routeId)
@@ -238,12 +265,14 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         loadDetail()
     }
 
-    // CANCELLED sigue bloqueando todo como antes; returnsReviewedAt != null es
-    // el caso nuevo — una vez que el almacenista contó lo que volvió del
-    // camión, la carga/paradas de esta ruta quedan congeladas (mismo criterio
-    // que ya aplica el backend en addRouteItem/removeRouteItem/addStop/etc).
+    // CANCELLED y returnsReviewedAt != null bloqueaban todo, pero faltaba
+    // COMPLETED (2026-09-18, bug encontrado por el usuario probando) — una
+    // ruta ya completada no debería dejar seguir cargando productos ni
+    // cambiando paradas, solo queda "Revisar devoluciones". Mismo criterio
+    // que ahora aplica el backend en addStop/removeStop/reorderStops/
+    // updateStopStatus/addRouteItem/removeRouteItem/registerConsignment.
     private fun isLocked(d: RouteDetailDto?): Boolean =
-        d != null && (d.status == "CANCELLED" || d.returnsReviewedAt != null)
+        d != null && (d.status == "CANCELLED" || d.status == "COMPLETED" || d.returnsReviewedAt != null)
 
     override fun onPause() {
         super.onPause()
@@ -301,7 +330,8 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         val inflater = LayoutInflater.from(this)
         for (row in rows) {
             val card = inflater.inflate(R.layout.item_reconciliation_row, layoutReconciliation, false)
-            card.findViewById<TextView>(R.id.tvReconName).text = row.name
+            card.findViewById<TextView>(R.id.tvReconName).text =
+                row.customerName?.let { "${row.name}  ·  $it" } ?: row.name
             card.findViewById<TextView>(R.id.tvReconMeta).text = getString(
                 R.string.wh_reconciliation_meta,
                 row.loadedQty, row.soldQty, row.returnedGoodQty,
@@ -379,10 +409,33 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         // cargado, el backend rechazaría una 2ª parada (addStop, 400) — se
         // deshabilita acá para no dejar que el almacenista llegue a ese error.
         val directFull = d.routeType == "DIRECT" && d.stops.isNotEmpty()
-        tvReturnsReviewedBanner.visibility = if (reviewed) View.VISIBLE else View.GONE
+        // route.status == COMPLETED (2026-09-18) — mismo banner, texto
+        // distinto: antes solo avisaba de devoluciones ya revisadas, pero la
+        // ruta también queda bloqueada apenas se completa (isLocked), y sin
+        // este aviso no quedaba claro por qué los botones se apagaron.
+        tvReturnsReviewedBanner.visibility = if (reviewed || d.status == "COMPLETED") View.VISIBLE else View.GONE
+        tvReturnsReviewedBanner.text = if (reviewed)
+            getString(R.string.wh_returns_already_reviewed_banner)
+        else
+            getString(R.string.wh_route_completed_banner)
         btnAddStop.isEnabled = !locked && !directFull
-        btnManualEntry.isEnabled = !locked
-        btnFromReceiving.isEnabled = !locked
+
+        // route_stop_id (2026-09-18) — si la parada que tenía elegida ya no
+        // existe (la borraron), se resetea. Con una sola parada se
+        // autocompleta sola y el botón queda informativo (no hace falta
+        // tocarlo); con 0 o 2+ hay que elegir a mano.
+        if (currentLoadingStopId != null && d.stops.none { it.id == currentLoadingStopId }) {
+            currentLoadingStopId = null
+        }
+        if (currentLoadingStopId == null && d.stops.size == 1) {
+            currentLoadingStopId = d.stops[0].id
+        }
+        val chosenStop = d.stops.firstOrNull { it.id == currentLoadingStopId }
+        btnLoadingForStop.text = chosenStop?.let { getString(R.string.wh_loading_for, it.customerName ?: "—") }
+            ?: getString(R.string.wh_choose_loading_stop)
+        btnLoadingForStop.isEnabled = !locked && d.stops.isNotEmpty()
+        btnManualEntry.isEnabled = !locked && d.stops.isNotEmpty()
+        btnFromReceiving.isEnabled = !locked && d.stops.isNotEmpty()
         // Fase 112 — revisar devoluciones solo tiene sentido con el camión ya
         // de vuelta (COMPLETED); antes no hay nada físico que contar todavía.
         // Ya revisada: se deja visible pero deshabilitada (en vez de ocultarla)
@@ -396,6 +449,60 @@ class WarehouseRouteDetailActivity : BaseActivity() {
 
         renderStops(d.stops)
         renderItems(d.items)
+    }
+
+    // Corta el flujo de carga (escanear/buscar) si todavía no se eligió para
+    // qué parada es — en vez de dejar que addRouteItem falle con un 400 sin
+    // contexto. true = ya hay una elegida, se puede seguir.
+    private fun ensureLoadingStopChosen(): Boolean {
+        val d = detail
+        if (currentLoadingStopId != null) return true
+        val msg = if (d != null && d.stops.isEmpty()) R.string.wh_no_stops_to_load else R.string.wh_pick_stop_first
+        Snackbar.make(findViewById(android.R.id.content), getString(msg), Snackbar.LENGTH_SHORT).show()
+        if (d != null && d.stops.isNotEmpty()) showLoadingStopPicker()
+        return false
+    }
+
+    private fun showLoadingStopPicker() {
+        val stops = detail?.stops ?: return
+        if (stops.isEmpty()) {
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.wh_no_stops_to_load), Snackbar.LENGTH_SHORT).show()
+            return
+        }
+        val labels = stops.map { it.customerName ?: "—" }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.wh_choose_loading_stop))
+            .setItems(labels) { _, which ->
+                val stop = stops[which]
+                currentLoadingStopId = stop.id
+                btnLoadingForStop.text = getString(R.string.wh_loading_for, stop.customerName ?: "—")
+                if (stop.stopType == "BATCH" || stop.stopType == "PRE_ORDER") showExpectedItemsReference(stop.id)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    // Referencia informativa — lo que la venta/pre-orden original de esta
+    // parada dice que "debería" llevar. No bloquea ni precarga nada solo;
+    // el almacenista sigue escaneando/confirmando cantidades reales, esto es
+    // solo para no tener que ir a mirar la venta aparte mientras carga.
+    private fun showExpectedItemsReference(stopId: Int) {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getExpectedStopItems(routeId, stopId)
+                val items = if (resp.isSuccessful) resp.body()?.data ?: emptyList() else emptyList()
+                if (items.isEmpty()) return@launch
+                val lines = items.joinToString("\n") { it ->
+                    val qty = com.example.test.data.formatQty(it.quantity) + (it.unit?.let { u -> " $u" } ?: "")
+                    getString(R.string.wh_expected_item_line, it.productName, qty)
+                }
+                MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
+                    .setTitle(getString(R.string.wh_expected_items_title))
+                    .setMessage(lines)
+                    .setPositiveButton(getString(R.string.btn_understood), null)
+                    .show()
+            } catch (_: Exception) { }
+        }
     }
 
     private fun renderStops(stops: List<RouteStopDto>) {
@@ -522,7 +629,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             // escaneo de esta línea pisó la sugerencia FIFO a mano.
             val expPart = item.minExpirationDate?.take(10)?.let { getString(R.string.wh_item_expiration_suffix, it) } ?: ""
             val overridePart = if (item.usedOverride == 1) " · ${getString(R.string.wh_override_badge)}" else ""
-            row.findViewById<TextView>(R.id.tvItemMeta).text = metaBase + expPart + overridePart
+            // route_stop_id (2026-09-18) — a quién le corresponde esta línea,
+            // para que el almacenista pueda revisar la carga por cliente sin
+            // salir de esta pantalla.
+            val stopName = detail?.stops?.firstOrNull { it.id == item.routeStopId }?.customerName
+            val stopPart = stopName?.let { " · $it" } ?: ""
+            row.findViewById<TextView>(R.id.tvItemMeta).text = metaBase + expPart + overridePart + stopPart
             row.findViewById<TextView>(R.id.tvItemQty).text = com.example.test.data.formatQty(item.quantity)
             val btnRemoveItem = row.findViewById<View>(R.id.btnRemoveItem)
             btnRemoveItem.isEnabled = !locked
@@ -537,6 +649,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     private fun onBarcodeScanned(barcode: String) {
         val d = detail ?: return
         if (isLocked(d)) return
+        if (!ensureLoadingStopChosen()) return
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().getProductByBarcode(barcode)
@@ -679,15 +792,17 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // descuenta products.stock directo (checkbox "Usar stock general" en
     // showQuantityDialog) — lotId se ignora en ese caso.
     private fun addRouteItem(product: ProductDto, quantity: Double, lotId: Int?, source: String? = null) {
+        val stopId = currentLoadingStopId
+        if (stopId == null) { ensureLoadingStopChosen(); return }
         pendingItemLoads++
         tvAddingItemLabel.text = getString(R.string.label_adding_item)
         layoutAddingItem.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val request = if (product.barcode != null)
-                    AddRouteItemRequest(barcode = product.barcode, quantity = quantity, lotId = lotId, source = source)
+                    AddRouteItemRequest(barcode = product.barcode, quantity = quantity, lotId = lotId, source = source, routeStopId = stopId)
                 else
-                    AddRouteItemRequest(productId = product.id, quantity = quantity, lotId = lotId, source = source)
+                    AddRouteItemRequest(productId = product.id, quantity = quantity, lotId = lotId, source = source, routeStopId = stopId)
                 val resp = RetrofitClient.getApi().addRouteItem(routeId, request)
                 if (resp.isSuccessful) {
                     val body = resp.body()
