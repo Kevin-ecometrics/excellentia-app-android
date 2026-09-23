@@ -141,6 +141,12 @@ class OrderRepository(
         orderDao.setCourtesy(id, isCourtesy)
     }
 
+    // Backlog #2 — cortesía por unidad suelta: cuánta cantidad de la fila se
+    // regala (ej. 2 de 5 cajas). 0 = sin cortesía, == quantity = completa.
+    fun setCourtesyQuantity(id: Int, qty: Double) {
+        orderDao.setCourtesyQty(id, qty)
+    }
+
     suspend fun getById(id: Int): com.example.test.data.local.entities.PendingOrderEntity? = withContext(Dispatchers.IO) {
         orderDao.getById(id)
     }

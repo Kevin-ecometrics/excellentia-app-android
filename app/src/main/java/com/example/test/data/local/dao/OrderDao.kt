@@ -23,6 +23,7 @@ class OrderDao(private val db: AppDatabase) {
             order.caseQty?.let { put("case_qty", it) }
             put("is_credit", if (order.isCredit) 1 else 0)
             put("is_courtesy", if (order.isCourtesy) 1 else 0)
+            put("courtesy_qty", order.courtesyQty)
         }
         return db.writableDatabase.insert("pending_orders", null, values)
     }
@@ -105,10 +106,23 @@ class OrderDao(private val db: AppDatabase) {
 
     // Fase 115.5 — toggle del checkbox "Marcar como cortesía" por fila del
     // carrito. No toca price/quantity (siguen siendo el valor real de
-    // catálogo) — is_courtesy es la única marca.
+    // catálogo) — is_courtesy es la única marca. Limpia courtesy_qty para
+    // que una fila cortesía completa quede exactamente en 0/0 (compat).
     fun setCourtesy(id: Int, isCourtesy: Boolean) {
         val values = ContentValues().apply {
             put("is_courtesy", if (isCourtesy) 1 else 0)
+            put("courtesy_qty", 0)
+        }
+        db.writableDatabase.update("pending_orders", values, "id = ?", arrayOf(id.toString()))
+    }
+
+    // Backlog #2 — cortesía por unidad suelta: guarda cuánta cantidad de la
+    // fila se regala. 0 = sin cortesía; == quantity = fila completa; parcial
+    // (solo CASE/UNIT/BUCKET) = el backend divide la fila al insertar.
+    fun setCourtesyQty(id: Int, qty: Double) {
+        val values = ContentValues().apply {
+            put("courtesy_qty", qty)
+            put("is_courtesy", if (qty > 0) 1 else 0)
         }
         db.writableDatabase.update("pending_orders", values, "id = ?", arrayOf(id.toString()))
     }
@@ -173,6 +187,8 @@ class OrderDao(private val db: AppDatabase) {
         isCredit = c.getColumnIndex("is_credit").takeIf { it >= 0 }
             ?.let { !c.isNull(it) && c.getInt(it) == 1 } ?: false,
         isCourtesy = c.getColumnIndex("is_courtesy").takeIf { it >= 0 }
-            ?.let { !c.isNull(it) && c.getInt(it) == 1 } ?: false
+            ?.let { !c.isNull(it) && c.getInt(it) == 1 } ?: false,
+        courtesyQty = c.getColumnIndex("courtesy_qty").takeIf { it >= 0 }
+            ?.let { if (c.isNull(it)) 0.0 else c.getDouble(it) } ?: 0.0
     )
 }

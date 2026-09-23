@@ -676,12 +676,19 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
         }
+        // Fix (2026-09-23) — mismo bug ya corregido en ReceivingActivity: para
+        // Lbs, arrancar en "1" no tiene sentido (una caja pesa varias libras,
+        // ej. 30) — encontrado en producción como "Loaded 2.00" vs "Sold
+        // 13.65" en el panel de reconciliación (alguien tipeó un número chico
+        // pensando en piezas, no en peso real). Se precarga con
+        // `weight_per_unit` del catálogo cuando existe, igual que Recepción.
+        val expectedWeight = product.weightPerUnit?.takeIf { it > 0 }
         val etQty = EditText(this).apply {
             inputType = if (isLbs)
                 android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
             else
                 android.text.InputType.TYPE_CLASS_NUMBER
-            setText("1")
+            setText(if (isLbs && expectedWeight != null) com.example.test.data.formatQty(expectedWeight) else "1")
             selectAll()
         }
         // Alternativa a cargar de un lote (Recepción/FIFO): usar directo el
@@ -711,14 +718,14 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             cbUseStock.isEnabled = unbacked > 0
         }
         MaterialAlertDialogBuilder(this)
-            .setTitle(getString(R.string.title_load_quantity))
+            .setTitle(if (isLbs) getString(R.string.title_load_quantity_lbs) else getString(R.string.title_load_quantity))
             .setMessage(product.name)
             .setView(layout)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 // El modal se cierra al toque — el aviso de carga va en la
                 // pantalla (junto a "Cargado en el camión"), no acá, para no
                 // bloquear al almacenista si viene escaneando varios seguidos.
-                val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: 1.0
+                val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: (expectedWeight ?: 1.0)
                 if (cbUseStock.isChecked) {
                     addRouteItem(product, qty, lotId = null, source = "STOCK")
                 } else {

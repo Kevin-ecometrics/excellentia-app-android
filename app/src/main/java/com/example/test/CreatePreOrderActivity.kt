@@ -29,6 +29,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
@@ -448,7 +449,27 @@ class CreatePreOrderActivity : BaseActivity() {
                     ).show()
                 }
                 setResult(Activity.RESULT_OK)
-                finish()
+                // Backlog cliente #5 (2026-09-23) — aviso de stock bajo/agotado,
+                // no bloqueante: la pre-orden ya se creó (o encoló offline) de
+                // cualquier forma, esto es puramente informativo para que el
+                // vendedor sepa que puede faltar stock cuando la vaya a
+                // convertir. `stockWarnings` llega null en el camino offline
+                // (no hay forma de calcularlo sin conexión).
+                val warnings = response.stockWarnings
+                if (!warnings.isNullOrEmpty()) {
+                    val lines = warnings.joinToString("\n") { w ->
+                        if (w.stock <= 0) getString(R.string.wh_stock_warning_zero, w.productName)
+                        else getString(R.string.wh_stock_warning_low, w.productName, w.stock)
+                    }
+                    MaterialAlertDialogBuilder(this@CreatePreOrderActivity)
+                        .setTitle(getString(R.string.wh_stock_warning_title))
+                        .setMessage(lines)
+                        .setPositiveButton(getString(R.string.btn_confirm)) { _, _ -> finish() }
+                        .setCancelable(false)
+                        .show()
+                } else {
+                    finish()
+                }
             }.onFailure { e ->
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_no_connection), Snackbar.LENGTH_LONG).show()
                 btnSavePreOrder.isEnabled = true

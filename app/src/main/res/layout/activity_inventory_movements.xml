@@ -70,6 +70,16 @@
                         android:layout_height="wrap_content"
                         android:text="@string/wh_view_history" />
 
+                    <!-- Fase 120 (addendum) — pestaña nueva: buscar una recepción
+                         pasada (agrupada, el combo de productos que entró junto en
+                         un mismo ticket) y poder reimprimirla si hace falta. -->
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipViewReceipts"
+                        style="@style/Widget.Excellentia.Chip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/wh_view_receipts" />
+
                 </com.google.android.material.chip.ChipGroup>
 
                 <!-- ── Disponible: stock recibido y activo, agrupado por producto ── -->
@@ -223,6 +233,52 @@
                         android:gravity="center"
                         android:paddingTop="64dp"
                         android:text="@string/wh_no_movements"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="15sp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+                <!-- ── Recibos: recepciones pasadas agrupadas por receipt_batch_id,
+                     buscables, con opción de reimprimir el ticket completo ── -->
+                <LinearLayout
+                    android:id="@+id/sectionReceipts"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_marginHorizontal="16dp"
+                        android:layout_marginTop="8dp"
+                        android:hint="@string/hint_search_receipt">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etSearchReceipt"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutReceipts"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvNoReceipts"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:paddingTop="64dp"
+                        android:text="@string/wh_no_receipts"
                         android:textColor="@color/text_secondary"
                         android:textSize="15sp"
                         android:visibility="gone" />

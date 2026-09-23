@@ -22,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test.data.BatchItem
 import com.example.test.data.ConvertPreOrderRequest
 import com.example.test.data.ConvertPreOrderResponse
+import com.example.test.data.courtesyQuantityOrFull
 import com.example.test.data.DamageItem
 import com.example.test.data.OrderDto
 import com.example.test.data.PreOrderDto
@@ -1047,8 +1048,11 @@ class PreOrderDetailActivity : BaseActivity() {
 
             layoutLoading.visibility = View.GONE
             val grandTotal = sent.items.sumOf { it.total }
+            // Fase 120 — mismo criterio que CurrentOrderActivity: la pantalla
+            // obligatoria de feedback va antes de "Venta completada", no
+            // directo a OrderSuccessActivity.
             startActivity(
-                Intent(this@PreOrderDetailActivity, OrderSuccessActivity::class.java).apply {
+                Intent(this@PreOrderDetailActivity, BatchFeedbackActivity::class.java).apply {
                     putExtra("batch_id",          sent.response.batchId)
                     putExtra("invoice_id",        if (sent.isOfflinePending) "" else sent.response.invoiceId ?: "")
                     putExtra("invoice_number",    if (sent.isOfflinePending) 0 else sent.response.invoiceNumber ?: 0)
@@ -1061,28 +1065,34 @@ class PreOrderDetailActivity : BaseActivity() {
                     putExtra("item_count",        sent.items.size)
                     putExtra("credits_total",     sent.response.creditsTotal ?: -1.0)
                     putExtra("credit_applied",    sent.response.creditApplied ?: sent.creditApplied ?: 0.0)
+                    // Mismo split pagada/cortesía que CurrentOrderActivity — ver ese
+                    // comentario. Sin esto, una cortesía parcial se mostraba en
+                    // OrderSuccessActivity/"View ticket" como si toda la fila
+                    // hubiera sido regalada.
                     putExtra("orders_json",       Gson().toJson(
-                        sent.items.map { bi ->
-                            OrderDto(
-                                id           = 0,
-                                barcode      = bi.barcode,
-                                productName  = bi.productName,
-                                price        = bi.price,
-                                quantity     = bi.quantity,
-                                total        = bi.total,
+                        sent.items.flatMap { bi ->
+                            val courtesyQty = bi.courtesyQuantityOrFull()
+                            fun row(id: Int, quantity: Double, total: Double, isCourtesy: Boolean) = OrderDto(
+                                id = id, barcode = bi.barcode, productName = bi.productName, price = bi.price,
+                                quantity = quantity, total = total,
                                 // convertPreOrder deja TODAS las filas nuevas en
                                 // AWAITING_APPROVAL (Fase 113, preOrderController.ts:409)
                                 // cuando se manda online — nunca SENT directo. Sin esto,
                                 // TicketDetailActivity no mostraba Editar/Cancelar hasta
                                 // reabrir el ticket desde Historial.
-                                status       = if (sent.isOfflinePending) "PENDING" else "AWAITING_APPROVAL",
-                                userId       = securePrefs.getUserId(),
-                                customerId   = po.customerId,
-                                customerName = po.customerName,
-                                unit         = bi.unit,
-                                caseQty      = bi.caseQty,
-                                shortName    = bi.shortName
+                                status = if (sent.isOfflinePending) "PENDING" else "AWAITING_APPROVAL",
+                                userId = securePrefs.getUserId(), customerId = po.customerId, customerName = po.customerName,
+                                unit = bi.unit, caseQty = bi.caseQty, shortName = bi.shortName, isCourtesy = isCourtesy
                             )
+                            if (courtesyQty > 0 && courtesyQty < bi.quantity) {
+                                val paidQty = bi.quantity - courtesyQty
+                                listOf(
+                                    row(0, paidQty, bi.price * paidQty, false),
+                                    row(1, courtesyQty, bi.price * courtesyQty, true)
+                                )
+                            } else {
+                                listOf(row(0, bi.quantity, bi.total, bi.isCourtesy))
+                            }
                         }
                     ))
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK

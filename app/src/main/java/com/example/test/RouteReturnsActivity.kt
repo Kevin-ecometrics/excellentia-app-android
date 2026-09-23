@@ -146,8 +146,13 @@ class RouteReturnsActivity : BaseActivity() {
                 setPadding(16.dp, 12.dp, 16.dp, 12.dp)
             }
 
+            // Backlog cliente #1 (2026-09-21) — al revisar devoluciones no se
+            // veía si el producto es por caja, unidad o libra, solo el
+            // nombre y las 3 cantidades. `unit` ya venía en el DTO desde la
+            // Fase 118 (solo se usaba para decidir decimal vs. entero en los
+            // inputs) — ahora también se muestra como texto junto al nombre.
             val tvName = TextView(this).apply {
-                text = exp.name
+                text = "${exp.name}  ·  ${com.example.test.data.unitDisplayLabel(exp.unit)}"
                 textSize = 14f
                 setTextColor(getColor(R.color.text_primary))
                 setTypeface(typeface, android.graphics.Typeface.BOLD)

@@ -543,8 +543,15 @@ class TicketDetailActivity : AppCompatActivity() {
             addSep(heavy = false)
             addLine("Courtesy Summary:", bold = true, sizeSp = 12f)
             for (item in courtesyItems) {
+                // displayUnitsOf() — item.quantity ya viene en escala de CAJAS
+                // (courtesyRowsFor(), backend) porque esta fila es el resultado
+                // de la división pagada/cortesía; hay que reconvertir a
+                // unidades individuales para mostrar (ver comentario en
+                // Models.kt), si no una cortesía menor a 1 caja se ve como
+                // "0 unit(s)".
+                val displayQty = com.example.test.data.displayUnitsOf(item.quantity, item.unit, item.caseQty)
                 addLine(
-                    "${item.productName}: ${formatDamageQty(item.quantity, item.unit)} · ${String.format(Locale.US, "-\$%.2f", item.total)}",
+                    "${item.productName}: ${com.example.test.data.formatCourtesyQty(displayQty, item.unit)} · ${String.format(Locale.US, "-\$%.2f", item.total)}",
                     sizeSp = 12f, indent = true
                 )
             }

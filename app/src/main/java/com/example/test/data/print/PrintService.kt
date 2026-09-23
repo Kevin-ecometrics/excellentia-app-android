@@ -9,8 +9,11 @@ import com.example.test.R
 import com.example.test.data.BatchItem
 import com.example.test.data.byTicketCategory
 import com.example.test.data.creditsTotalOf
+import com.example.test.data.courtesyQuantityOrFull
+import com.example.test.data.courtesyUnitsOrFull
 import com.example.test.data.groupedForTicket
 import com.example.test.data.isWeightTicketCategory
+import com.example.test.data.courtesyQuantityOrFull
 import com.example.test.data.local.SecurePreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -123,6 +126,103 @@ object PrintService {
             send(context, deviceAddress, buildTestCpcl())
         }
 
+    // Fase 120 — ticket de recepción, pedido original del usuario para el
+    // módulo Almacén: comprobante físico de qué se recibió, con lote y
+    // fecha de expiración por línea (createReceipt, warehouseController.ts,
+    // ya expone lot_id/expiration_date/barcode/unit por ítem desde esta
+    // misma fase). Ticket propio, no reusa buildCpcl() — no hay cliente,
+    // factura ni pago, es un comprobante interno de almacén.
+    @SuppressLint("MissingPermission")
+    suspend fun printReceiptTicket(
+        context: Context,
+        deviceAddress: String,
+        receiptBatchId: String,
+        items: List<com.example.test.data.ReceiptResultItem>
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        if (!hasBtConnectPermission(context))
+            return@withContext Result.failure(Exception("Bluetooth permission not granted"))
+        val prefs = SecurePreferences(context)
+        send(context, deviceAddress, buildReceiptCpcl(
+            companyName    = prefs.getCompanyName(),
+            receiptBatchId = receiptBatchId,
+            items          = items
+        ))
+    }
+
+    private fun buildReceiptCpcl(
+        companyName: String = "EXCELLENTIA",
+        receiptBatchId: String,
+        items: List<com.example.test.data.ReceiptResultItem>
+    ): String {
+        val date = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
+        val DASH = "--------------------------------------------------------"
+
+        val body = StringBuilder()
+        var y = 20
+
+        body.left()
+        y = body.tWrapped(X_LEFT, y, companyName, lineGap = 4)
+        body.t(BODY_FONT, X_LEFT, y, "Receiving Ticket");                     y += BODY_H + 4
+        body.t(BODY_FONT, X_LEFT, y, date);                                   y += BODY_H + 4
+        for (line in wrapText("Receipt #${receiptBatchId.take(20)}")) {
+            body.t(BODY_FONT, X_LEFT, y, line);                               y += BODY_H + 4
+        }
+        body.t(BODY_FONT, X_LEFT, y, DASH);                                   y += BODY_H + 8
+
+        val ok = items.filter { it.error == null }
+        for (item in ok) {
+            val qtyStr = com.example.test.data.formatDamageQty(item.quantity ?: 0.0, item.unit)
+            for (line in wrapText("${item.productName ?: item.barcode ?: "—"}: $qtyStr")) {
+                body.t(BODY_FONT, X_LEFT, y, line);                           y += BODY_H + 3
+            }
+            // Lote + expiración — el motivo entero de este ticket (sin esto,
+            // la única forma de saber a qué lote pertenece algo recibido hoy
+            // es entrar a la app). Sin fecha de expiración es un dato válido
+            // (no todos los productos vencen) — se omite esa línea, no se
+            // imprime "no expiration" que no aporta nada.
+            // Fase 120 (addendum) — lotNumber es el número REAL del
+            // proveedor (lo que pidió el usuario); lotId es el id interno
+            // autoincremental de product_lots, invisible para el cliente —
+            // nunca se imprime. "No lot number" es una opción explícita del
+            // modal de recepción, no un placeholder de "no sé cuál es".
+            val lotLine = "Lot #: ${item.lotNumber ?: "No lot number"}"
+            body.t(BODY_FONT, X_LEFT + 4, y, lotLine);                        y += BODY_H + 3
+            // Backlog cliente (2026-09-22) — proveedor de esta caja puntual,
+            // solo se imprime si se cargó (a diferencia de lot_number, acá no
+            // hay una opción explícita de "sin proveedor").
+            if (!item.supplier.isNullOrBlank()) {
+                body.t(BODY_FONT, X_LEFT + 4, y, "Supplier: ${item.supplier}"); y += BODY_H + 3
+            }
+            if (!item.expirationDate.isNullOrBlank()) {
+                // expiration_date es DATE en MySQL — mysql2 lo devuelve como
+                // Date, que serializa a JSON con hora/zona
+                // ("2026-10-30T04:00:00.000Z") aunque la columna no tenga
+                // hora real. take(10) se queda solo con la fecha.
+                body.t(BODY_FONT, X_LEFT + 4, y, "Exp: ${item.expirationDate!!.take(10)}"); y += BODY_H + 3
+            }
+            y += 4
+        }
+
+        val failed = items.filter { it.error != null }
+        if (failed.isNotEmpty()) {
+            body.t(BODY_FONT, X_LEFT, y, DASH);                               y += BODY_H + 6
+            body.t(BODY_FONT, X_LEFT, y, "Not received (error):");            y += BODY_H + 4
+            for (item in failed) {
+                for (line in wrapText("${item.barcode ?: "—"}: ${item.error}")) {
+                    body.t(BODY_FONT, X_LEFT + 4, y, line);                   y += BODY_H + 3
+                }
+            }
+        }
+
+        body.t(BODY_FONT, X_LEFT, y, DASH);                                   y += BODY_H + 6
+        body.t(BODY_FONT, X_LEFT, y, "${ok.size} item(s) received");          y += BODY_H
+
+        val height = y + BOTTOM
+        return "! 0 200 200 $height 1\r\nPAGE-WIDTH $PW\r\n" +
+               body.toString() +
+               "PRINT\r\n"
+    }
+
     @SuppressLint("MissingPermission")
     private fun send(context: Context, address: String, data: String): Result<Unit> {
         return try {
@@ -131,7 +231,17 @@ object PrintService {
             val socket = adapter.getRemoteDevice(address)
                 .createRfcommSocketToServiceRecord(SPP_UUID)
             try {
-                val connectThread = Thread { socket.connect() }
+                // connectError — si socket.connect() lanza dentro del Thread
+                // separado, esa excepción moría en silencio: el hilo terminaba
+                // (no queda "alive"), el código de acá seguía de largo como si
+                // hubiera conectado bien, e intentaba escribir en un socket
+                // nunca conectado — a veces sin que outputStream.write() vuelva
+                // a fallar, reportando éxito aunque la impresora nunca recibió
+                // nada. Ahora se captura y se revisa antes de escribir.
+                var connectError: Throwable? = null
+                val connectThread = Thread {
+                    try { socket.connect() } catch (e: Throwable) { connectError = e }
+                }
                 connectThread.start()
                 connectThread.join(8000L)
                 if (connectThread.isAlive) {
@@ -139,6 +249,7 @@ object PrintService {
                     runCatching { socket.close() }
                     return Result.failure(Exception("Connection timeout — verify the printer is on"))
                 }
+                connectError?.let { throw it }
                 socket.outputStream.write(data.toByteArray(Charsets.UTF_8))
                 socket.outputStream.flush()
                 Thread.sleep(DRAIN_MS)
@@ -320,15 +431,29 @@ object PrintService {
         // que un ítem dañado no aparece ahí, uno cortesía sí porque es una
         // venta real, solo que gratis); acá se lista aparte y se descuenta
         // del total, igual que hace la factura de QBO con UnitPrice: 0.
-        val courtesyItems = items.filter { it.isCourtesy }
-        val courtesyTotal = courtesyItems.sumOf { it.total }
+        val courtesyItems = items.filter { it.isCourtesy || it.courtesyQty > 0 }
+        // Backlog #2 — cortesía por unidad suelta: un ítem puede regalar solo
+        // una parte (courtesyQty). Se lista y descuenta la parte regalada
+        // (courtesyQuantityOrFull() × price), no toda la fila; para cortesía
+        // completa coincides con el it.total de Fase 115.5.
+        val courtesyTotal = courtesyItems.sumOf { it.price * it.courtesyQuantityOrFull() }
         if (courtesyItems.isNotEmpty()) {
             body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 6
             body.t(BODY_FONT, X_LEFT, y, "Courtesy Summary:");                 y += BODY_H + 4
             for (item in courtesyItems) {
-                val lineAmount = String.format(Locale.US, "\$%.2f", item.total)
-                val qtyStr = com.example.test.data.formatDamageQty(item.quantity, item.unit)
-                for (line in wrapText("${item.productName}: $qtyStr · -$lineAmount")) {
+                val courtesyQty = item.courtesyQuantityOrFull()
+                val lineAmount = String.format(Locale.US, "\$%.2f", item.price * courtesyQty)
+                // courtesyUnitsOrFull() — mismo criterio que en el carrito
+                // (CurrentOrderActivity): el texto se muestra en unidades
+                // individuales sueltas ("3 unit(s)"), no en cajas fraccionarias
+                // ("0.13 unit(s)" truncaba a "0" con formatDamageQty). El $
+                // sigue calculándose con courtesyQty (escala de `quantity`).
+                val qtyStr = com.example.test.data.formatCourtesyQty(item.courtesyUnitsOrFull(), item.unit)
+                // Sin "·" (middle dot) — el font CPCL de la impresora no lo
+                // entiende como un solo carácter (llega como 2 bytes UTF-8,
+                // 0xC2 0xB7) y termina imprimiendo basura (una "A" suelta)
+                // en vez del punto. Separador ASCII simple en su lugar.
+                for (line in wrapText("${item.productName}: $qtyStr - $lineAmount")) {
                     body.t(BODY_FONT, X_LEFT + 4, y, line);                        y += BODY_H + 3
                 }
             }
@@ -344,7 +469,9 @@ object PrintService {
             for (dmg in damageItems.filter { it.qty > 0 }) {
                 val lineAmount = String.format(Locale.US, "\$%.2f", dmg.qty * dmg.unitPrice)
                 val dmgQtyStr = com.example.test.data.formatDamageQty(dmg.qty, dmg.unit)
-                for (line in wrapText("${dmg.productName}: $dmgQtyStr · -$lineAmount")) {
+                // Mismo fix que Courtesy Summary — sin "·" (middle dot),
+                // rompe el font CPCL de la impresora.
+                for (line in wrapText("${dmg.productName}: $dmgQtyStr - $lineAmount")) {
                     body.t(BODY_FONT, X_LEFT + 4, y, line);                        y += BODY_H + 3
                 }
             }
@@ -393,7 +520,7 @@ object PrintService {
         y += 8
         body.t(BODY_FONT, X_LEFT, y, "Terms & Conditions:");                   y += BODY_H + 4
         body.t(BODY_FONT, X_LEFT, y, "Scan to view");                          y += BODY_H + 8
-        val qrWidth = 500
+        val qrWidth = 260
         val qrX = (PW - qrWidth) / 2
         val (qrCmd, qrNewY) = buildQrEg(context, qrWidth, qrX, y)
         if (qrCmd.isNotEmpty()) {
@@ -410,7 +537,7 @@ object PrintService {
             y += 16
             body.t(BODY_FONT, X_LEFT, y, DASH);                               y += BODY_H + 8
             body.t(BODY_FONT, X_LEFT, y, "Customer Signature");               y += BODY_H + 12
-            val sigWidth = 700
+            val sigWidth = 450
             val sigX = (PW - sigWidth) / 2
             val (egCmd, newY) = buildSignatureEg(signature, sigWidth, sigX, y)
             if (egCmd.isNotEmpty()) {

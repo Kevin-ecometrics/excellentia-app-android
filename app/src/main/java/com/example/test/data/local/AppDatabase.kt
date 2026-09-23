@@ -55,7 +55,8 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 unit TEXT,
                 case_qty INTEGER,
                 is_credit INTEGER DEFAULT 0,
-                is_courtesy INTEGER DEFAULT 0
+                is_courtesy INTEGER DEFAULT 0,
+                courtesy_qty REAL DEFAULT 0
             )
         """)
         db.execSQL("""
@@ -76,6 +77,13 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             CREATE TABLE IF NOT EXISTS pending_preorder_conversions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pre_order_id INTEGER NOT NULL,
+                request_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """)
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS pending_receipts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 request_json TEXT NOT NULL,
                 created_at INTEGER NOT NULL
             )
@@ -192,11 +200,28 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
             // guarda por línea del carrito, mismo patrón que is_credit (Fase 86).
             try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN is_courtesy INTEGER DEFAULT 0") } catch (_: Exception) {}
         }
+        if (oldVersion < 18) {
+            // Backlog #2 — cortesía por unidad suelta: cuánta cantidad de la
+            // fila se regala (0 / parcial / completa). Sobra la migración de
+            // datos — 0 (sin cortesía) es el valor por defecto.
+            try { db.execSQL("ALTER TABLE pending_orders ADD COLUMN courtesy_qty REAL DEFAULT 0") } catch (_: Exception) {}
+        }
+        if (oldVersion < 19) {
+            // Backlog cliente (2026-09-22) — recepción offline (almacén con
+            // pésima conexión), mismo patrón que pending_batches.
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS pending_receipts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_json TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                )
+            """)
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 17
+        private const val DATABASE_VERSION = 19
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

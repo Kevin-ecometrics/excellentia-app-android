@@ -188,6 +188,11 @@ data class BatchItem(
     // Fase 115.5 — price/total siguen el valor real de catálogo; el $0 se
     // aplica recién en la línea de QBO (backend, createBatchInvoice).
     @SerializedName("is_courtesy") val isCourtesy: Boolean = false,
+    // Backlog #2 — cortesía por unidad suelta: cuánta cantidad de ESTA fila
+    // se regala (ej. 2 de 5 cajas). 0 = sin cortesía; == quantity = fila
+    // completa (= isCourtesy compat); 0 < courtesyQty < quantity = parcial
+    // (solo CASE/UNIT/BUCKET — el backend la divide en dos filas de orders).
+    @SerializedName("courtesy_qty") val courtesyQty: Double = 0.0,
     @Transient val shortName: String? = null
 )
 
@@ -226,6 +231,74 @@ fun List<OrderDto>.groupedForTicket(): List<GroupedTicketItem> {
     return groups.values.toList()
 }
 
+// Backlog #2 — cortesía por unidad suelta: `courtesyQty` se guarda y se
+// manda al backend siempre en UNIDADES INDIVIDUALES sueltas (ej. 3 yogurts
+// de un case de 24), nunca en la escala de `quantity` (que para Case es el
+// número de CAJAS) — mismo criterio que `courtesyRowsFor()` en el backend
+// (orderController.ts). Esta función convierte de vuelta a la escala de
+// `quantity` (cajas, puede quedar fraccionario) para que el resto del código
+// (comparaciones contra `quantity`, `price * courtesyQuantityOrFull()` para
+// el total en dólares, el split pagada/cortesía del ticket) seguya
+// funcionando sin tener que conocer `caseQty` en cada lugar donde se usa.
+// Antes de este fix, courtesyQty se comparaba directo contra `quantity` sin
+// pasar por caseQty — "regalar 1 unidad suelta de un case de 24" se leía
+// como "regalar 1 caja completa" y cobraba/acreditaba 24x de más.
+private fun courtesyCaseSize(unit: String?, caseQty: Int?): Int =
+    if (isLbsUnit(unit)) 1 else (caseQty?.takeIf { it > 0 } ?: 1)
+
+fun BatchItem.courtesyQuantityOrFull(): Double {
+    val caseSize = courtesyCaseSize(unit, caseQty)
+    return if (courtesyQty > 0) minOf(courtesyQty / caseSize, quantity)
+    else if (isCourtesy) quantity
+    else 0.0
+}
+
+fun com.example.test.data.local.entities.PendingOrderEntity.courtesyQuantityOrFull(): Double {
+    val caseSize = courtesyCaseSize(unit, caseQty)
+    return if (courtesyQty > 0) minOf(courtesyQty / caseSize, quantity)
+    else if (isCourtesy) quantity
+    else 0.0
+}
+
+// Igual que courtesyQuantityOrFull(), pero para MOSTRAR en pantalla/ticket —
+// devuelve la cantidad regalada en UNIDADES INDIVIDUALES (ej. "3 units"),
+// nunca en cajas fraccionarias ("0.13 Case"). courtesyQuantityOrFull() sigue
+// siendo lo correcto para cualquier cuenta en dólares (price es por caja).
+fun BatchItem.courtesyUnitsOrFull(): Double {
+    val caseSize = courtesyCaseSize(unit, caseQty)
+    return if (courtesyQty > 0) minOf(courtesyQty, quantity * caseSize)
+    else if (isCourtesy) quantity * caseSize
+    else 0.0
+}
+
+// Para filas YA divididas por el backend (OrderDto de un batch enviado —
+// Historial, reimpresión, "Ver ticket") — a diferencia de BatchItem/
+// PendingOrderEntity (donde `quantity` es la fila completa y `courtesyQty`
+// es lo regalado por separado), acá la fila entera de cortesía viene con
+// `quantity` en escala de CAJAS (courtesyRowsFor(), backend) — hay que
+// multiplicarla por caseQty para mostrarla en unidades individuales. Sin
+// esto, TicketDetailActivity/HistoryActivity mostraban "0 unit(s)" para
+// cualquier cortesía menor a 1 caja completa (0.04 cajas → toInt() = 0).
+fun displayUnitsOf(quantity: Double, unit: String?, caseQty: Int?): Double {
+    val caseSize = if (isLbsUnit(unit)) 1 else (caseQty?.takeIf { it > 0 } ?: 1)
+    return quantity * caseSize
+}
+
+fun com.example.test.data.local.entities.PendingOrderEntity.courtesyUnitsOrFull(): Double {
+    val caseSize = courtesyCaseSize(unit, caseQty)
+    return if (courtesyQty > 0) minOf(courtesyQty, quantity * caseSize)
+    else if (isCourtesy) quantity * caseSize
+    else 0.0
+}
+
+// Mismo formato que formatDamageQty(), pero aclarando "individual unit(s)"
+// en vez de solo "unit(s)" — para que no se confunda con el # de cajas
+// cuando el producto es Case (ej. "3 individual unit(s)" vs "3 Case(s)").
+// Lbs no lo necesita: el peso ya es inequívoco.
+fun formatCourtesyQty(qty: Double, unit: String?): String =
+    if (isLbsUnit(unit)) String.format(Locale.US, "%.2f lb", qty)
+    else String.format(Locale.US, "%d individual unit(s)", qty.toInt())
+
 @JvmName("groupedBatchItemsForTicket")
 fun List<BatchItem>.groupedForTicket(): List<GroupedTicketItem> {
     val groups = LinkedHashMap<String, GroupedTicketItem>()
@@ -261,6 +334,17 @@ fun isLbsUnit(unit: String?): Boolean = unit.isNullOrBlank() || unit.equals("Lbs
 fun formatDamageQty(qty: Double, unit: String?): String =
     if (isLbsUnit(unit)) String.format(Locale.US, "%.2f lb", qty)
     else String.format(Locale.US, "%d unit(s)", qty.toInt())
+
+// Backlog cliente #1 (2026-09-21) — texto legible del tipo de venta para
+// pantallas donde solo hace falta MOSTRARLO (ej. revisión de devoluciones),
+// sin necesitar la categoría de agrupación de ticketCategoryFor() ni el
+// booleano de isLbsUnit()/isCaseUnitType(). "Bucket" y cualquier otro valor
+// futuro se muestran tal cual vienen del catálogo.
+fun unitDisplayLabel(unit: String?): String = when {
+    isLbsUnit(unit) -> "Lbs"
+    isCaseUnitType(unit) -> "Case/Unit"
+    else -> unit!!
+}
 
 // Cantidad "limpia" sin ceros de relleno — "3" en vez de "3.00", pero
 // conserva la parte decimal real cuando la hay ("2.35"). Usado donde se
@@ -332,6 +416,10 @@ data class UpdatePaymentRequest(
     @SerializedName("payment_method") val paymentMethod: String?,
     @SerializedName("check_number") val checkNumber: String?
 )
+
+// Fase 120 — nota de feedback obligatoria tras el segundo ticket (backlog
+// #4), pedido explícito del usuario. Un batch = una nota.
+data class BatchFeedbackRequest(val note: String)
 
 data class DamageItem(
     val barcode: String,
@@ -617,6 +705,9 @@ data class RouteStopDto(
     @SerializedName("customer_id") val customerId: String? = null,
     @SerializedName("customer_name") val customerName: String? = null,
     val status: String,
+    // Fase 120 — motivo obligatorio al saltear (status='SKIPPED'); NULL en
+    // cualquier otro estado (ver route_stops.skip_reason, backend).
+    @SerializedName("skip_reason") val skipReason: String? = null,
     val batch: RouteStopBatch? = null,
     val preOrder: RouteStopPreOrder? = null
 )
@@ -625,7 +716,20 @@ data class RouteStopBatch(
     @SerializedName("batch_id") val batchId: String,
     val total: Double,
     val status: String,
-    @SerializedName("item_count") val itemCount: Int
+    @SerializedName("item_count") val itemCount: Int,
+    // Backlog cliente (2026-09-23) — qué productos (y cuánto peso, para
+    // Lbs) hay que entregar en esta parada. Antes `batch` solo traía el
+    // total en dólares, sin desglose — el operador no tenía forma de saber
+    // QUÉ llevar sin abrir el ticket. Mismo shape que PreOrderItem, reusado
+    // tal cual (BatchOrderItem es un alias con los mismos 3 campos que
+    // manda el backend).
+    val items: List<BatchOrderItem> = emptyList()
+)
+
+data class BatchOrderItem(
+    @SerializedName("product_name") val productName: String,
+    val quantity: Double,
+    val unit: String? = null
 )
 
 data class RouteStopPreOrder(
@@ -729,7 +833,10 @@ data class UpdateStopStatusRequest(
     // crean). Sin esto, la reconciliación por parada no puede saber qué se
     // vendió en una parada "por scratch". Nunca pisa un batch_id existente
     // (el backend valida eso).
-    @SerializedName("batch_id") val batchId: String? = null
+    @SerializedName("batch_id") val batchId: String? = null,
+    // Fase 120 — obligatorio del lado del backend cuando status=SKIPPED
+    // (400 si viene vacío); ver updateStopStatus en orderController.ts.
+    val reason: String? = null
 )
 
 data class UpdateStopStatusResponse(
@@ -801,7 +908,19 @@ data class PreOrderResponse(
     // Nunca lo manda el servidor — lo usa PreOrderRepository.saveOfflinePreOrder()
     // para señalar que la pre-orden quedó encolada en pending_preorders en vez
     // de haberse creado de verdad (id = 0 hasta que SyncWorker la mande).
-    val localPendingId: Long? = null
+    val localPendingId: Long? = null,
+    // Backlog cliente #5 (2026-09-23) — productos de esta pre-orden con
+    // stock bajo o en 0 AL MOMENTO DE CREARLA — solo informativo, nunca
+    // bloquea (una pre-orden es una intención de venta futura, se detalla
+    // recién al convertir). Vacío/null cuando se creó offline (no hay forma
+    // de calcularlo sin conexión).
+    @SerializedName("stock_warnings") val stockWarnings: List<PreOrderStockWarning>? = null
+)
+
+data class PreOrderStockWarning(
+    val barcode: String,
+    @SerializedName("product_name") val productName: String,
+    val stock: Int
 )
 
 data class ConvertPreOrderRequest(
@@ -864,6 +983,12 @@ data class ProductLotDto(
     @SerializedName("warehouse_id") val warehouseId: Int,
     @SerializedName("product_id") val productId: Int,
     val barcode: String? = null,
+    // Fase 120 (addendum) — número de lote real del proveedor.
+    @SerializedName("lot_number") val lotNumber: String? = null,
+    // Backlog cliente (2026-09-23) — de qué proveedor vino este lote. El
+    // backend ya lo manda en listLots desde la Fase 125; faltaba acá (Gson
+    // lo descartaba en silencio al no estar declarado).
+    val supplier: String? = null,
     @SerializedName("expiration_date") val expirationDate: String? = null,
     @SerializedName("received_qty") val receivedQty: Double,
     @SerializedName("remaining_qty") val remainingQty: Double,
@@ -874,7 +999,11 @@ data class ProductLotDto(
     // Fase 118 (fix) — faltaba para que InventoryMovementsActivity supiera
     // si "Editar" un lote debe pedir cantidad decimal (Lbs) o entera
     // (Case/Unit/Bucket), mismo criterio que el resto de la app.
-    val unit: String? = null
+    val unit: String? = null,
+    // Backlog cliente (2026-09-23) — peso esperado de una caja completa
+    // (catálogo), para mostrar "≈ N cajas" en la pestaña Disponible, mismo
+    // criterio que ProductRow.tsx en la webapp — puramente informativo.
+    @SerializedName("weight_per_unit") val weightPerUnit: Double? = null
 )
 
 // Respuesta de /api/warehouse/lots/suggest — qué lote(s) usaría FIFO para una
@@ -903,7 +1032,16 @@ data class ReceiptItemRequest(
     @SerializedName("product_id") val productId: Int? = null,
     // Double, no Int: recepción por peso (Lbs) necesita decimales.
     val quantity: Double,
-    @SerializedName("expiration_date") val expirationDate: String? = null
+    @SerializedName("expiration_date") val expirationDate: String? = null,
+    // Fase 120 (addendum) — número de lote REAL del proveedor (lo que trae
+    // escrito la caja), no el id interno de product_lots. NULL = el
+    // almacenista tildó explícitamente "sin número de lote", no un campo
+    // que se saltearon sin querer.
+    @SerializedName("lot_number") val lotNumber: String? = null,
+    // Backlog cliente (2026-09-22) — a qué proveedor le compraron ESTA caja
+    // puntual. Un mismo barcode puede recibirse de más de un proveedor —
+    // texto libre, NULL si no se especificó.
+    val supplier: String? = null
 )
 
 data class CreateReceiptRequest(
@@ -913,8 +1051,17 @@ data class CreateReceiptRequest(
 
 data class ReceiptResultItem(
     @SerializedName("lot_id") val lotId: Int? = null,
+    // Fase 120 (addendum) — número de lote real del proveedor, lo que se
+    // imprime en el ticket (nunca lotId, que es un id interno invisible
+    // para el cliente). NULL si el producto no traía número de lote.
+    @SerializedName("lot_number") val lotNumber: String? = null,
+    // Backlog cliente (2026-09-22) — de qué proveedor vino esta caja
+    // puntual, ver ReceiptItemRequest.supplier.
+    val supplier: String? = null,
     @SerializedName("product_id") val productId: Int? = null,
     @SerializedName("product_name") val productName: String? = null,
+    val barcode: String? = null,
+    val unit: String? = null,
     val quantity: Double? = null,
     @SerializedName("expiration_date") val expirationDate: String? = null,
     val error: String? = null,
@@ -923,9 +1070,25 @@ data class ReceiptResultItem(
     @SerializedName("qb_synced") val qbSynced: Int? = null
 )
 
+// Fase 120 (addendum) — fila resumen de la pestaña "Recibos" (una por
+// receipt_batch_id, agrupando todas las líneas que entraron juntas en esa
+// recepción). getReceiptDetail() trae el detalle completo para reimprimir.
+data class ReceiptSummaryDto(
+    @SerializedName("receipt_batch_id") val receiptBatchId: String,
+    @SerializedName("received_at") val receivedAt: String? = null,
+    @SerializedName("warehouse_name") val warehouseName: String? = null,
+    @SerializedName("item_count") val itemCount: Int = 0,
+    @SerializedName("received_by_name") val receivedByName: String? = null
+)
+
 data class CreateReceiptResponse(
     @SerializedName("receipt_batch_id") val receiptBatchId: String,
-    val items: List<ReceiptResultItem>
+    val items: List<ReceiptResultItem>,
+    // Backlog cliente (2026-09-22) — recepción offline: id local (SQLite) de
+    // la fila en pending_receipts cuando esto se guardó en cola en vez de
+    // llegar al servidor. Null cuando la respuesta es real. Mismo patrón que
+    // BatchResponse.localPendingId.
+    val localPendingId: Long? = null
 )
 
 data class LotConditionRequest(val status: String)
@@ -956,7 +1119,14 @@ data class RetryMovementSyncResponse(@SerializedName("qb_synced") val qbSynced: 
 
 data class UpdateLotRequest(
     val quantity: Double? = null,
-    @SerializedName("expiration_date") val expirationDate: String? = null
+    @SerializedName("expiration_date") val expirationDate: String? = null,
+    // Fase 120 (addendum) — corregir el número de lote real ya recibido.
+    // Backend ya lo soporta; sin UI todavía en "Editar lote" (fuera de
+    // alcance de esta ronda, que se centró en pedirlo al recibir).
+    @SerializedName("lot_number") val lotNumber: String? = null,
+    // Backlog cliente (2026-09-23) — mismo caso que lotNumber: backend ya lo
+    // soporta (updateLot), sin UI todavía en "Editar lote".
+    val supplier: String? = null
 )
 
 // Liquidación diaria (preview/confirm) pasó a ser admin-only en la webapp —

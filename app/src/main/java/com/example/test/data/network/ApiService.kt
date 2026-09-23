@@ -23,6 +23,13 @@ interface ApiService {
         @Body request: UpdatePaymentRequest
     ): Response<Unit>
 
+    // Fase 120 — nota de feedback obligatoria tras el segundo ticket.
+    @POST("api/orders/batch/{batchId}/feedback")
+    suspend fun submitBatchFeedback(
+        @Path("batchId") batchId: String,
+        @Body request: BatchFeedbackRequest
+    ): Response<Unit>
+
     @GET("api/orders")
     suspend fun listOrders(
         @Query("page") page: Int = 1,
@@ -224,6 +231,18 @@ interface ApiService {
 
     @POST("api/warehouse/receipts")
     suspend fun createReceipt(@Body request: CreateReceiptRequest): Response<CreateReceiptResponse>
+
+    // Fase 120 (addendum) — pestaña "Recibos": buscar una recepción pasada
+    // (agrupada por receipt_batch_id) y reimprimirla.
+    @GET("api/warehouse/receipts")
+    suspend fun listReceipts(
+        @Query("search") search: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 30
+    ): Response<ApiResponse<List<ReceiptSummaryDto>>>
+
+    @GET("api/warehouse/receipts/{receiptBatchId}")
+    suspend fun getReceiptDetail(@Path("receiptBatchId") receiptBatchId: String): Response<CreateReceiptResponse>
 
     @GET("api/warehouse/lots")
     suspend fun listLots(

@@ -45,6 +45,7 @@ class WarehouseActivity : BaseActivity() {
     private lateinit var btnNewRoute: MaterialButton
     private lateinit var btnReceiving: MaterialButton
     private lateinit var btnMovements: MaterialButton
+    private lateinit var btnInventory: MaterialButton
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var securePrefs: SecurePreferences
 
@@ -86,6 +87,7 @@ class WarehouseActivity : BaseActivity() {
         btnNewRoute     = findViewById(R.id.btnNewRoute)
         btnReceiving    = findViewById(R.id.btnReceiving)
         btnMovements    = findViewById(R.id.btnMovements)
+        btnInventory    = findViewById(R.id.btnInventory)
         bottomNav       = findViewById(R.id.bottomNav)
 
         bottomNav.setOnItemSelectedListener { item ->
@@ -112,6 +114,7 @@ class WarehouseActivity : BaseActivity() {
         btnNewRoute.setOnClickListener { showNewRouteChooser() }
         btnReceiving.setOnClickListener { startActivity(Intent(this, ReceivingActivity::class.java)) }
         btnMovements.setOnClickListener { startActivity(Intent(this, InventoryMovementsActivity::class.java)) }
+        btnInventory.setOnClickListener { startActivity(Intent(this, WarehouseInventoryActivity::class.java)) }
 
         // Fetch inicial: el día de hoy, no "todas las fechas" — el
         // almacenista tiene que ver primero qué hay planificado para hoy.

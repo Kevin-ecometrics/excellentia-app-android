@@ -241,8 +241,19 @@ class MyRouteDetailActivity : BaseActivity() {
                 val qty = item.quantity?.let { String.format(Locale.US, "%.2f", it) } ?: "?"
                 "• ${item.productName} — $qty ${item.unit ?: ""}".trimEnd()
             }
+            // Backlog cliente (2026-09-23) — mismo criterio que itemsSummary
+            // de arriba (pre-órdenes), pero para paradas BATCH: antes solo se
+            // veía el total en dólares, sin decir QUÉ productos ni cuánto
+            // peso (para Lbs) hay que entregarle al cliente.
+            val batchItemsSummary = stop.batch?.items?.takeIf { it.isNotEmpty() }?.joinToString("\n") { item ->
+                val qty = String.format(Locale.US, "%.2f", item.quantity)
+                "• ${item.productName} — $qty ${item.unit ?: ""}".trimEnd()
+            }
             val detailText = when (stop.stopType) {
-                "BATCH" -> stop.batch?.total?.let { "${getString(R.string.wh_order_label)} · ${String.format(Locale.US, "$%.2f", it)}" } ?: getString(R.string.wh_order_label)
+                "BATCH" -> buildString {
+                    append(stop.batch?.total?.let { "${getString(R.string.wh_order_label)} · ${String.format(Locale.US, "$%.2f", it)}" } ?: getString(R.string.wh_order_label))
+                    batchItemsSummary?.let { append("\n"); append(it) }
+                }
                 "PRE_ORDER" -> buildString {
                     append(getString(R.string.wh_preorder_label))
                     stop.preOrder?.id?.let { append(" #$it") }
@@ -339,7 +350,11 @@ class MyRouteDetailActivity : BaseActivity() {
                         tvStatus.setTextColor(getColor(R.color.success))
                     }
                     "SKIPPED" -> {
-                        tvStatus.text = getString(R.string.stop_status_skipped)
+                        // Fase 120 — motivo obligatorio al saltear, se muestra
+                        // debajo del chip para que quede visible sin abrir nada más.
+                        tvStatus.text = stop.skipReason?.takeIf { it.isNotBlank() }?.let {
+                            "${getString(R.string.stop_status_skipped)}\n${getString(R.string.label_skip_reason, it)}"
+                        } ?: getString(R.string.stop_status_skipped)
                         tvStatus.setBackgroundResource(R.drawable.bg_chip_failed)
                         tvStatus.setTextColor(getColor(R.color.red))
                     }
@@ -399,15 +414,49 @@ class MyRouteDetailActivity : BaseActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_confirm_skip))
             .setMessage(message)
-            .setPositiveButton(getString(R.string.btn_mark_skipped)) { _, _ -> markStop(stop.id, "SKIPPED") }
+            .setPositiveButton(getString(R.string.btn_mark_skipped)) { _, _ -> askSkipReason(stop.id) }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
-    private fun markStop(stopId: Int, status: String) {
+    // Fase 120 — motivo obligatorio al saltear una parada ("por qué no fue a
+    // esa ruta"), pedido explícito del usuario. El backend ya lo exige (400
+    // sin `reason` cuando status=SKIPPED) — acá se pide ANTES de llamar al
+    // endpoint para no gastar la llamada en un 400 previsible, y se
+    // deshabilita "Continuar" mientras el campo esté vacío en vez de
+    // dejarlo confirmar y fallar.
+    private fun askSkipReason(stopId: Int) {
+        val etReason = android.widget.EditText(this).apply {
+            hint = getString(R.string.hint_skip_reason)
+            minLines = 2
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.title_skip_reason))
+            .setView(etReason)
+            .setPositiveButton(getString(R.string.btn_continue), null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isEnabled = false
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val reason = etReason.text.toString().trim()
+            if (reason.isNotEmpty()) {
+                markStop(stopId, "SKIPPED", reason)
+                dialog.dismiss()
+            }
+        }
+        etReason.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isEnabled = !s.isNullOrBlank()
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+    }
+
+    private fun markStop(stopId: Int, status: String, reason: String? = null) {
         lifecycleScope.launch {
             try {
-                val resp = RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest(status))
+                val resp = RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest(status, reason = reason))
                 if (resp.isSuccessful) {
                     // Si esta era la última parada pendiente, el backend ya
                     // cerró la ruta sola (COMPLETED si hubo alguna entrega,
@@ -486,7 +535,14 @@ class MyRouteDetailActivity : BaseActivity() {
             val soldBadge = if (itemStop?.status == "DELIVERED") " · ${getString(R.string.wh_item_sold_badge)}" else ""
             row.findViewById<TextView>(R.id.tvItemMeta).text =
                 (item.sku ?: item.barcode ?: "—") + (item.unit?.let { " · $it" } ?: "") + soldBadge
-            row.findViewById<TextView>(R.id.tvItemQty).text = com.example.test.data.formatQty(item.quantity)
+            // Backlog cliente (2026-09-23) — pedido explícito: que el operador
+            // vea con claridad cuánto peso tiene cargado de un producto Lbs en
+            // su camión (route_items.quantity ya es peso real desde la Fase
+            // 118, esto solo lo deja inequívoco en pantalla en vez de un
+            // número suelto que podría confundirse con piezas).
+            val qtyText = com.example.test.data.formatQty(item.quantity)
+            row.findViewById<TextView>(R.id.tvItemQty).text =
+                if (com.example.test.data.isLbsUnit(item.unit)) getString(R.string.wh_loaded_lb_suffix, qtyText) else qtyText
             row.findViewById<View>(R.id.btnRemoveItem).visibility = View.GONE
             val statusDot = row.findViewById<View>(R.id.viewStatusDot)
 

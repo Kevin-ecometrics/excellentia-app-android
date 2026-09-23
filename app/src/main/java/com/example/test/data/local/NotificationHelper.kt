@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.test.HistoryActivity
+import com.example.test.InventoryMovementsActivity
 import com.example.test.R
 
 object NotificationHelper {
@@ -85,5 +86,36 @@ object NotificationHelper {
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID + PREORDER_NOTIFICATION_OFFSET + id, notification)
+    }
+
+    // Offset propio (2026-09-22, backlog cliente — recepción offline), mismo
+    // criterio que PREORDER_NOTIFICATION_OFFSET: comparten NotificationManager
+    // pero son ids de tabla local distintas (pending_receipts), podrían
+    // coincidir numéricamente con pending_batches/pending_preorders.
+    private const val RECEIPT_NOTIFICATION_OFFSET = 1_000_000
+
+    fun showReceiptSynced(context: Context, id: Int, itemCount: Int) {
+        createChannel(context)
+
+        val intent = Intent(context, InventoryMovementsActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_check)
+            .setColor(ContextCompat.getColor(context, R.color.ex_green))
+            .setContentTitle(context.getString(R.string.notification_receipt_sync_title))
+            .setContentText(context.getString(R.string.notification_receipt_sync_content, itemCount))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(NOTIFICATION_ID + RECEIPT_NOTIFICATION_OFFSET + id, notification)
     }
 }

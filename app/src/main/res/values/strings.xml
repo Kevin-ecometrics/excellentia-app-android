@@ -376,6 +376,7 @@
     <string name="label_order_credits">Credits: -$%1$.2f</string>
     <string name="label_order_courtesy">Courtesy: -$%1$.2f</string>
     <string name="label_courtesy_tag">Courtesy</string>
+    <string name="title_courtesy_qty">Courtesy quantity</string>
     <string name="btn_view_ticket">View ticket</string>
     <string name="btn_finalize_order">Finalize order</string>
     <string name="btn_add_credit_item">+ Add credit item</string>
@@ -486,6 +487,9 @@
     <string name="notification_sync_bigtext">Order #%1$s\n%2$s — %3$.1f lb\nTotal: $%4$.2f\nStatus: Sent to QuickBooks</string>
     <string name="notification_preorder_sync_title">✅ Pre-order synced</string>
     <string name="notification_preorder_sync_content">Pre-order for %1$s sent to QuickBooks</string>
+    <string name="notification_receipt_sync_title">✅ Receipt synced</string>
+    <string name="notification_receipt_sync_content">Receipt of %1$d product(s) sent to the server</string>
+    <string name="wh_offline_receipt_banner">Saved offline — it will be sent once you have signal again</string>
     <string name="hint_qty_total_lb">Total quantity (lb)</string>
     <string name="hint_total_price">Total price</string>
     <string name="hint_weight">Weight</string>
@@ -561,6 +565,13 @@
     <string name="msg_confirm_skip_plain">Mark %1$s as skipped — this stop won\'t be delivered on this route. Continue?</string>
     <string name="msg_route_auto_completed">All stops resolved — route marked as completed</string>
     <string name="msg_route_auto_cancelled">All stops were skipped — route marked as cancelled</string>
+    <string name="title_skip_reason">Why was this stop skipped?</string>
+    <string name="hint_skip_reason">Reason (required)</string>
+    <string name="label_skip_reason">Reason: %1$s</string>
+    <string name="title_batch_feedback">One more thing</string>
+    <string name="msg_batch_feedback_hint">Before you go, tell us how this sale went — anything the office should know (a customer request, a problem, a suggestion).</string>
+    <string name="hint_batch_feedback">Notes (required)</string>
+    <string name="error_feedback_failed">Couldn\'t save the note, but your sale is safe. Continuing…</string>
     <string name="label_adding_item">Loading…</string>
     <string name="label_removing_item">Removing…</string>
     <string name="btn_open_preorder">Open pre-order</string>
@@ -595,6 +606,7 @@
     <string name="label_no_items_loaded">No products loaded yet</string>
     <string name="label_scan_prompt_warehouse">Scan a product to load it onto this route</string>
     <string name="title_load_quantity">Quantity to load</string>
+    <string name="title_load_quantity_lbs">How many lbs are you loading?</string>
     <string name="title_remove_route_item">Remove item</string>
     <string name="msg_remove_route_item_confirm">Remove %1$s from this route\'s load? Stock will be restored.</string>
     <!-- %1$s ya viene formateado (formatQty en data/Models.kt) — Fase 118,
@@ -628,8 +640,21 @@
     <string name="wh_btn_pick_expiration">Set expiration date</string>
     <string name="wh_no_expiration_set">No expiration date</string>
     <string name="title_receiving_qty">Quantity received</string>
+    <string name="title_receiving_qty_lbs">Box weight (lbs)</string>
     <string name="wh_btn_save_receipt">Save receipt</string>
     <string name="msg_receipt_saved">Receipt saved: %1$d line(s)</string>
+    <string name="msg_receipt_ticket_printed">Receiving ticket sent to printer</string>
+    <string name="error_no_printer_configured">No printer configured — receiving ticket not printed</string>
+    <string name="hint_lot_number">Lot number (from supplier)</string>
+    <string name="hint_supplier">Supplier</string>
+    <string name="error_field_required">This field is required</string>
+    <string name="error_lot_number_required">Enter the lot number or check \"no lot number\"</string>
+    <string name="error_expiration_required">You need to pick an expiration date</string>
+    <string name="label_supplier_summary">Supplier: %1$s</string>
+    <string name="cb_no_lot_number">No lot number for this product</string>
+    <string name="cb_no_expiration">This product doesn\'t expire</string>
+    <string name="label_lot_and_expiration">Lot number &amp; expiration</string>
+    <string name="label_lot_summary">Lot: %1$s</string>
     <string name="wh_receipt_qb_sync_warning_title">Receipt saved</string>
     <string name="wh_receipt_qb_sync_warning_msg">%1$d line(s) saved, but this didn\'t sync to QuickBooks: %2$s. Stock is correct locally — retry the sync later from Warehouse → Inventory → History.</string>
     <string name="error_receipt_failed">Could not save the receipt (%1$s)</string>
@@ -676,8 +701,18 @@
     <string name="title_inventory_movements">Sub-inventory</string>
     <string name="wh_view_available">Available</string>
     <string name="wh_view_history">History</string>
+    <string name="wh_view_receipts">Receipts</string>
+    <string name="hint_search_receipt">Search by product or receipt #</string>
+    <string name="wh_no_receipts">No receipts found</string>
+    <string name="wh_receipt_row_summary">%1$d item(s) · %2$s</string>
+    <string name="msg_reprinting_receipt">Reprinting receipt…</string>
     <string name="wh_available_hint">Stock received and active in the warehouse, closest expiration first</string>
     <string name="wh_available_qty_badge">%1$.2f available</string>
+    <string name="wh_approx_boxes">≈ %1$.1f boxes</string>
+    <string name="wh_multiple_expirations_badge">⚠ %1$d different expiration dates</string>
+    <string name="wh_stock_warning_title">Heads up on stock</string>
+    <string name="wh_stock_warning_zero">• %1$s is at 0 stock</string>
+    <string name="wh_stock_warning_low">• %1$s is low on stock (%2$d)</string>
     <string name="wh_lot_available_badge">Available</string>
     <string name="wh_qb_not_synced_badge">Not synced to QBO</string>
     <string name="wh_retry_sync_action">Retry</string>
@@ -693,6 +728,13 @@
 
     <string name="wh_btn_receiving">Receiving</string>
     <string name="wh_btn_movements">Sub-inventory</string>
+    <string name="wh_btn_inventory">Inventory</string>
+    <string name="title_warehouse_inventory">Inventory</string>
+    <string name="wh_inventory_hint">Stock lookup — read only</string>
+    <string name="wh_inventory_no_results">No products found</string>
+    <string name="hint_search_inventory">Search by name, SKU or barcode</string>
+    <string name="wh_weight_per_unit">Weight: %1$s lb</string>
+    <string name="wh_loaded_lb_suffix">%1$s lb</string>
     <string name="wh_edit_lot_title">Edit receipt</string>
     <string name="wh_lot_updated">Receipt updated</string>
     <string name="wh_product_not_received_title">Product not received yet</string>

@@ -4,11 +4,13 @@ import android.content.Context
 import androidx.work.*
 import com.example.test.data.BatchRequest
 import com.example.test.data.ConvertPreOrderRequest
+import com.example.test.data.CreateReceiptRequest
 import com.example.test.data.PreOrderRequest
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.dao.PendingBatchDao
 import com.example.test.data.local.dao.PendingPreOrderConversionDao
 import com.example.test.data.local.dao.PendingPreOrderDao
+import com.example.test.data.local.dao.PendingReceiptDao
 import com.example.test.data.network.RetrofitClient
 import com.google.gson.Gson
 import java.util.concurrent.TimeUnit
@@ -100,6 +102,29 @@ class SyncWorker(
                                 total       = request.items.sumOf { it.total ?: 0.0 }
                             )
                         }
+                    }
+                } catch (_: Exception) {
+                    // Sin conexión — se reintenta en el próximo ciclo
+                }
+            }
+
+            // ── Enviar pending_receipts offline (recepción de almacén sin señal) ──
+            // Backlog cliente (2026-09-22) — mismo criterio que las 3 colas de
+            // arriba: reintenta tal cual se guardó, sin recalcular nada (el
+            // lote/expiración/número de lote ya se tipearon en el momento).
+            val receiptDao = PendingReceiptDao(db)
+            for (pending in receiptDao.getAll()) {
+                try {
+                    val request = gson.fromJson(pending.requestJson, CreateReceiptRequest::class.java)
+                    val response = RetrofitClient.getApi().createReceipt(request)
+                    if (response.isSuccessful && response.body() != null) {
+                        receiptDao.deleteById(pending.id)
+                        anythingSynced = true
+                        com.example.test.data.local.NotificationHelper.showReceiptSynced(
+                            context     = applicationContext,
+                            id          = pending.id,
+                            itemCount   = request.items.size
+                        )
                     }
                 } catch (_: Exception) {
                     // Sin conexión — se reintenta en el próximo ciclo

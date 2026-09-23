@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ex_green">
+
+    <!-- Fondo verde oscuro (ex_green, igual que activity_signature.xml) —
+         sin navigationIcon en el toolbar porque es una pantalla obligatoria
+         (Fase 120), no se puede saltear con el botón de atrás; onBackPressed
+         también se intercepta en la Activity para el gesto/botón físico. -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:elevation="4dp"
+        android:fitsSystemWindows="true">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/ex_green"
+            app:title="@string/title_batch_feedback"
+            app:titleTextColor="@color/white" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="24dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <!-- Texto directo sobre el fondo verde — mismo color crema que usa
+             el resto de la app en esta situación (activity_signature.xml,
+             activity_issue_credit.xml, etc.), nunca text_secondary (pensado
+             para fondo blanco, casi invisible acá). -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="@string/msg_batch_feedback_hint"
+            android:textColor="#CCF9EFE8"
+            android:textSize="14sp" />
+
+        <!-- Input en tarjeta blanca — el TextInputLayout con estilo Material3
+             default asume fondo claro (borde/hint/cursor), directo sobre el
+             verde quedaba invisible. Mismo patrón que la tarjeta de firma en
+             activity_signature.xml. -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="0dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/ex_line"
+            app:strokeWidth="1dp">
+
+            <EditText
+                android:id="@+id/etFeedback"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@null"
+                android:padding="16dp"
+                android:gravity="top|start"
+                android:hint="@string/hint_batch_feedback"
+                android:textColorHint="@color/text_secondary"
+                android:textColor="@color/text_primary"
+                android:inputType="textMultiLine|textCapSentences"
+                android:minLines="5" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSubmitFeedback"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="16dp"
+            android:enabled="false"
+            android:text="@string/btn_continue"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            app:backgroundTint="@color/success"
+            app:cornerRadius="0dp"
+            app:elevation="4dp" />
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

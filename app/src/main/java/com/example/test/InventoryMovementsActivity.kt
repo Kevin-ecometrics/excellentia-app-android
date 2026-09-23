@@ -48,6 +48,11 @@ class InventoryMovementsActivity : BaseActivity() {
     private lateinit var layoutMovements: LinearLayout
     private lateinit var tvNoMovements: TextView
     private lateinit var securePrefs: SecurePreferences
+    // Fase 120 (addendum) — pestaña "Recibos".
+    private lateinit var sectionReceipts: LinearLayout
+    private lateinit var etSearchReceipt: EditText
+    private lateinit var layoutReceipts: LinearLayout
+    private lateinit var tvNoReceipts: TextView
 
     // Todo lo que trajo el backend para el día filtrado (o los últimos 500 sin
     // filtro), sin filtrar por tipo — ese filtro se aplica en memoria
@@ -60,6 +65,9 @@ class InventoryMovementsActivity : BaseActivity() {
     // recepción) — se agrupan por producto recién al renderizar (groupAvailableLots).
     // También se usa para el badge "Disponible" del historial (availableLotIds).
     private var allLots: List<ProductLotDto> = emptyList()
+
+    // Fase 120 (addendum) — recepciones pasadas (pestaña "Recibos").
+    private var allReceipts: List<com.example.test.data.ReceiptSummaryDto> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +93,10 @@ class InventoryMovementsActivity : BaseActivity() {
         chipGroupType         = findViewById(R.id.chipGroupType)
         layoutMovements       = findViewById(R.id.layoutMovements)
         tvNoMovements         = findViewById(R.id.tvNoMovements)
+        sectionReceipts       = findViewById(R.id.sectionReceipts)
+        etSearchReceipt       = findViewById(R.id.etSearchReceipt)
+        layoutReceipts        = findViewById(R.id.layoutReceipts)
+        tvNoReceipts          = findViewById(R.id.tvNoReceipts)
 
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         swipeRefresh.setColorSchemeColors(getColor(R.color.primary))
@@ -96,9 +108,27 @@ class InventoryMovementsActivity : BaseActivity() {
         // historial de movimientos.
         chipGroupView.setOnCheckedStateChangeListener { _, checkedIds ->
             val showHistory = checkedIds.contains(R.id.chipViewHistory)
-            sectionAvailable.visibility = if (showHistory) View.GONE else View.VISIBLE
+            val showReceipts = checkedIds.contains(R.id.chipViewReceipts)
+            sectionAvailable.visibility = if (showHistory || showReceipts) View.GONE else View.VISIBLE
             sectionHistory.visibility = if (showHistory) View.VISIBLE else View.GONE
+            sectionReceipts.visibility = if (showReceipts) View.VISIBLE else View.GONE
+            // Carga perezosa — recién al primer tap en la pestaña, no de
+            // entrada junto con Disponible/Historial (que sí se usan siempre).
+            if (showReceipts && allReceipts.isEmpty()) loadReceipts()
         }
+
+        var searchReceiptJob: kotlinx.coroutines.Job? = null
+        etSearchReceipt.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                searchReceiptJob?.cancel()
+                searchReceiptJob = lifecycleScope.launch {
+                    kotlinx.coroutines.delay(350)
+                    loadReceipts(s?.toString()?.trim()?.takeIf { it.isNotBlank() })
+                }
+            }
+        })
 
         // Filtro por fecha — el backend ya soportaba ?date= (listMovements)
         // pero Android nunca lo usaba: el historial se corta en las últimas
@@ -208,6 +238,8 @@ class InventoryMovementsActivity : BaseActivity() {
     private data class AvailableGroup(
         val productName: String,
         val totalQty: Double,
+        val unit: String?,
+        val weightPerUnit: Double?,
         val lots: List<ProductLotDto>
     )
 
@@ -218,6 +250,8 @@ class InventoryMovementsActivity : BaseActivity() {
                 AvailableGroup(
                     productName = group.first().productName ?: group.first().sku ?: "#$id",
                     totalQty = group.sumOf { it.remainingQty },
+                    unit = group.first().unit,
+                    weightPerUnit = group.first().weightPerUnit,
                     // Mismo orden FIFO que usa el backend al cargar una ruta
                     // (vencimiento más próximo primero, sin fecha al final) —
                     // así queda claro qué lote hay que despachar antes.
@@ -266,6 +300,38 @@ class InventoryMovementsActivity : BaseActivity() {
             headerRow.addView(tvName)
             headerRow.addView(tvTotal)
             col.addView(headerRow)
+            // Backlog cliente (2026-09-23) — el cliente reportó que no queda
+            // claro cuándo un producto tiene varios lotes con FECHAS DE
+            // VENCIMIENTO DISTINTAS entre sí (la lista de abajo ya las
+            // muestra una por una, pero a simple vista, sin contarlas, no se
+            // nota). Badge explícito solo cuando de verdad hay más de una
+            // fecha distinta — un producto con 3 lotes que vencen todos el
+            // mismo día no cuenta como "varios vencimientos" para este aviso.
+            val distinctExpirations = g.lots.mapNotNull { it.expirationDate?.take(10) }.distinct()
+            if (distinctExpirations.size > 1) {
+                col.addView(TextView(this).apply {
+                    text = getString(R.string.wh_multiple_expirations_badge, distinctExpirations.size)
+                    textSize = 10f
+                    setTextColor(getColor(R.color.amber_dark))
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setPadding(0, 2.dp, 0, 0)
+                })
+            }
+            // Backlog cliente (2026-09-23) — "≈ N cajas" como referencia
+            // visual para productos Lbs, mismo cálculo y mismo criterio
+            // (nunca exacto, las cajas reales no siempre pesan el nominal)
+            // que ya se agregó en ProductRow.tsx (webapp) — acá también
+            // puramente informativo.
+            val isLbsGroup = com.example.test.data.isLbsUnit(g.unit)
+            val expectedBoxWeight = g.weightPerUnit?.takeIf { it > 0 }
+            if (isLbsGroup && expectedBoxWeight != null) {
+                col.addView(TextView(this).apply {
+                    text = getString(R.string.wh_approx_boxes, g.totalQty / expectedBoxWeight)
+                    textSize = 10f
+                    setTextColor(getColor(R.color.text_secondary))
+                    setPadding(0, 2.dp, 0, 0)
+                })
+            }
 
             for (lot in g.lots) {
                 val lotRow = LinearLayout(this).apply {
@@ -274,8 +340,15 @@ class InventoryMovementsActivity : BaseActivity() {
                 }
                 val exp = lot.expirationDate?.take(10)
                 val expiringSoon = exp != null && isExpiringSoon(exp)
+                // Backlog cliente (2026-09-23) — número de lote y proveedor,
+                // mismo dato que ya se pide al recibir (Fase 120/125) pero
+                // nunca se mostraba acá — único lugar donde el almacenista ve
+                // el stock disponible lote por lote.
+                var lotLine = "•  " + getString(R.string.wh_lot_picker_line, exp ?: getString(R.string.wh_no_expiration), lot.remainingQty)
+                lot.lotNumber?.let { lotLine += "  ·  " + getString(R.string.label_lot_summary, it) }
+                lot.supplier?.let { lotLine += "  ·  " + getString(R.string.label_supplier_summary, it) }
                 val tvLot = TextView(this).apply {
-                    text = "•  " + getString(R.string.wh_lot_picker_line, exp ?: getString(R.string.wh_no_expiration), lot.remainingQty)
+                    text = lotLine
                     textSize = 11f
                     setTextColor(getColor(if (expiringSoon) R.color.amber_dark else R.color.text_secondary))
                     setPadding(0, 3.dp, 0, 0)
@@ -556,6 +629,26 @@ class InventoryMovementsActivity : BaseActivity() {
             setText(com.example.test.data.formatQty(lot.receivedQty))
             selectAll()
         }
+        // Backlog cliente (2026-09-23) — el backend (updateLot) y el modelo
+        // (UpdateLotRequest) ya soportaban corregir lote/proveedor desde la
+        // Fase 120/125, pero esta pantalla nunca los expuso — único lugar
+        // donde se puede arreglar un error de tipeo después de recibido.
+        val etLotNumber = EditText(this).apply {
+            hint = getString(R.string.hint_lot_number)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setText(lot.lotNumber ?: "")
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (12 * density).toInt()
+            }
+        }
+        val etSupplier = EditText(this).apply {
+            hint = getString(R.string.hint_supplier)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setText(lot.supplier ?: "")
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (8 * density).toInt()
+            }
+        }
         var chosenDate: String? = lot.expirationDate?.take(10)
         val btnDate = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = chosenDate ?: getString(R.string.wh_btn_pick_expiration)
@@ -571,6 +664,8 @@ class InventoryMovementsActivity : BaseActivity() {
             }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
         }
         layout.addView(etQty)
+        layout.addView(etLotNumber)
+        layout.addView(etSupplier)
         layout.addView(btnDate)
 
         MaterialAlertDialogBuilder(this)
@@ -579,16 +674,18 @@ class InventoryMovementsActivity : BaseActivity() {
             .setView(layout)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 val qty = etQty.text.toString().toDoubleOrNull()
-                updateLot(lot.id, qty, chosenDate)
+                val lotNumber = etLotNumber.text?.toString()?.trim()?.takeIf { it.isNotBlank() }
+                val supplier = etSupplier.text?.toString()?.trim()?.takeIf { it.isNotBlank() }
+                updateLot(lot.id, qty, chosenDate, lotNumber, supplier)
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
-    private fun updateLot(lotId: Int, quantity: Double?, expirationDate: String?) {
+    private fun updateLot(lotId: Int, quantity: Double?, expirationDate: String?, lotNumber: String? = null, supplier: String? = null) {
         lifecycleScope.launch {
             try {
-                val resp = RetrofitClient.getApi().updateLot(lotId, UpdateLotRequest(quantity, expirationDate))
+                val resp = RetrofitClient.getApi().updateLot(lotId, UpdateLotRequest(quantity, expirationDate, lotNumber, supplier))
                 if (resp.isSuccessful) {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.wh_lot_updated), Snackbar.LENGTH_SHORT).show()
                     loadMovements()
@@ -602,6 +699,159 @@ class InventoryMovementsActivity : BaseActivity() {
             } catch (e: Exception) {
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    // ── Recibos: recepciones pasadas agrupadas, buscables, reimprimibles ──
+    // (Fase 120 addendum) — antes no había forma de recuperar el ticket de
+    // una recepción vieja si se perdió o no salió bien la primera vez; el
+    // "número de lote" que veía el almacenista al recibir era además el id
+    // interno de MySQL, no el que trae el proveedor (ver fix previo).
+
+    private fun loadReceipts(search: String? = null) {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().listReceipts(search = search)
+                if (resp.isSuccessful) {
+                    allReceipts = resp.body()?.data ?: emptyList()
+                    renderReceipts()
+                } else {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+            } finally {
+                swipeRefresh.isRefreshing = false
+            }
+        }
+    }
+
+    private fun renderReceipts() {
+        layoutReceipts.removeAllViews()
+        tvNoReceipts.visibility = if (allReceipts.isEmpty()) View.VISIBLE else View.GONE
+
+        for (r in allReceipts) {
+            val card = MaterialCardView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    bottomMargin = 6.dp
+                }
+                setCardBackgroundColor(getColor(R.color.surface))
+                radius = 0f
+                cardElevation = 1f
+            }
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(16.dp, 10.dp, 16.dp, 10.dp)
+            }
+            val col = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            val tvDate = TextView(this).apply {
+                text = r.receivedAt?.replace('T', ' ')?.take(16) ?: "—"
+                textSize = 13f
+                setTextColor(getColor(R.color.text_primary))
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            }
+            val tvSummary = TextView(this).apply {
+                val who = r.receivedByName?.let { " · $it" } ?: ""
+                text = getString(R.string.wh_receipt_row_summary, r.itemCount, (r.warehouseName ?: "—") + who)
+                textSize = 11f
+                setTextColor(getColor(R.color.text_secondary))
+                setPadding(0, 2.dp, 0, 0)
+            }
+            col.addView(tvDate)
+            col.addView(tvSummary)
+
+            // Fase 120 (addendum 2) — "Reprint" directo se cambió por "View
+            // ticket": primero se ve todo lo que tiene ese ticket (mismo
+            // criterio que "Ver ticket" de una venta) y recién ahí, abajo del
+            // todo, un botón para reimprimir — no se manda a la impresora a
+            // ciegas sin poder confirmar antes qué se va a reimprimir.
+            val btnViewTicket = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                text = getString(R.string.btn_view_ticket)
+                textSize = 11f
+                setOnClickListener { showReceiptTicketDialog(r.receiptBatchId) }
+            }
+
+            row.addView(col)
+            row.addView(btnViewTicket)
+            card.addView(row)
+            layoutReceipts.addView(card)
+        }
+    }
+
+    // Trae el detalle una sola vez y lo reusa tanto para armar el texto del
+    // diálogo como para el reprint real — evita una segunda llamada al
+    // servidor si el almacenista confirma "Reprint ticket" después de verlo.
+    private fun showReceiptTicketDialog(receiptBatchId: String) {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getReceiptDetail(receiptBatchId)
+                if (!resp.isSuccessful) {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val items = resp.body()?.items ?: emptyList()
+
+                val scroll = android.widget.ScrollView(this@InventoryMovementsActivity)
+                val tvContent = TextView(this@InventoryMovementsActivity).apply {
+                    val density = resources.displayMetrics.density
+                    setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    textSize = 12f
+                    setTextColor(getColor(R.color.text_primary))
+                    text = buildString {
+                        appendLine("Receipt #${receiptBatchId.take(20)}")
+                        appendLine("--------------------------------")
+                        for (item in items) {
+                            val qtyStr = com.example.test.data.formatDamageQty(item.quantity ?: 0.0, item.unit)
+                            appendLine("${item.productName ?: item.barcode ?: "—"}: $qtyStr")
+                            appendLine("  Lot #: ${item.lotNumber ?: "No lot number"}")
+                            // Backlog cliente (2026-09-22) — de qué proveedor vino
+                            // esta caja, mismo dato que ya imprime PrintService.
+                            if (!item.supplier.isNullOrBlank()) appendLine("  Supplier: ${item.supplier}")
+                            // expiration_date llega como "2026-10-30T04:00:00.000Z"
+                            // (DATE de MySQL serializado vía Date object, ver mismo
+                            // fix en PrintService.buildReceiptCpcl) — take(10) para
+                            // mostrar solo la fecha.
+                            if (!item.expirationDate.isNullOrBlank()) appendLine("  Exp: ${item.expirationDate!!.take(10)}")
+                            appendLine()
+                        }
+                        appendLine("--------------------------------")
+                        append("${items.size} item(s) received")
+                    }
+                }
+                scroll.addView(tvContent)
+
+                MaterialAlertDialogBuilder(this@InventoryMovementsActivity)
+                    .setTitle(getString(R.string.wh_view_receipts))
+                    .setView(scroll)
+                    .setPositiveButton(getString(R.string.btn_reprint)) { _, _ -> reprintReceipt(receiptBatchId, items) }
+                    .setNegativeButton(getString(R.string.btn_close), null)
+                    .show()
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun reprintReceipt(receiptBatchId: String, items: List<com.example.test.data.ReceiptResultItem>) {
+        val printerAddress = securePrefs.getPrinterAddress()
+        if (printerAddress.isNullOrBlank()) {
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_no_printer_configured), Snackbar.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_reprinting_receipt), Snackbar.LENGTH_SHORT).show()
+            com.example.test.data.print.PrintService.printReceiptTicket(this@InventoryMovementsActivity, printerAddress, receiptBatchId, items)
+                .onSuccess {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_receipt_ticket_printed), Snackbar.LENGTH_SHORT).show()
+                }
+                .onFailure { e ->
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_print_generic, e.localizedMessage ?: getString(R.string.error_no_connection)), Snackbar.LENGTH_LONG).show()
+                }
         }
     }
 

@@ -18,6 +18,8 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test.data.BatchItem
 import com.example.test.data.OrderDto
 import com.example.test.data.ProductDto
+import com.example.test.data.courtesyQuantityOrFull
+import com.example.test.data.courtesyUnitsOrFull
 import com.example.test.data.UpdateStopStatusRequest
 import com.example.test.data.print.PrintService
 import com.example.test.data.local.AppDatabase
@@ -256,8 +258,26 @@ class CurrentOrderActivity : BaseActivity() {
                 // fila el que refleja "esto sale gratis". El valor real sigue
                 // visible en tvPendingMeta (línea de arriba, sin tocar).
                 row.findViewById<TextView>(R.id.tvPendingQtyTotal).apply {
-                    if (order.isCourtesy) {
+                    // Backlog #2 — cortesía por unidad suelta: si la fila regala
+                    // solo una parte (courtesyQty < quantity), se muestra la
+                    // cantidad que SE PAGA + la parte cortesía; el ticket imprime
+                    // la línea completa y descuenta la parte regalada (igual que
+                    // la factura de QBO). Fila completa → sigue el $0.00 de la
+                    // Fase 115.5.
+                    val courtesyQty = order.courtesyQuantityOrFull()
+                    // courtesyUnitsOrFull() — mismo valor que courtesyQty pero en
+                    // unidades individuales sueltas (ej. "3 unit(s)"), no en cajas
+                    // fraccionarias ("0.13 Case"), para que se entienda cuánto se
+                    // regaló de verdad. El $ sigue calculándose con courtesyQty
+                    // (escala de `quantity`, ver comentario en courtesyQuantityOrFull()).
+                    val courtesyUnits = order.courtesyUnitsOrFull()
+                    if (courtesyQty >= order.quantity) {
                         text = String.format(Locale.US, "%.2f %s  =  $0.00 · %s", order.quantity, unitLabel, getString(R.string.label_courtesy_tag))
+                        setTextColor(getColor(R.color.ex_navy))
+                    } else if (courtesyQty > 0) {
+                        val paidQty = order.quantity - courtesyQty
+                        val paidAmount = order.price * paidQty
+                        text = String.format(Locale.US, "%.2f %s  =  $%.2f · %d individual unit(s) %s", paidQty, unitLabel, paidAmount, courtesyUnits.toInt(), getString(R.string.label_courtesy_tag))
                         setTextColor(getColor(R.color.ex_navy))
                     } else {
                         text = String.format(Locale.US, "%.2f %s  =  $%.2f", order.quantity, unitLabel, order.price * order.quantity)
@@ -273,10 +293,21 @@ class CurrentOrderActivity : BaseActivity() {
                 // abajo cambian con el tilde, así que hace falta re-renderizar.
                 row.findViewById<com.google.android.material.checkbox.MaterialCheckBox>(R.id.cbCourtesy).apply {
                     setOnCheckedChangeListener(null)
-                    isChecked = order.isCourtesy
+                    isChecked = order.isCourtesy || order.courtesyQty > 0
                     setOnCheckedChangeListener { _, checked ->
-                        orderRepository.setCourtesy(order.id, checked)
-                        loadOrder()
+                        // Backlog #2 — cortesía por unidad suelta: solo
+                        // CASE/UNIT/BUCKET (isLbsUnit false) pide cuánta
+                        // cantidad se regala; Lbs se mantiene fila completa
+                        // (toggle simple, comportamiento de Fase 115.5).
+                        if (!checked) {
+                            orderRepository.setCourtesyQuantity(order.id, 0.0)
+                            loadOrder()
+                        } else if (com.example.test.data.isLbsUnit(order.unit)) {
+                            orderRepository.setCourtesy(order.id, true)
+                            loadOrder()
+                        } else {
+                            askCourtesyQuantity(order)
+                        }
                     }
                 }
                 layoutOrderItems.addView(row)
@@ -315,7 +346,7 @@ class CurrentOrderActivity : BaseActivity() {
             // Fase 115.5 — mismo criterio que creditsTotal: se resta del ORDER
             // TOTAL mostrado acá, estimación local (el backend recalcula la
             // cifra autoritativa al armar la factura, ver createBatchInvoice).
-            val courtesyTotal = normalItems.filter { it.isCourtesy }.sumOf { it.price * it.quantity }
+            val courtesyTotal = normalItems.sumOf { it.price * it.courtesyQuantityOrFull() }
             val totalQty = normalItems.sumOf { it.quantity }
             val overallUnit = normalItems.firstOrNull()?.let {
                 if (it.unit.isNullOrBlank() || it.unit == "Lbs") "lb" else it.unit
@@ -517,28 +548,109 @@ class CurrentOrderActivity : BaseActivity() {
             .show()
     }
 
+    // Backlog #2 — cortesía por unidad suelta (solo CASE/UNIT/BUCKET): cuánta
+    // cantidad de esta fila se regala, en UNIDADES INDIVIDUALES sueltas (ej.
+    // 3 de las 24 unidades de un case), no en cajas — mismo criterio que el
+    // backend (courtesyRowsFor, orderController.ts). Antes esta pantalla
+    // pedía "cajas completas" (clamp a order.quantity) sin conocer caseQty:
+    // tipear "1" pensando "1 unidad suelta" regalaba la caja entera. Entrada
+    // entera, clamp a [1, quantity × caseQty] (se ve en el mensaje del
+    // diálogo y se re-clampea mientras se tipea, no solo al confirmar).
+    // Default = 1 unidad (arranca chico, no toda la fila) — a diferencia de
+    // Fase 115.5, acá el caso "regalar todo" lo cubre el checkbox simple
+    // cuando el producto es Lbs; para Case/Unit/Bucket este diálogo es el
+    // único camino, así que default=1 evita regalar la fila entera por
+    // accidente si el usuario solo confirma sin tocar el campo.
+    private fun askCourtesyQuantity(order: com.example.test.data.local.entities.PendingOrderEntity) {
+        val ctx = this
+        val caseSize = if (com.example.test.data.isLbsUnit(order.unit)) 1 else (order.caseQty?.takeIf { it > 0 } ?: 1)
+        val maxUnits = order.quantity * caseSize
+        val etQty = android.widget.EditText(ctx).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.title_courtesy_qty)
+            setText(String.format(Locale.US, "%d", minOf(1.0, maxUnits).toInt().coerceAtLeast(if (maxUnits > 0) 1 else 0)))
+            selectAll()
+        }
+        etQty.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val raw = s.toString()
+                val value = raw.toDoubleOrNull() ?: return
+                if (value > maxUnits) {
+                    val clamped = maxUnits.toInt().toString()
+                    if (raw != clamped) {
+                        etQty.removeTextChangedListener(this)
+                        etQty.setText(clamped)
+                        etQty.setSelection(clamped.length)
+                        etQty.addTextChangedListener(this)
+                    }
+                }
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+        val message = if (caseSize > 1) {
+            "${order.productName} · ${caseSize} individual units/case · Max: ${maxUnits.toInt()} individual units"
+        } else {
+            "${order.productName} · Max: ${maxUnits.toInt()} individual units"
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle(getString(R.string.title_courtesy_qty))
+            .setMessage(message)
+            .setView(etQty)
+            .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
+                val units = etQty.text.toString().toDoubleOrNull()
+                    ?.coerceIn(0.0, maxUnits) ?: maxUnits
+                orderRepository.setCourtesyQuantity(order.id, units)
+                loadOrder()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
     private fun openTicket() {
         lifecycleScope.launch {
             val pending = orderRepository.getPendingOrders()
             val normalItems = pending.filter { !it.isCredit }
             if (normalItems.isEmpty()) return@launch
-            val orders = normalItems.map { order ->
-                OrderDto(
-                    id = order.id,
-                    barcode = order.barcode,
-                    productName = order.productName,
-                    price = order.price,
-                    quantity = order.quantity,
-                    total = order.price * order.quantity,
-                    status = "PENDING",
-                    customerId = customerId,
-                    customerName = customerName,
-                    unit = order.unit,
-                    caseQty = order.caseQty,
-                    shortName = order.shortName,
-                    isCourtesy = order.isCourtesy
-                )
-            }
+            // Cortesía parcial (backlog #2): el preview ya muestra la división
+                // pagada + cortesía en filas separadas, igual que hará el
+                // backend al insertar (courtesyRowsFor). La fila cortesía usa
+                // un id sintético estable y positivo (solo para el ticket, no
+                // se persiste) — groupedForTicket las vuelve a juntar por
+                // barcode en la línea principal y el "Courtesy Summary" descuenta
+                // solo la parte regalada vía isCourtesy.
+                val orders = normalItems.flatMap { order ->
+                    val courtesyQty = order.courtesyQuantityOrFull()
+                    if (courtesyQty > 0 && courtesyQty < order.quantity) {
+                        val paidQty = order.quantity - courtesyQty
+                        listOf(
+                            OrderDto(
+                                id = order.id, barcode = order.barcode, productName = order.productName,
+                                price = order.price, quantity = paidQty, total = order.price * paidQty,
+                                status = "PENDING", customerId = customerId, customerName = customerName,
+                                unit = order.unit, caseQty = order.caseQty, shortName = order.shortName,
+                                isCourtesy = false
+                            ),
+                            OrderDto(
+                                id = order.id + 1_000_000, barcode = order.barcode, productName = order.productName,
+                                price = order.price, quantity = courtesyQty, total = order.price * courtesyQty,
+                                status = "PENDING", customerId = customerId, customerName = customerName,
+                                unit = order.unit, caseQty = order.caseQty, shortName = order.shortName,
+                                isCourtesy = true
+                            )
+                        )
+                    } else {
+                        listOf(
+                            OrderDto(
+                                id = order.id, barcode = order.barcode, productName = order.productName,
+                                price = order.price, quantity = order.quantity, total = order.price * order.quantity,
+                                status = "PENDING", customerId = customerId, customerName = customerName,
+                                unit = order.unit, caseQty = order.caseQty, shortName = order.shortName,
+                                isCourtesy = order.isCourtesy || courtesyQty > 0
+                            )
+                        )
+                    }
+                }
             // Si pendingDamageItems ya tiene contenido es porque askDamagedItems()
             // ya corrió en esta sesión y ya mergeó los créditos persistidos — no
             // volver a agregarlos acá (se duplicarían). Si está vacío (preview
@@ -821,7 +933,8 @@ class CurrentOrderActivity : BaseActivity() {
                 total = order.price * order.quantity,
                 unit = order.unit,
                 caseQty = order.caseQty,
-                isCourtesy = order.isCourtesy,
+                isCourtesy = order.courtesyQuantityOrFull() > 0,
+                courtesyQty = order.courtesyQty,
                 shortName = order.shortName
             )
         }
@@ -949,8 +1062,11 @@ class CurrentOrderActivity : BaseActivity() {
                         // Fase 115.5 — lo cortesía no es parte de lo que hay
                         // que pagar; sin restarlo, el máximo aplicable de
                         // crédito quedaría inflado por encima de lo que la
-                        // venta realmente cobra.
-                        val netTotal = pendingAll.filter { !it.isCredit && !it.isCourtesy }.sumOf { it.price * it.quantity } -
+                        // venta realmente cobra. Backlog #2: con cortesía
+                        // parcial se resta solo la parte regalada
+                        // (courtesyQuantityOrFull), no toda la fila.
+                        val netTotal = pendingAll.filter { !it.isCredit }
+                            .sumOf { it.price * (it.quantity - it.courtesyQuantityOrFull()) } -
                             pendingAll.filter { it.isCredit }.sumOf { it.price * it.quantity }
                         val maxApply = minOf(balance.balance, netTotal.coerceAtLeast(0.0))
                         val msg = getString(R.string.msg_credit_apply,
@@ -1153,8 +1269,12 @@ class CurrentOrderActivity : BaseActivity() {
             layoutLoading.visibility = View.GONE
             val grandTotal = sent.items.sumOf { it.total }
             val creditAppliedForTicket = sent.response.creditApplied ?: creditForPrinting
+            // Fase 120 — pantalla obligatoria de feedback ANTES de "Venta
+            // completada" (backlog #4). BatchFeedbackActivity reenvía estos
+            // mismos extras a OrderSuccessActivity una vez que la nota se
+            // manda (o falla, best-effort) — nunca directo.
             startActivity(
-                Intent(this@CurrentOrderActivity, OrderSuccessActivity::class.java).apply {
+                Intent(this@CurrentOrderActivity, BatchFeedbackActivity::class.java).apply {
                     putExtra("batch_id", sent.response.batchId ?: "")
                     putExtra("invoice_id", sent.response.invoiceId ?: "")
                     putExtra("invoice_number", sent.response.invoiceNumber ?: 0)
@@ -1167,32 +1287,37 @@ class CurrentOrderActivity : BaseActivity() {
                     putExtra("item_count", sent.items.size)
                     putExtra("credits_total", sent.response.creditsTotal ?: -1.0)
                     putExtra("credit_applied", creditAppliedForTicket ?: 0.0)
+                    // Cortesía parcial (backlog #2) — antes esto mandaba UNA fila por
+                    // BatchItem con el `total`/`quantity` completos y un simple flag
+                    // `isCourtesy`, perdiendo por completo la parte pagada/regalada.
+                    // OrderSuccessActivity/TicketDetailActivity ("View ticket") leen
+                    // esta misma lista para el resumen "Courtesy Summary" — sin el
+                    // split, una cortesía de 12/24 unidades ($0.75 reales) se veía
+                    // como si TODA la fila fuera cortesía ($1.50, "24 unidades").
+                    // Mismo criterio de split que ya usa openTicket() (ticket #1,
+                    // más arriba en este archivo) — acá se replica para el ticket #2
+                    // en adelante (Order Completed + reimpresión inmediata).
+                    val statusReal = if (sent.isOfflinePending) "PENDING" else (sent.response.orders.firstOrNull()?.status ?: "AWAITING_APPROVAL")
                     putExtra("orders_json", Gson().toJson(
-                        sent.items.map { bi ->
-                            OrderDto(
-                                id = 0,
-                                barcode = bi.barcode,
-                                productName = bi.productName,
-                                price = bi.price,
-                                quantity = bi.quantity,
-                                total = bi.total,
-                                // El servidor ya no responde SENT al crear un batch online
-                                // (Fase 113 — nace AWAITING_APPROVAL hasta que el admin lo
-                                // aprueba) — usar el status real de sent.response.orders en
-                                // vez de asumirlo, para que TicketDetailActivity muestre bien
-                                // los botones Editar/Cancelar apenas se cierra la venta.
-                                status = if (sent.isOfflinePending) "PENDING" else (sent.response.orders.firstOrNull()?.status ?: "AWAITING_APPROVAL"),
-                                userId = securePrefs.getUserId(),
-                                customerId = customerId,
-                                customerName = customerName,
-                                unit = bi.unit,
-                                caseQty = bi.caseQty,
-                                creditApplied = creditAppliedForTicket,
-                                paymentMethod = paymentForPrinting,
-                                checkNumber = checkForPrinting,
-                                shortName = bi.shortName,
-                                isCourtesy = bi.isCourtesy
+                        sent.items.flatMap { bi ->
+                            val courtesyQty = bi.courtesyQuantityOrFull()
+                            fun row(id: Int, quantity: Double, total: Double, isCourtesy: Boolean) = OrderDto(
+                                id = id, barcode = bi.barcode, productName = bi.productName, price = bi.price,
+                                quantity = quantity, total = total, status = statusReal,
+                                userId = securePrefs.getUserId(), customerId = customerId, customerName = customerName,
+                                unit = bi.unit, caseQty = bi.caseQty, creditApplied = creditAppliedForTicket,
+                                paymentMethod = paymentForPrinting, checkNumber = checkForPrinting,
+                                shortName = bi.shortName, isCourtesy = isCourtesy
                             )
+                            if (courtesyQty > 0 && courtesyQty < bi.quantity) {
+                                val paidQty = bi.quantity - courtesyQty
+                                listOf(
+                                    row(0, paidQty, bi.price * paidQty, false),
+                                    row(1, courtesyQty, bi.price * courtesyQty, true)
+                                )
+                            } else {
+                                listOf(row(0, bi.quantity, bi.total, bi.isCourtesy))
+                            }
                         }
                     ))
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK

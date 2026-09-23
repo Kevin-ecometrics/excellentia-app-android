@@ -131,6 +131,20 @@
                     app:rippleColor="@color/ex_green_tint"
                     app:strokeColor="@color/white" />
 
+                <!-- Backlog cliente (2026-09-23) — consulta de stock, solo
+                     lectura, mismo dato que /products en la webapp. -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnInventory"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/wh_btn_inventory"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    app:rippleColor="@color/ex_green_tint"
+                    app:strokeColor="@color/white" />
+
             </LinearLayout>
         </HorizontalScrollView>
 

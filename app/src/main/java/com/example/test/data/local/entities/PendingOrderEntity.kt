@@ -22,5 +22,11 @@ data class PendingOrderEntity(
     // Fase 115.5 — producto marcado para facturarse a QBO a $0. price/quantity
     // siguen siendo el valor real de catálogo (reportería, "cuánto se
     // regaló") — el $0 se aplica recién al armar la factura en el backend.
-    val isCourtesy: Boolean = false
+    val isCourtesy: Boolean = false,
+    // Backlog #2 — cortesía por unidad suelta (solo CASE/UNIT/BUCKET, ver
+    // isLbsUnit): cuánta cantidad de ESTA fila se regala (ej. 2 de 5 cajas).
+    // 0 = sin cortesía; == quantity = fila completa (equivalente a isCourtesy);
+    // 0 < courtesyQty < quantity = cortesía parcial (el backend la divide en
+    // dos filas de `orders`, pagada + cortesía). Lbs siempre 0 o quantity.
+    val courtesyQty: Double = 0.0
 )
