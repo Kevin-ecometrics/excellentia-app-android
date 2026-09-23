@@ -8,7 +8,7 @@ data class CachedProductEntity(
     val price: Double,
     val category: String? = null,
     val brand: String? = null,
-    val stock: Int = 0,
+    val stock: Double = 0.0,
     val weightPerUnit: Double? = null,
     val unit: String? = null,
     val caseQty: Int? = null,

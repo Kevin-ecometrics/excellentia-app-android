@@ -638,7 +638,7 @@ class MainActivity : BaseActivity() {
         val name: String,
         val price: Double,
         val weightPerUnit: Double?,
-        val stock: Int,
+        val stock: Double,
         val unit: String? = null,
         val qty: Int = 0,
         val caseQty: Int = 0,

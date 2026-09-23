@@ -37,12 +37,16 @@ class ProductDetailActivity : BaseActivity() {
         private const val KEY_EDIT_ORDER_ID = "EDIT_ORDER_ID"
         private const val KEY_PREFILL_UNITS = "PREFILL_UNITS"
         // Solo lo manda MyRouteDetailActivity.openProductForBarcode() cuando se
-        // vende "por scratch" un producto Lbs ya cargado en la ruta (route_items.
-        // quantity — que para Lbs es cantidad de bolsas, no peso, según confirmó
-        // el usuario) — distinto de PREFILL_UNITS, que ya se usa para otra cosa
-        // (peso de una sola bolsa al editar una elección previa en pre-órdenes).
-        // El escaneo normal (MainActivity) nunca manda este extra, así que ese
-        // flujo se queda arrancando en 1 unidad como siempre.
+        // vende "por scratch" un producto Lbs ya cargado en la ruta —
+        // route_items.quantity es el peso real cargado (ej. 1.2 lb) desde la
+        // Fase 118, no una cantidad de bolsas (el comentario original de esta
+        // sección asumía lo contrario; corregido en 2026-09-23 tras un bug
+        // reportado: el almacén cargaba 1.2 lb pesadas, pero el carrito
+        // arrancaba con 1 bolsa al peso nominal del catálogo, descartando el
+        // peso real pesado). Distinto de PREFILL_UNITS, que ya se usa para
+        // otra cosa (peso de una sola bolsa al editar una elección previa en
+        // pre-órdenes). El escaneo normal (MainActivity) nunca manda este
+        // extra, así que ese flujo se queda arrancando en 1 unidad como siempre.
         const val KEY_ROUTE_LOADED_UNITS = "ROUTE_LOADED_UNITS"
         const val PRE_ORDER_MODE = "pre_order_mode"
         const val RESULT_ITEMS_JSON = "items_json"
@@ -152,10 +156,10 @@ class ProductDetailActivity : BaseActivity() {
             btnAddOrder.text = getString(R.string.btn_save_changes)
         }
 
-        val stock = intent.getIntExtra("STOCK", -1)
+        val stock = intent.getDoubleExtra("STOCK", -1.0)
         if (stock >= 0) {
             tvStock.visibility = View.VISIBLE
-            if (stock == 0) {
+            if (stock == 0.0) {
                 tvStock.text = getString(R.string.label_no_stock)
                 tvStock.setTextColor(resources.getColor(R.color.red, theme))
                 btnAddOrder.text = getString(R.string.btn_no_stock)
@@ -166,7 +170,7 @@ class ProductDetailActivity : BaseActivity() {
                 btnUnitMinus.isEnabled = false
                 btnUnitPlus.isEnabled = false
             } else {
-                tvStock.text = getString(R.string.label_stock_available, stock)
+                tvStock.text = getString(R.string.label_stock_available, stock.toInt())
                 tvStock.setTextColor(resources.getColor(R.color.success, theme))
             }
         }
@@ -267,13 +271,19 @@ class ProductDetailActivity : BaseActivity() {
     }
 
     private fun resetWeights() {
-        // Venta por ruta de un producto Lbs ya cargado (2, 3... bolsas) — arranca
-        // con esa cantidad de unidades en vez de 1, cada una con el peso nominal
-        // (weight_per_unit vía defaultWeight), editable igual que siempre. El
-        // escaneo normal no manda este extra, así que se sigue arrancando en 1.
-        units = routeLoadedUnits?.toInt()?.coerceAtLeast(1) ?: 1
+        // Venta por ruta de un producto Lbs ya cargado — arranca con UNA sola
+        // bolsa precargada con el peso real que el almacén pesó al cargar la
+        // ruta (routeLoadedUnits, route_items.quantity), no con el peso
+        // nominal del catálogo. Editable igual que siempre, por si el
+        // operador vende una cantidad distinta. El escaneo normal no manda
+        // este extra, así que se sigue arrancando en 1 bolsa al peso nominal.
+        units = 1
         weights.clear()
-        repeat(units) { weights.add(defaultWeight) }
+        if (routeLoadedUnits != null) {
+            weights.add(routeLoadedUnits!!)
+        } else {
+            repeat(units) { weights.add(defaultWeight) }
+        }
         rebuildWeightRows()
         recalcTotal()
     }

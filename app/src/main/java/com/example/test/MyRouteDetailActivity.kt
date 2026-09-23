@@ -165,11 +165,15 @@ class MyRouteDetailActivity : BaseActivity() {
                 btnRouteAction.text = getString(R.string.btn_start_route)
                 btnRouteAction.setOnClickListener { confirmRouteTransition("IN_PROGRESS") }
             }
-            "IN_PROGRESS" -> {
-                btnRouteAction.visibility = View.VISIBLE
-                btnRouteAction.text = getString(R.string.btn_finish_route)
-                btnRouteAction.setOnClickListener { confirmRouteTransition("COMPLETED") }
-            }
+            // Fix (2026-09-23, pedido del usuario) — "Finalizar ruta" manual
+            // se sacó: maybeAutoCloseRoute() (backend, updateStopStatus) ya
+            // cierra la ruta sola (COMPLETED/CANCELLED) apenas la última
+            // parada PENDING queda resuelta (entregada/saltada) — no hace
+            // falta ningún botón. Dejarlo activo además era peligroso: el
+            // backend (updateRoute) no valida que todas las paradas estén
+            // resueltas antes de aceptar status=COMPLETED, así que el
+            // operador podía completar la ruta a mano con paradas todavía
+            // pendientes, saltándose el cierre automático real.
             else -> btnRouteAction.visibility = View.GONE
         }
 
@@ -275,7 +279,13 @@ class MyRouteDetailActivity : BaseActivity() {
             val layoutActions = row.findViewById<View>(R.id.layoutStopActions)
             val btnAction = row.findViewById<MaterialButton>(R.id.btnStopAction)
             val resolved = stop.status == "DELIVERED" || stop.status == "SKIPPED"
-            val canAct = routeStatus == "PLANNED" || routeStatus == "IN_PROGRESS"
+            // Fix (2026-09-23, pedido del usuario) — antes se podía actuar
+            // sobre una parada (Vender, Abrir pre-orden, Entregado, Saltar)
+            // con la ruta todavía en PLANNED, sin haber tocado "Iniciar
+            // ruta". Ahora el operador no puede hacer nada sobre las paradas
+            // hasta que la ruta esté IN_PROGRESS — la parada queda con el
+            // chip "Pendiente" (rama !canAct de abajo) hasta entonces.
+            val canAct = routeStatus == "IN_PROGRESS"
             val selling = isSellingStop(stop)
 
             // Si la parada tiene venta asociada (pre-orden o cliente sin
@@ -287,11 +297,15 @@ class MyRouteDetailActivity : BaseActivity() {
             // venta que disparar acá, sigue siendo 100% manual como antes.
             val hasSaleAction = stop.preOrder != null || stop.stopType == "CUSTOMER" || stop.stopType == "CONSIGNMENT"
             // Fase 115.4 — a diferencia de PRE_ORDER/CUSTOMER, el botón de
-            // Consignación queda visible sin importar resolved/canAct/selling:
+            // Consignación queda visible sin importar resolved/selling:
             // registrar qué se deja y liquidar son dos momentos separados (a
             // veces en visitas distintas), así que la acción tiene que seguir
-            // disponible incluso después de que la parada ya quedó DELIVERED.
-            if (stop.stopType == "CONSIGNMENT") {
+            // disponible incluso después de que la parada ya quedó DELIVERED,
+            // e incluso con la ruta ya COMPLETED (visita de liquidación
+            // posterior). Fix (2026-09-23) — sí se gatea por "todavía no
+            // inició" (PLANNED): antes de arrancar la ruta no hay nada que
+            // gestionar físicamente todavía.
+            if (stop.stopType == "CONSIGNMENT" && routeStatus != "PLANNED") {
                 btnAction.visibility = View.VISIBLE
                 btnAction.text = getString(R.string.btn_manage_consignment)
                 btnAction.setOnClickListener {
@@ -566,10 +580,11 @@ class MyRouteDetailActivity : BaseActivity() {
                 // no toda la fila coloreada).
                 statusDot.visibility = View.VISIBLE
                 statusDot.backgroundTintList = android.content.res.ColorStateList.valueOf(getColor(colorRes))
-                // Solo para Lbs: route_items.quantity ahí es cantidad de bolsas
-                // (no peso, confirmado con el usuario) — se manda para prefillear
-                // el número de unidades en ProductDetailActivity. Case/Unit/Bucket
-                // se quedan con el comportamiento de siempre (arranca en 1).
+                // Solo para Lbs: route_items.quantity es el peso real cargado
+                // (fix 2026-09-23, ver comentario en KEY_ROUTE_LOADED_UNITS) —
+                // se manda para prefillear ese mismo peso en ProductDetailActivity.
+                // Case/Unit/Bucket se quedan con el comportamiento de siempre
+                // (arranca en 1).
                 val routeUnits = if (isLbs) item.quantity else null
                 row.setOnClickListener { openProductForBarcode(barcode, routeUnits) }
             } else {

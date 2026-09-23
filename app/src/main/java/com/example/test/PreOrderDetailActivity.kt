@@ -501,6 +501,26 @@ class PreOrderDetailActivity : BaseActivity() {
                     }
                 }
             })
+            // Backlog cliente (2026-09-23) — el cliente puede rechazar un
+            // producto en la puerta (ej. pre-orden con 2 productos, solo
+            // quiere 1); el operador necesita poder sacarlo antes de
+            // convertir. 100% local — nunca se manda al backend un item que
+            // ya no está en draftItems/finalizedByIndex al convertir
+            // (itemsToConvert = finalizedItemsFlat).
+            row.addView(com.google.android.material.button.MaterialButton(
+                this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
+            ).apply {
+                icon = getDrawable(R.drawable.ic_delete)
+                iconTint = android.content.res.ColorStateList.valueOf(getColor(R.color.red))
+                iconPadding = 0
+                insetTop = 0
+                insetBottom = 0
+                strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.red))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { marginStart = 4.dp }
+                setOnClickListener { confirmRemoveDraftItem(idx, draft) }
+            })
             layoutDetailItems.addView(row)
         }
 
@@ -510,6 +530,44 @@ class PreOrderDetailActivity : BaseActivity() {
             getString(R.string.label_items_detailed_progress, finalizedCount, draftItems.size)
         btnConvert.isEnabled = allDone
         btnConvert.alpha = if (allDone) 1f else 0.5f
+    }
+
+    // Backlog cliente (2026-09-23) — sacar un producto de la pre-orden antes
+    // de convertir (el cliente no lo quiere más). No exige mínimo de detalle
+    // ni finalización previa — se puede quitar tanto un item ya detallado
+    // como uno todavía sin tocar.
+    private fun confirmRemoveDraftItem(index: Int, draft: PreOrderItem) {
+        if (draftItems.size <= 1) {
+            showError(getString(R.string.error_preorder_needs_one_item))
+            return
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.title_remove_preorder_item))
+            .setMessage(getString(R.string.msg_remove_preorder_item, draft.productName))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ -> removeDraftItem(index) }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    // finalizedByIndex está keyed por índice de draftItems — al sacar un
+    // elemento del medio, los índices posteriores se corren uno hacia
+    // abajo, así que hay que re-clavar el mapa entero (no solo borrar la
+    // entrada del índice sacado) para no dejar filas finalizadas atadas al
+    // draft equivocado.
+    private fun removeDraftItem(index: Int) {
+        val newDrafts = draftItems.toMutableList().apply { removeAt(index) }
+        val newFinalized = mutableMapOf<Int, List<PreOrderItem>>()
+        for ((oldIdx, rows) in finalizedByIndex) {
+            when {
+                oldIdx == index -> {} // se descarta junto con el draft
+                oldIdx > index -> newFinalized[oldIdx - 1] = rows
+                else -> newFinalized[oldIdx] = rows
+            }
+        }
+        draftItems = newDrafts
+        finalizedByIndex.clear()
+        finalizedByIndex.putAll(newFinalized)
+        renderItemsSection()
     }
 
     // Pide el producto FRESCO del catálogo (precio/unit/caseQty pueden haber cambiado
@@ -866,12 +924,19 @@ class PreOrderDetailActivity : BaseActivity() {
     // Si esta pantalla se abrió desde "Abrir pre-orden" en una parada de Mis
     // rutas (Módulo Almacén), acá es donde la conversión ya se confirmó de
     // verdad — recién acá se marca la parada como entregada.
-    private fun markRouteStopDeliveredIfAny() {
+    private fun markRouteStopDeliveredIfAny(batchId: String? = null) {
         val routeId = routeIdForStop ?: return
         val stopId = stopIdForStop ?: return
         lifecycleScope.launch {
             try {
-                RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest("DELIVERED"))
+                // Fix (2026-09-23) — antes no se mandaba batch_id acá, así que
+                // route_stops.batch_id quedaba NULL para siempre en una parada
+                // PRE_ORDER. getExpectedReturns (revisión de devoluciones) solo
+                // puede calcular "vendido" para una parada uniendo por
+                // batch_id — sin él, esa parada siempre mostraba "Sold 0.00"
+                // aunque la venta real sí existiera en `orders`. Mismo patrón
+                // que ya usa una parada CUSTOMER vendida "desde cero".
+                RetrofitClient.getApi().updateStopStatus(routeId, stopId, UpdateStopStatusRequest("DELIVERED", batchId))
             } catch (_: Exception) { }
         }
     }
@@ -939,7 +1004,7 @@ class PreOrderDetailActivity : BaseActivity() {
                     creditApplied    = creditForPrinting,
                     isOfflinePending = isOfflinePending
                 )
-                if (!isOfflinePending) markRouteStopDeliveredIfAny()
+                if (!isOfflinePending) markRouteStopDeliveredIfAny(body.batchId)
 
                 val printerAddress = securePrefs.getPrinterAddress()
                 if (!skipPrint && !printerAddress.isNullOrBlank()) {

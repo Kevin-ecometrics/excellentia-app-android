@@ -101,7 +101,7 @@ class ProductDao(private val db: AppDatabase) {
             price = c.getDouble(c.getColumnIndexOrThrow("price")),
             category = c.getString(c.getColumnIndexOrThrow("category")),
             brand = c.getString(c.getColumnIndexOrThrow("brand")),
-            stock = c.getInt(c.getColumnIndexOrThrow("stock")),
+            stock = c.getDouble(c.getColumnIndexOrThrow("stock")),
             weightPerUnit = if (weightIdx >= 0 && !c.isNull(weightIdx)) c.getDouble(weightIdx) else null,
             unit = if (unitIdx >= 0 && !c.isNull(unitIdx)) c.getString(unitIdx) else null,
             caseQty = if (caseQtyIdx >= 0 && !c.isNull(caseQtyIdx)) c.getInt(caseQtyIdx) else null,

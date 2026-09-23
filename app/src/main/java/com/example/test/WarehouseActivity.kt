@@ -51,15 +51,6 @@ class WarehouseActivity : BaseActivity() {
 
     private var dateFilter: String? = null
     private var drivers: List<UserBrief> = emptyList()
-    // Gate (2026-09-18, pedido del usuario) — agregar/quitar paradas pasó a
-    // ser admin-only (se define en el dashboard nuevo de Rutas); el
-    // almacenista sigue creando la ruta en sí, pero si hoy no tiene ninguna
-    // ruta creada, no hay nada que cargar/entregar todavía — se bloquean
-    // Recepción/Sub-inventario hasta que exista al menos una ruta para hoy
-    // (no se toca btnNewRoute: ese es justamente el botón para destrabarlo).
-    // Se calcula contra HOY siempre, sin importar qué fecha esté mirando el
-    // usuario en el filtro de la lista.
-    private var hasRoutesToday = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -177,15 +168,6 @@ class WarehouseActivity : BaseActivity() {
     }
 
     private fun renderList(routes: List<RouteDto>) {
-        // El gate de Recepción/Sub-inventario depende de HOY, no de la fecha
-        // que esté mirando el usuario en el filtro — solo se recalcula
-        // cuando el filtro visible es "hoy" (evita que cambiar el filtro a
-        // otra fecha destrabe/trabe los botones por error).
-        if (dateFilter == todayIso()) {
-            hasRoutesToday = routes.isNotEmpty()
-            applyTodayGate()
-        }
-
         if (routes.isEmpty()) {
             layoutRoutes.visibility = View.GONE
             tvEmpty.visibility = View.VISIBLE
@@ -205,13 +187,6 @@ class WarehouseActivity : BaseActivity() {
             bindRoute(row, route)
             layoutRoutes.addView(row)
         }
-    }
-
-    private fun applyTodayGate() {
-        btnReceiving.isEnabled = hasRoutesToday
-        btnReceiving.alpha = if (hasRoutesToday) 1f else 0.4f
-        btnMovements.isEnabled = hasRoutesToday
-        btnMovements.alpha = if (hasRoutesToday) 1f else 0.4f
     }
 
     private fun bindRoute(view: View, route: RouteDto) {

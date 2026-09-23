@@ -18,7 +18,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 price REAL NOT NULL,
                 category TEXT,
                 brand TEXT,
-                stock INTEGER DEFAULT 0,
+                stock REAL DEFAULT 0,
                 weight_per_unit REAL,
                 unit TEXT,
                 case_qty INTEGER DEFAULT NULL,
@@ -217,11 +217,41 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 )
             """)
         }
+        if (oldVersion < 20) {
+            // products.stock pasó de INT a DECIMAL(10,2) en el backend
+            // (2026-09-23) — el stock de productos Lbs (peso variable) se
+            // guardaba redondeado al entero más cercano. SQLite no soporta
+            // ALTER COLUMN, así que se recrea la tabla. cached_products es
+            // un cache puro (espejo de GET /api/products, sin datos propios
+            // del dispositivo) — se dropea y se repuebla sola en el próximo
+            // sync, sin necesidad de migrar filas existentes.
+            db.execSQL("DROP TABLE IF EXISTS cached_products")
+            db.execSQL("""
+                CREATE TABLE cached_products (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    barcode TEXT NOT NULL UNIQUE,
+                    sku TEXT,
+                    name TEXT NOT NULL,
+                    short_name TEXT,
+                    price REAL NOT NULL,
+                    category TEXT,
+                    brand TEXT,
+                    stock REAL DEFAULT 0,
+                    weight_per_unit REAL,
+                    unit TEXT,
+                    case_qty INTEGER DEFAULT NULL,
+                    qty INTEGER DEFAULT 0,
+                    qb_item_id TEXT,
+                    qb_active INTEGER,
+                    cached_at INTEGER NOT NULL
+                )
+            """)
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 19
+        private const val DATABASE_VERSION = 20
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

@@ -10,7 +10,7 @@ data class Product(
     val name: String,
     val price: Double,
     val weightPerUnit: Double? = null,
-    val stock: Int = 0,
+    val stock: Double = 0.0,
     val unit: String? = null,
     val qty: Int = 0,
     val caseQty: Int? = null,
@@ -65,7 +65,7 @@ data class ProductDto(
     @SerializedName("qb_active") val qbActive: Boolean? = null,
     val category: String? = null,
     val brand: String? = null,
-    val stock: Int = 0,
+    val stock: Double = 0.0,
     @SerializedName("weight_per_unit") val weightPerUnit: Double? = null,
     val unit: String? = null,
     @SerializedName("case_qty") val caseQty: Int? = null,
@@ -896,7 +896,7 @@ data class AddStopResponse(
 
 data class RouteItemResponse(
     val item: RouteItemDto,
-    val stock: Int,
+    val stock: Double,
     val lots: List<FifoAllocationDto>? = null,
     @SerializedName("qbSynced") val qbSynced: Boolean,
     @SerializedName("qbMessage") val qbMessage: String? = null
@@ -920,7 +920,7 @@ data class PreOrderResponse(
 data class PreOrderStockWarning(
     val barcode: String,
     @SerializedName("product_name") val productName: String,
-    val stock: Int
+    val stock: Double
 )
 
 data class ConvertPreOrderRequest(

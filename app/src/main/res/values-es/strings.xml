@@ -351,6 +351,9 @@
     <string name="hint_notes_optional">Notas (opcional)</string>
     <string name="label_products_section">PRODUCTOS</string>
     <string name="btn_add_item">+ Agregar</string>
+    <string name="title_remove_preorder_item">¿Quitar producto?</string>
+    <string name="msg_remove_preorder_item">¿Quitar \"%1$s\" de esta pre-orden?</string>
+    <string name="error_preorder_needs_one_item">La pre-orden necesita al menos un producto</string>
     <string name="label_no_items_scan">Sin productos. Toca \'+ Agregar\' o escanea un barcode.</string>
     <string name="label_estimated_total">TOTAL ESTIMADO</string>
 

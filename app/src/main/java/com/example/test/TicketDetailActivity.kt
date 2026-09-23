@@ -261,8 +261,13 @@ class TicketDetailActivity : AppCompatActivity() {
         // afuera a propósito: todavía no se intentó nada, está esperando al
         // admin — el backend (retryBatchSync) ya rechaza esto con 400, pero
         // ni mostrar el botón evita el viaje redondo y la confusión.
+        // CANCELLED también queda afuera (fix 2026-09-23) — una venta
+        // cancelada no debe reintentar el envío nunca (backend ya lo
+        // rechaza igual), y el reenvío a QBO en general pasó a ser
+        // exclusivo de la webapp, solo admin — este botón de Android quedó
+        // obsoleto para ese caso puntual.
         val btnRetryQbo = findViewById<MaterialButton>(R.id.btnRetryQbo)
-        if (batchId.isNotBlank() && orderStatus != null && orderStatus != "SENT" && orderStatus != "AWAITING_APPROVAL") {
+        if (batchId.isNotBlank() && orderStatus != null && orderStatus != "SENT" && orderStatus != "AWAITING_APPROVAL" && orderStatus != "CANCELLED") {
             btnRetryQbo.visibility = android.view.View.VISIBLE
             btnRetryQbo.setOnClickListener {
                 btnRetryQbo.isEnabled = false
