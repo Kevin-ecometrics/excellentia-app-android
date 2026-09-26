@@ -263,20 +263,12 @@ class IssueCreditActivity : BaseActivity() {
 
     // Espeja unitValueOf() del backend (creditCalculator.ts) solo para el
     // estimado en pantalla — el backend recalcula la cifra autoritativa.
-    // Case/Unit: product.price es el precio del paquete completo, se divide
-    // por el tamaño de paquete para obtener el valor de una sola unidad
-    // dañada. products.case_qty no existe en MySQL — product.caseQty siempre
-    // llega null/0, el tamaño real de paquete viaja en product.qty.
-    private fun estimatedUnitValueOf(product: ProductDto): Double {
-        val caseSize = product.caseQty?.takeIf { it > 0 } ?: product.qty.takeIf { it > 0 }
-        return if (com.example.test.data.isCaseUnitType(product.unit) && caseSize != null)
-            product.price / caseSize
-        else
-            // Bucket y Lbs: product.price ya es el valor por unidad/lb, directo
-            // (para Lbs, qty ya es el peso real, no hace falta estimar con
-            // weightPerUnit).
-            product.price
-    }
+    // Fase 122: `product.price` es el precio de UNA UNIDAD, así que para
+    // Case/Unit no hay nada que ajustar (antes se dividía por el tamaño de
+    // paquete y dividía dos veces: $1.50 / 24 = $0.06). Bucket y Lbs tampoco
+    // cambian. products.case_qty no existe en MySQL — el tamaño real de
+    // paquete viaja en product.qty.
+    private fun estimatedUnitValueOf(product: ProductDto): Double = product.price
 
     private fun askQtyThenAdd(product: ProductDto) {
         val barcode = product.barcode ?: return

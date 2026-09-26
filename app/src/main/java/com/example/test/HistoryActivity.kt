@@ -14,6 +14,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.BatchItem
+import com.example.test.data.lineTotal
 import com.example.test.data.OrderDto
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
@@ -160,7 +161,8 @@ class HistoryActivity : BaseActivity() {
                             quantity = order.quantity,
                             timestamp = order.createdAt,
                             status = if (isFailed) SyncStatus.FAILED else SyncStatus.PENDING,
-                            unit = order.unit
+                            unit = order.unit,
+                            caseQty = order.caseQty
                         ))
                         itemView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnRetryEntry)
                             ?.visibility = View.GONE
@@ -233,7 +235,7 @@ class HistoryActivity : BaseActivity() {
         view.findViewById<TextView>(R.id.tvEntryDate).text =
             "${entry.formattedDate}  ${entry.formattedTime}"
         view.findViewById<TextView>(R.id.tvEntryTotal).text =
-            String.format(Locale.US, "$%.2f", entry.price * entry.quantity)
+            String.format(Locale.US, "$%.2f", lineTotal(entry.price, entry.quantity, entry.unit, entry.caseQty))
         view.findViewById<TextView>(R.id.tvEntryQty).text = "${entry.quantity} $unitLabel"
 
         val tvStatus = view.findViewById<TextView>(R.id.tvEntryStatus)
@@ -269,7 +271,13 @@ class HistoryActivity : BaseActivity() {
                     productName = order.productName,
                     price = order.price,
                     quantity = order.quantity,
-                    total = order.price * order.quantity,
+                    // Fase 122 — el total va por lineTotal(): para Case/Unit
+                    // `price` es por unidad y hay que multiplicar por caseQty.
+                    // unit/caseQty también viajan ahora (no solo para el cálculo
+                    // local — el backend los necesita para armar la línea de QBO).
+                    total = lineTotal(order.price, order.quantity, order.unit, order.caseQty),
+                    unit = order.unit,
+                    caseQty = order.caseQty,
                     isCourtesy = order.isCourtesy
                 )
                 val result = orderRepository.sendBatch(

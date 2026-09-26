@@ -22,12 +22,20 @@ class OrderRepository(
     private val orderDao = OrderDao(db)
     private val gson = Gson()
 
+    // `total` NO tiene default a propósito (Fase 122): antes era
+    // `price * quantity`, que para Case/Unit daba el total de UNA caja cuando
+    // `quantity` son varias — y en el peor caso se guardaba sin multiplicar
+    // por `case_qty`. Esta función quedó sin callers (el `SyncWorker` migró al
+    // endpoint de batch), pero si alguien la vuelve a usar tiene que pasar el
+    // total explícito, ya sea el que mande la app o `lineTotal(price,
+    // quantity, unit, caseQty)` — no hay forma de que el default se quede
+    // desactualizado otra vez.
     suspend fun createOrder(
         barcode: String,
         productName: String,
         price: Double,
         quantity: Double,
-        total: Double = price * quantity,
+        total: Double,
         deviceId: Int? = null
     ): Result<OrderResponse> = withContext(Dispatchers.IO) {
         val offlineMode = securePrefs.isOfflineMode()

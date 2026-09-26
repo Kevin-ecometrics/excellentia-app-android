@@ -16,6 +16,7 @@ import com.example.test.data.OrderDto
 import com.example.test.data.ProductDto
 import com.example.test.data.isCaseUnitType
 import com.example.test.data.isLbsUnit
+import com.example.test.data.lineTotal
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
@@ -101,14 +102,19 @@ class EditBatchActivity : BaseActivity() {
 
     // Los 3 tipos de producto (Lbs/Case-Unit/Bucket) guardan cosas distintas
     // en quantity/price/case_qty — mismo criterio que ProductDetailActivity
-    // (isCaseBased/isWeightBased ahí): Lbs = peso real en quantity, price es
-    // $/lb; Case/Unit = quantity es cuántas cajas/paquetes (no unidades
-    // sueltas), price es el precio de la caja COMPLETA, case_qty son las
-    // unidades que trae cada caja (solo para desglose, no se multiplica);
-    // Bucket (y cualquier otro unit) = quantity es cuántos buckets, price es
-    // por bucket, sin case_qty. Sin este distingo, agregar un producto Case/
-    // Unit acá guardaba case_qty mal (ver bug de abajo) y la pantalla no
-    // dejaba claro qué estaba pidiendo cada campo.
+    // (isCaseBased/isWeightBased ahí), Fase 122:
+    //   Lbs       → quantity = peso real, price = $/lb, sin case_qty
+    //   Case/Unit → quantity = cuántas cajas/paquetes (no unidades sueltas),
+    //                price = precio de UNA UNIDAD, case_qty = unidades por caja
+    //   Bucket    → quantity = cuántos baldes, price = por balde, sin case_qty
+    //
+    // El total de una fila SIEMPRE sale de lineTotal() — la misma función que
+    // usa saveChanges() para armar el BatchItem. Antes esta fila hacía `q * p`
+    // a secas, así que un case de 24 a $1.50 en 2 cajas se APPROBABA en pantalla
+    // como $3.00 y se guardaba como $72.00 (1.50 × 24 × 2, Fase 122) en una
+    // pantalla que existe justamente para que el admin revise antes de que la
+    // venta entre a QBO. No repetir el `q * p`: la fila y lo que se manda tienen
+    // que dar el mismo número.
     private fun addRow(
         barcode: String, productName: String, unit: String?, caseQty: Int?,
         isCourtesy: Boolean, price: Double, quantity: Double
@@ -154,7 +160,12 @@ class EditBatchActivity : BaseActivity() {
         fun refreshTotal() {
             val q = etQty.text.toString().toDoubleOrNull() ?: 0.0
             val p = etPrice.text.toString().toDoubleOrNull() ?: 0.0
-            tvTotal.text = String.format(Locale.US, "$%.2f", q * p)
+            // lineTotal() y no `q * p` — para Case/Unit falta el `× caseQty`
+            // (1.50 × 24 × 2 = $72.00, no $3.00). Es el mismo cálculo que
+            // guarda saveChanges(), así que lo que se aprueba en pantalla es
+            // exactamente lo que se manda. Lbs y Bucket no cambian: ahí
+            // lineTotal() ya es `price × quantity`.
+            tvTotal.text = String.format(Locale.US, "$%.2f", lineTotal(p, q, unit, caseQty))
 
             // Desglose por unidad individual — mismo texto que
             // ProductDetailActivity.recalcTotal() para Case/Unit (paquetes ×
@@ -163,10 +174,11 @@ class EditBatchActivity : BaseActivity() {
             // expresado directo en su unidad de venta (por lb / por bucket).
             if (isCaseUnit && caseQty != null && caseQty > 1) {
                 val totalUnits = (q * caseQty).let { if (it == it.toLong().toDouble()) it.toLong().toString() else formatNumber(it) }
-                val unitPrice = if (caseQty > 0) p / caseQty else 0.0
+                // Fase 122 — `p` es el precio de UNA UNIDAD: se muestra directo.
+                // Antes se dividía por caseQty y daba 1/24 del valor real.
                 tvUnitHint.text = String.format(
                     Locale.US, "%s pack(s) × %d = %s units · $%.2f/unit",
-                    formatNumber(q), caseQty, totalUnits, unitPrice
+                    formatNumber(q), caseQty, totalUnits, p
                 )
                 tvUnitHint.visibility = View.VISIBLE
             } else {
@@ -295,7 +307,7 @@ class EditBatchActivity : BaseActivity() {
                 productName = row.productName,
                 price = price,
                 quantity = quantity,
-                total = Math.round(price * quantity * 100) / 100.0,
+                total = Math.round(lineTotal(price, quantity, row.unit, row.caseQty) * 100) / 100.0,
                 unit = row.unit,
                 caseQty = row.caseQty,
                 isCourtesy = row.isCourtesy

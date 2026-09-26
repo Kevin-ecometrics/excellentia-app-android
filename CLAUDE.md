@@ -1,5 +1,254 @@
 # CLAUDE.md — Android App (test/)
 
+## ⚠️ Fase 122 — `products.price` es el precio de UNA UNIDAD (no de la caja)
+
+**Esta es la regla que hay que tener en la cabeza antes de tocar cualquier
+cálculo de dinero en esta app. Supersede las notas vieja de "Precio de Case =
+precio de la caja completa" y "el rate de Case/Unit es el precio de la CAJA"
+(abajo, en las notas de Fase 105 / Fase 121 — se dejan como registro histórico
+de cómo evolucionó, pero la regla vigente es esta).**
+
+Antes `products.price` para un producto `unit = "Case/Unit"` era el precio de
+la caja completa y había que dividir por `caseQty` para saber el valor de una
+unidad. **Ahora `products.price` es directamente el precio de una unidad
+suelta**, cargado así en el catálogo (el usuario lo recargó a mano — no hay
+migración de datos en el código, ni debe haber una).
+
+| Tipo | `orders.price` significa | `orders.quantity` significa | Total |
+|---|---|---|---|
+| Case/Unit | 1 unidad | CAJAS | `price × case_qty × quantity` |
+| Lbs | 1 lb | peso real (lb) | `price × quantity` |
+| Bucket | 1 balde | baldes | `price × quantity` |
+
+Ejemplo: case de 24 a `$1.50`/unidad, vendido en 2 cajas →
+`1.50 × 24 × 2 = $72.00` (**no** `$3.00`, que es lo que daba `price * quantity`).
+
+**Helper único: `lineTotal(price, quantity, unit, caseQty)` en `data/Models.kt`.**
+Todo el dinero de la app pasa por ahí en vez de repetir el `× caseQty` en cada
+pantalla — había 13 sitios distintos con el producto embebido, que es la forma
+más corta de que dos pantallas calculen distinto. Hay extensiones para los dos
+tipos que ya tienen `unit`/`caseQty` embebidos: `BatchItem.lineTotal()` y
+`PendingOrderEntity.lineTotal()`. Espeja el `lineTotal()` del backend
+(`excellentia/src/services/creditCalculator.ts`) — **los dos tienen que dar el
+mismo número** o la pantalla y la factura no cierran.
+
+`isCaseUnitType(unit)` (acepta `"Case/Unit"` y los legacy `"Case"`/`"Unit"`) es
+la fuente de verdad de "esto se vende en caja" — no repetir `unit == "Case"` a
+mano. `lineTotal` NO multiplica por `caseQty` si el producto no lo tiene
+(`caseQty` null/0) ni si `case_qty == 1`: cae a `price × quantity`, que es lo
+correcto para un producto que se vende de a uno.
+
+### Puntos donde esto importaba y ya están corregidos
+
+- **Ticket (`data/Models.kt`, `ticketItemLine()`)** — la columna **Qty no
+  cambia**: sigue mostrando el número de cajas con el tamaño explícito
+  (`"2 cs/unt x24"`, decisión del usuario explícita). Lo que cambia es la
+  columna **Rate**, que pasó a ser `total / (quantity × case_qty)` — el precio
+  por unidad, que es lo que dice el catálogo. Antes era `total / quantity` =
+  precio de la caja. Bucket no cambia en nada: su `quantity` ya venía en la
+  misma escala que su `price`, así que el rate siempre fue el real.
+- **`unitValueOf()` / `estimatedUnitValueOf()`** (crédito por daño, `IssueCredit`)
+  ya **no** dividen por `caseSize`: devuelven `price` directo. Antes dividían
+  porque `price` era el de la caja; con el precio ya unitario, dividir
+  sub-valuaba el crédito 24x.
+- **`ProductDetailActivity`** — `price`/`pricePerLb` quedan **unitarios** y se
+  persisten así (`orders.price`); el total Case/Unit sale de `lineTotal()`.
+  La pantalla muestra `$1.50 / unit · Case/Unit of 24 ($36.00/case)`.
+- **Pre-órdenes** — el total se calcula con `lineTotal()` tanto al crear el
+  borrador (`ProductDetailActivity` en `PRE_ORDER_MODE`) como al re-consultar
+  el precio fresco en `PreOrderDetailActivity.finalizeItem()`.
+- **Backend** — `creditCalculator.unitValueOf()` (mismo cambio),
+  `qbInvoices.createBatchInvoice()` (el `Qty` de la línea de QBO pasó a
+  `quantity × case_qty` para que `Qty × UnitPrice = Amount` siga cerrando; el
+  `Amount` nunca se recalcula), y los fallbacks `total ?? price * quantity` de
+  `orderController`/`preOrderController`/`routeController` (ahora pasan por
+  `lineTotal()`).
+
+### Lo que NO se tocó
+
+- **La webapp/dashboard no se modifica** (decisión explícita del usuario).
+  `ProductModal.tsx` no hacía esta matemática, así que no había nada que
+  cambiar ahí.
+- **`products.min_price` no se modificó** — no se confirmó si fue recargado en
+  la misma escala unitaria. Como está, el backend compara `price` (unitario)
+  contra `min_price` para Case/Unit, que es la lectura más permisiva (si
+  `min_price` quedó con el valor viejo de piso por lb, igual casi nunca
+  dispara). **Pendiente de confirmar con el usuario** si hay que recargarlo.
+
+### Gotcha operativo — carritos pendientes viejos
+
+`pending_orders` (SQLite) guarda `price` **por línea**. Un carrito Case/Unit
+creado **antes** de la Fase 122 tiene el precio de la caja ($36) guardado, y con
+la fórmula nueva se convertiría en `36 × 24 × 2 = $1,728.00`. **No hay migración
+automática.** Si aparece un total disparatado en un carrito pendiente, la fila
+se borró/creó antes del cambio y hay que volver a cargar el producto desde
+`MainActivity` (que sí consulta el precio fresco).
+
+## Fase 123 — el seed de cantidad del stepper (Bucket = 1, Lbs = peso nominal) + dos desvíos de Case/Unit
+
+> Registrada como **Fase 138** en `excellentia/PROGRESS.md` (el "Fase 123" de
+> acá y el "Fase 122" de los `CLAUDE.md` de precio unitario son una numeración
+> propia de la documentación de Android, que se bifurcó de la de `PROGRESS.md`
+> después de la Fase 120). Android únicamente — cero cambios de backend,
+> webapp y schema.
+
+Endurecimiento de la Fase 122: la matemática ya estaba bien en casi todo, pero
+quedaron 4 puntos donde el catálogo o la aritmética pre-Fase 122 se colaban.
+**Ninguno cambia la fórmula de `lineTotal()`, `creditCalculator.ts`, QBO ni el
+ticket** — los 4 son arreglos chicos que reusan una regla que ya se aplicaba en
+otra pantalla, más los comentarios que faltaban al lado.
+
+### 1. El seed del stepper leía `products.qty` cuando no debía
+
+`products.qty` significa **una cosa distinta según el tipo**, y por eso no
+servía como "cantidad a la que abre el stepper" en los 5 lugares que arman el
+extra `QUANTITY` de `ProductDetailActivity`:
+
+| tipo | `products.qty` es… | arranque correcto |
+|---|---|---|
+| **Lbs** | puede ser un tamaño de caja o cualquier cosa que no es un peso | **`weight_per_unit`** (el peso nominal) |
+| Case/Unit | **unidades por caja** (24) | 24, es un atributo del producto |
+| **Bucket** | **las LIBRAS del balde** (un "32# Bucket" tiene 32) | **1** |
+
+Los call sites hacían `if (product.qty > 0) product.qty else weightPerUnit` a
+secas, o sea **`qty` le ganaba a `weight_per_unit` en los tres tipos**. Con
+`unit = "Lbs"` eso no es un detalle de pantalla: el extra `QUANTITY` es
+`defaultWeight` (`:127`) → `resetWeights()` (`:290`) → **el peso de cada bolsa** →
+`orders.quantity`/`total` → factura de QBO. Un "2.35 lb" con `qty = 24` vendía y
+facturaba **24.00 lb**, sin que nada en la pantalla lo pidiera.
+
+Con `unit = "Bucket"` abría la pantalla de venta con **"32 Bucket"** y un total
+32x (`recalcTotal()` multiplicaba `pricePerLb × units`). Contradecía al propio
+`MyRouteDetailActivity.kt:586` ("Case/Unit/Bucket arrancan en 1") y a
+`EditBatchActivity.showAddProductDialog()`, que sí arrancaba en 1. Los 7
+productos del catálogo con `unit = "Bucket"`: MIS020/021/022 (32#), CAM001
+(28#), MEJ001 (35#), MEJ004/005 (50#).
+
+**Fix** — helper único `seedQuantityForStepper(qty, weightPerUnit, unit, fallback)`
+en `data/Models.kt` (con `isBucketUnit()`, al lado de `isLbsUnit()`/
+`isCaseUnitType()`), aplicado en los 5 call sites: `MainActivity.openDetail()`,
+**`MainActivity.openSuggestion()`** (el que abre desde el **búsqueda**, no del
+escaneo — se había escapado del primer pase y tenía el `if (qty > 0)` crudo, así
+que el mismo producto abría con semillas distintas según cómo se llegara a él),
+`MyRouteDetailActivity.openProductForBarcode()`,
+`CreatePreOrderActivity.openAddItemStepper()` y
+`PreOrderDetailActivity.finalizeItem()`. Los 5 usan el mismo criterio en vez de
+copiar el `if` — es lo que evita que el próximo flujo nuevo repita el bug.
+
+El orden de las ramas es el que define la semántica de cada tipo:
+
+```kotlin
+when {
+    isBucketUnit(unit) -> 1.0
+    isLbsUnit(unit) -> weightPerUnit?.takeIf { it > 0 }
+        ?: qty.takeIf { it > 0 }?.toDouble()      // último recurso
+        ?: fallback
+    qty > 0 -> qty.toDouble()                    // Case/Unit: unidades por caja
+    else -> weightPerUnit?.takeIf { it > 0 } ?: fallback  // unit legacy
+}
+```
+
+- **`weight_per_unit` primero para Lbs** no es una preferencia nueva: el resto de
+  la app ya lo trata como el peso del producto y **nunca** mira `qty` para eso —
+  `ReceivingActivity.expectedWeight`, los diálogos de cantidad de
+  `WarehouseRouteDetailActivity`, `InventoryMovementsActivity`/
+  `WarehouseInventoryActivity` (`expectedBoxWeight`) y
+  `EditBatchActivity.showAddProductDialog()`
+  (`if (isLbsUnit(p.unit)) (p.weightPerUnit ?: 1.0) else 1.0`). El seed era el
+  único que se había quedado con el orden viejo.
+- **`qty` queda como último recurso en Lbs, no se descarta**: un producto sin
+  `weight_per_unit` cargado (o con `unit` en blanco, que `isLbsUnit()` también
+  trata como Lbs) no tiene otro dato. Los 68 productos `ONLY_IN_QBO` del master
+  sheet son justo los que nunca recibieron `unit`/`qty` de la migración de SKU.
+- El `else` final cubre valores de `unit` fuera de Lbs/Case-Unit/Bucket (ej. un
+  "Pounds" legacy), donde no hay regla documentada: se conserva el `qty` primero.
+
+**Por qué el guard va en el emisor y NO en `ProductDetailActivity`:** el mismo
+extra `QUANTITY` significa dos cosas distintas según de dónde viene. Desde el
+catálogo es la semilla (Bucket → 1, Lbs → peso nominal), pero en **modo
+edición** (`EDIT_ORDER_ID`) y en el **"Cambiar" de pre-órdenes** (`prefillUnits`)
+trae la cantidad REAL que eligió el operador. Un `if (Bucket) units = 1` en
+`resetCount()` pisaría los 3 baldes que el usuario acaba de guardar, y un
+`if (Lbs) weights = weightPerUnit` pisaría el peso real que salió de la báscula.
+El invariante quedó documentado en el comentario de `resetCount()` — si se agrega
+un call site nuevo, tiene que pasar por `seedQuantityForStepper()`.
+
+**La matemática no se tocó** (y no hay que tocarla): `lineTotal()` para Bucket
+sigue siendo `price × quantity` (el `qty` en libras nunca entra, ni antes ni
+después) y para Lbs sigue siendo `price × peso`. Solo cambió el número con el que
+se abre la pantalla.
+
+### 2. `EditBatchActivity` — la fila mostraba el total sin `caseQty`
+
+`refreshTotal()` hacía `tvTotal.text = "$%.2f" de (q * p)` mientras 140 líneas más
+abajo `saveChanges()` armaba el `BatchItem` con `lineTotal(price, quantity, unit,
+caseQty)`. Para un case de 24 a $1.50 en 2 cajas: **la pantalla de aprobación
+mostraba $3.00 y se guardaban $72.00** (1.50 × 24 × 2). Agrava que
+`EditBatchActivity` es justamente la pantalla de revisión del admin antes de que
+la venta entre a QBO (Fases 113/117) — y que el `tvUnitHint` de la misma fila
+(que dice "2 pack(s) × 24 = 48 units") sí mostraba el dato correcto: la línea de
+abajo estaba bien y el número grande de arriba 24x bajo.
+
+**Fix** — `lineTotal(p, q, unit, caseQty)` en esa línea. Lbs y Bucket no cambian
+(ahí `lineTotal()` ya es `price × quantity`). Se corrigió además el comentario de
+`addRow()`, que seguía codificando la regla pre-Fase 122 ("price es el precio de
+la caja COMPLETA… case_qty son las unidades que trae cada caja (solo para
+desglose, **no se multiplica**)") — ese comentario era la razón escrita del bug,
+por eso se corrigió en la misma pasada: si se dejaba, el bug volvía en la
+próxima edición del archivo.
+
+### 3. `ConsignmentActivity` — `case_qty` siempre null al registrar
+
+Mandar `caseQty = product.caseQty` crudo, pero `ProductDto.case_qty` **nunca**
+viene poblado: la tabla `products` no tiene columna `case_qty` (las únicas están
+en `orders` y `pre_order_items`; el backend responde `SELECT * FROM products`).
+Es el único lugar de la app que no aplicaba el workaround. Cadena del bug:
+`routeController.registerConsignment` guardaba `case_qty = NULL` en
+`route_consignment_items` → al liquidar, `lineTotal(price, qty, unit, null)` =
+`price × qty` → **$3.00 en vez de $72.00** en la venta, y el `INSERT` en
+`orders` salía sin `case_qty` (ticket sin el desglose "× 24", `Qty` de QBO
+inconsistente).
+
+**Fix** — `caseQty = if (isCaseUnitType(product.unit)) product.qty else null`,
+idéntico a `EditBatchActivity.showAddProductDialog()` y a
+`estimatedUnitValueOf()`. **No arregla consignaciones ya registradas con
+`case_qty = NULL`**: si hay de Case/Unit, necesitan un `UPDATE` manual sobre
+`route_consignment_items` (y sobre las `orders` de la liquidación) antes de
+liquidarlas.
+
+### Verificación
+
+Solo por compilación: `:app:compileDebugKotlin` y `assembleDebug`, sin warnings
+nuevos. **Sin probar contra una base real / TC22** — y en el punto 1 menos
+todavía, porque el alcance en datos depende de cuántos productos tengan
+`weight_per_unit` **y** `qty` cargados a la vez, cosa que no se puede
+determinar desde el repo. Para medirlo contra la base real:
+
+```sql
+SELECT unit, COUNT(*) AS n,
+       SUM(COALESCE(weight_per_unit,0) > 0 AND qty > 0) AS ambos_campos
+FROM products
+WHERE hidden = 0 AND (unit IS NULL OR unit = '' OR unit IN ('Lbs','Case/Unit','Bucket'))
+GROUP BY unit;
+```
+
+`ambos_campos > 0` en la fila `Lbs` (o en la de `unit` vacío) es exactamente la
+población que este fix cambia. Ojo con `NULL`: usar `COALESCE` (el mismo
+`NULL`-unsafe de la Fase 107).
+
+### Pendiente, NO implementado (mismo linaje pre-Fase 122)
+
+`PreOrderDetailActivity.kt:603` — `isCaseBasedProduct = isCaseUnitType(unit) &&
+(product.caseQty ?: 0) > 0` es **siempre false** por el mismo motivo del punto 3
+(`case_qty` no existe en el catálogo). Consecuencia en un Case/Unit con "Cambiar"
+sobre una cantidad ya guardada: `QUANTITY` lleva la cantidad elegida (3) →
+`ProductDetailActivity.kt:131` la usa de fallback como `caseQty` = 3 →
+`resetCount()` cae en `else -> 1`. El stepper abre en 1 caja mostrando *"1 pack ×
+3 = 3 units"* cuando debería ser *"3 packs × 24 = 72 units"*. **No se tocó**:
+arreglarlo implica cambiar `PreOrderDetailActivity` Y el fallback de `caseQty` en
+`ProductDetailActivity`, y roza el flujo de pre-órdenes, que está fuera del
+alcance de esta fase.
+
 ## Build & Run Commands
 
 ```powershell
@@ -7,6 +256,10 @@
 .\gradlew installDebug       # instalar en dispositivo
 .\gradlew clean assembleDebug
 ```
+
+> Para compilar sin generar APK (más rápido, es lo que se usa en code review):
+> `.\gradlew :app:compileDebugKotlin` — con `JAVA_HOME` apuntando al JBR de
+> Android Studio: `$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"`
 
 ## Architecture Overview
 
@@ -23,13 +276,14 @@ Single-module Android app (`:app`) targeting Zebra TC22 (barcode scanner) + Zebr
 
 1. **LoginActivity** (LAUNCHER) — POST `/api/auth/login`, guarda JWT + refreshToken + URL en SecurePreferences, navega a MainActivity.
 2. **MainActivity** — verifica token en `onCreate`/`onResume`. DataWedge profile configurado automáticamente. Escaneo físico o botón manual → ProductDetailActivity. Badge "Ver pedido (N)" → CurrentOrderActivity. Pide `BLUETOOTH_CONNECT` en startup (Android 12+).
-3. **ProductDetailActivity** — muestra producto con precio/lb. Múltiples unidades con peso individual cada una (+/- 0.1). Tap en cantidad → diálogo numérico. "Agregar al pedido" → SQLite local. Botón deshabilitado (mismo patrón que "sin stock") si: el producto no tiene barcode asignado (bloquea **siempre**, incluido pre-orden — problema estructural), o no está vinculado a QuickBooks / está inactivo ahí (no aplica en modo pre-orden ni en modo edición). **Modo edición** (extra `EDIT_ORDER_ID`, se llega desde el botón "editar" en `CurrentOrderActivity`): precarga cantidad/precio de la fila existente, botón dice "Save changes" y actualiza esa fila en vez de agregar una nueva.
+3. **ProductDetailActivity** — muestra producto con precio/lb. Múltiples unidades con peso individual cada una (+/- 0.1). Tap en cantidad → diálogo numérico. "Agregar al pedido" → SQLite local. Botón deshabilitado (mismo patrón que "sin stock") si: el producto no tiene barcode asignado (bloquea **siempre**, incluido pre-orden — problema estructural), o no está vinculado a QuickBooks / está inactivo ahí (no aplica en modo pre-orden ni en modo edición). **Modo edición** (extra `EDIT_ORDER_ID`, se llega desde el botón "editar" en `CurrentOrderActivity`): precarga cantidad/precio de la fila existente, botón dice "Save changes" y actualiza esa fila en vez de agregar una nueva. **Fase 123**: el extra `QUANTITY` significa semilla desde el catálogo vs. cantidad real en modo edición/"Cambiar" — el invariante de Bucket arranca en 1 vive en `resetCount()` y en `seedQuantityForStepper()` (`data/Models.kt`), NO en esta pantalla.
 4. **CurrentOrderActivity** — lista todos los ítems pendientes. Cada ítem con botón **editar** (reabre `ProductDetailActivity` precargada con los datos de la fila — mismo modo Case/Unit/Bucket/Lbs que al agregar, ya no un diálogo genérico de "lb") y **borrar** (con confirmación). Re-escanear un producto Case/Unit ya en el carrito, al mismo precio, suma la cantidad a la fila existente en vez de duplicarla (productos por peso quedan siempre en filas separadas, uno por unidad pesada). Botón **"+ Agregar crédito"** (Fase 85, rojo, sobre los dos botones principales) — busca cualquier producto (no hace falta que esté en el carrito) y lo agrega como línea de crédito a `pendingDamageItems`, mostrada en la misma lista con tag "CREDIT" y solo botón borrar (sin editar). Loading overlay mientras se envía el batch. "Ver ticket" → TicketDetailActivity. "Finalizar pedido" → SignatureActivity (luego checkPrinterThenFinalize). **"Ver ticket"/"Finalizar pedido" exigen cliente seleccionado** (pedido explícito del usuario) — los botones se quedan habilitados en cuanto el carrito tiene productos (`normalItems.isNotEmpty()`, sin depender de `customerId`, primer intento con `isEnabled` gateado por cliente descartado: un botón deshabilitado no explica nada, y encima no se puede togear un aviso desde un click que nunca llega a dispararse), pero el propio `onClickListener` de cada uno valida `customerId.isNullOrBlank()` primero y, si falta, muestra `warnSelectCustomerFirst()` (`Snackbar`, string `error_select_customer_first` = "Select a customer first") en vez de abrir el ticket/continuar el flujo de firma. `tvCustomerLabel` (antes `GONE` sin cliente activo) ahora queda siempre visible, con el prompt `label_select_customer` ("Select customer") cuando no hay uno elegido — es el único punto de entrada al picker (`customerPickerLauncher`); el viejo fallback donde "Finalizar pedido" abría el picker solo si faltaba cliente se sacó (`launchSignatureAfterCustomer` eliminado, quedaba muerto una vez que el click ya no llega a ese branch).
 5. **SignatureActivity** — pantalla completa de firma del cliente. Canvas táctil (`SignatureView`). Botones "Limpiar" y "Confirmar firma". Exporta firma como PNG base64. Al confirmar → checkPrinterThenFinalize() en CurrentOrderActivity.
 6. **CustomerPickerActivity** — carga clientes de QB (`GET /api/customers`). Búsqueda en tiempo real. Cada card muestra nombre + dirección completa (gris). Modal de confirmación con nombre y dirección. Retorna `customer_id`, `customer_name`, `customer_address` en el intent result. **Long-press** en card muestra menú: "Asignar como cliente activo" o "Ver historial de pedidos" → ClientHistoryActivity.
 7. **HistoryActivity** — pedidos locales pendientes + remotos del API. Chips: Todos/Enviados/Pendientes/Fallidos/**Cancelados** (Fase 117, pedido explícito del usuario) + fecha Hoy/Todos. Cada batch mostrado con card azul — click → TicketDetailActivity. Empty state dinámico por chip (ej. "Sin pedidos fallidos"). El chip "Fallidos" filtra batches remotos con `orders.any { status == "FAILED" }`. **Chip "Cancelados"** — mismo criterio (`orders.any { status == "CANCELLED" }`); de paso, un batch cancelado se sacó del cajón "Pendientes" (antes cualquier batch "no enviado del todo" caía ahí, cancelado incluido, porque ese filtro solo excluía `allSent`) — Cancelled es un estado terminal, no "todavía necesita atención", así que tiene su propia pestaña en vez de mezclarse. Las órdenes locales (`pending_orders`, offline) nunca están SENT ni CANCELLED — cancelar es una acción sobre un batch ya en el servidor (`cancelBatch`), así que esos dos filtros solo listan batches remotos.
 8. **TicketDetailActivity** — ticket estilo recibo con header de la tienda, fecha, batch#, factura#, chip del cliente, ítems individuales (nombre + barcode·precio/lb + qty + total), grand total, estado. Botón **"Reimprimir ticket"** visible si hay impresora configurada en Settings. Botón **"Resend to QuickBooks"** visible si el batch tiene `batchId` y su estado no es `SENT` — reintenta el envío al instante y actualiza el ticket en pantalla; error se muestra en modal ("Got it"), no Snackbar. **Botones "Edit sale"/"Cancel sale" (Fase 117)** — visibles solo si el batch sigue `AWAITING_APPROVAL` **y** (`SecurePreferences.getUserRole() == "admin"` o el usuario actual es dueño de **todas** las filas del batch, `orders.all { it.userId == currentUserId }` — mismo criterio que el backend). Cancelar abre un `MaterialAlertDialogBuilder` con un `EditText` de motivo opcional → `OrderRepository.cancelBatch()` → `POST .../cancel`; éxito hace `finish()` (vuelve a `HistoryActivity`, que ya refresca en `onResume()`). Editar lanza `EditBatchActivity` vía `ActivityResultLauncher` (pasa `batch_id` + el mismo `orders_json` que ya trae este intent) — si vuelve con `RESULT_OK`, esta pantalla también hace `finish()` (no tiene forma barata de reconstruirse con los ítems nuevos, así que se cierra y se refresca desde la lista). Ninguna de las dos acciones toca QBO — la factura no existe todavía en ese estado. **Bug encontrado probando en el dispositivo (2026-09-04) — cancelar una venta la mostraba como "Pending" en todos lados, no "Cancelled".** `CANCELLED` existe en el ENUM desde la Fase 1 pero nunca se había usado en la práctica hasta `cancelBatch` — todo el código que agrega el status de un batch mirando sus líneas (`HistoryActivity.bindBatchHeader()`, `ClientHistoryActivity.bindBatch()`, el cómputo de `orderStatus` acá en `onCreate()`, y `OrdersClient.tsx` en la webapp) se había escrito antes de que ese valor existiera de verdad, así que ninguno tenía un branch para él y caía siempre en el último `else` — que resulta ser "Pending" en los 3 de Android, y en la webapp además inflaba el contador del KPI "Pending". Los 4 ganaron un branch `"CANCELLED"` (label `status_cancelled`, `bg_status_chip` — gris neutro, no rojo, para no confundirse con "Failed"). Acá en particular el bug era peor: sin el branch, `orderStatus` quedaba `null` y `buildReceipt()` no dibujaba ninguna línea de estado.
 9. **EditBatchActivity** (nueva, Fase 117) — editar una venta `AWAITING_APPROVAL`: reemplazo TOTAL de `items[]`, no un diff. Lista las líneas actuales (`item_edit_batch_row.xml`, un `MaterialCardView` por producto con `EditText` de cantidad/precio editables in-place y total recalculado en vivo) + botón "Add product" que reusa el patrón de búsqueda de `ConsignmentActivity.showManualEntryDialog()` (`dialog_manual_entry.xml`, `GET /api/products?search=` mientras se tipea, sin escaneo DataWedge en esta pantalla). Un producto sin `barcode` no se puede agregar (mismo motivo que el backend: `orders.barcode` es `NOT NULL`). "Save changes" lee las cantidades/precios en vivo de cada fila (no cachea estado — evita depender de que los `TextWatcher` mantengan todo sincronizado), arma `List<BatchItem>` y llama `POST .../edit`; éxito → `setResult(RESULT_OK)` + `finish()`.
+   - **Fix (Fase 123) — el total de la fila no multiplicaba `case_qty`.** `refreshTotal()` hacía `q * p` mientras `saveChanges()` guardaba `lineTotal(price, quantity, unit, caseQty)`: un case de 24 a $1.50 en 2 cajas se **aprobaba en pantalla como $3.00 y se guardaba $72.00** — en la pantalla donde el admin revisa antes de que la venta entre a QBO. Ahora usa `lineTotal()` (el mismo cálculo que guarda, no una copia). El `tvRowUnitHint` de esa misma fila ya mostraba el dato correcto, así que el desglose de abajo y el número grande de arriba discrepaban 24x. También se corrigió el comentario de `addRow()`, que seguía documentando la regla pre-Fase 122 ("price es el de la caja COMPLETA, case_qty solo para desglose, no se multiplica") — era la razón escrita del bug.
    - **Fix (2026-09-04) — la fila no distinguía Lbs/Case-Unit/Bucket, mismo criterio que `ProductDetailActivity` (`isCaseBased`/`isWeightBased`) que faltaba acá.** `addRow()` ahora calcula `isLbs`/`isCaseUnit` (`isLbsUnit()`/`isCaseUnitType()`, `data/Models.kt`) y ajusta: el label de cantidad ("Weight (lb)" / "Cases" / el nombre del unit para Bucket), el label de precio ("Price/lb" / "Price/case" / genérico), el `inputType` de cantidad (decimal solo para Lbs — Case/Unit y Bucket no aceptan "2.5 cajas"), y un `tvRowUnitHint` nuevo que solo aparece para Case/Unit con `case_qty > 1` ("N pack(s) × case_qty = M units · $X.XX/unit", recalculado en vivo, mismo texto que ya arma `ProductDetailActivity.recalcTotal()`).
    - **Bug real encontrado y arreglado en el camino** — `showAddProductDialog()` detectaba `case_qty` comparando `p.unit == "Case"` (valor legacy) en vez de `isCaseUnitType(p.unit)` (acepta el valor estándar actual "Case/Unit" además de "Case"/"Unit" sueltos) — un producto Case/Unit agregado desde el buscador de esta pantalla nunca guardaba su `case_qty`, rompiendo el desglose de unidades en el ticket/factura de esa línea. También: la cantidad default al agregar un producto nuevo pasó de `1.0` fijo a `product.weightPerUnit ?: 1.0` para Lbs (mismo dato que usa `ProductDetailActivity` como peso típico de arranque) — Case/Unit y Bucket se quedan en 1 (1 caja / 1 bucket), como corresponde.
    - **Mismo bug de tipo, encontrado en una revisión end-to-end posterior (2026-09-04) y arreglado también en `ConsignmentActivity.kt`** (Fase 115.4, no tocada en la sesión original de la Fase 117): `showQuantityDialog()` (registrar qué se deja en consignación) y los campos "Sold"/"Returned" de `renderItems()` (liquidar una línea) usaban siempre un input decimal genérico sin mirar `product.unit`/`ci.unit` — dejaba tipear "2.5" en un producto Case/Unit o Bucket. Arreglado con el mismo criterio que ya usaba `ReceivingActivity.askQtyThenDate()` (que sí lo hacía bien, sirvió de referencia): `isLbsUnit(unit)` decide `inputType` (decimal solo Lbs, entero el resto) y el valor default (`0`/`"0.00"`, `coerceAtLeast(0.01 / 1.0)`).
@@ -225,7 +479,12 @@ Scan to view               F4, LEFT
 ```
 **Regla de alignment:** TODO LEFT — incluyendo nombre empresa y subtítulo. No se usa CENTER en ninguna línea del ticket (eliminado para coherencia y para evitar truncado en nombres largos) — city, address, phone, date, pedido, cliente, ítems, TOTAL (F7), lb total, footer, negative sale, terms, firma.
 **Overflow:** `wrapText(str, 28)` en nombre de producto, nombre del cliente, dirección del cliente, términos — 28×17px=476px deja ~100px de margen físico seguro. `take(N)` en subtitle/city/address/phone/invoiceId (datos de la empresa, no del cliente). La dirección del cliente **no** se trunca — antes se partía en la primera coma y cada mitad se cortaba con `.take(32)`, perdiendo texto sin aviso si alguna mitad era larga; ahora usa el mismo `wrapText(28)` que todo lo demás.
-**Ítems layout (Fase 91 — formato descripción / qty / rate / total; Fase 95 — quitado el número de línea corrido del nombre; Fase 97 — nuevo prefijo "N -" con la cantidad seleccionada):** encabezado fijo una sola vez antes de la lista — `"Desc"` (antes `"#  Description"`) + `threeCol("Qty/Weight", "Rate", "Total")` (bold en pantalla vía `addLine`/`addThreeCol(bold=true)`; el impreso no tiene bold real en CPCL, va en texto plano igual que el resto). Después, por cada ítem: línea 1 = `"$pickCount - $nombre"` (F4, x=0, wrapText — el prefijo va solo en la primera línea si el nombre hace wrap; **`pickCount` no es `displayQty`** — es la cantidad "cruda" seleccionada: Lbs = `g.count`, cuántas pesadas individuales se agruparon; Case/Unit y Bucket = `g.quantity.toInt()`, cuántas unidades se eligieron, sin multiplicar por unidades-por-caja. Siempre se muestra, incluso si es 1 — a diferencia del viejo `itemNumber` de la Fase 91, que era un consecutivo por todo el ticket sin relación con la cantidad); línea 2 `threeCol(qty, rate, total)` (F4, x=4) — 3 columnas: cantidad/peso a la izquierda (ancho flexible), rate y total pegados a la derecha en ancho fijo (`midWidth=7`, `rightWidth=8` sobre `width=32`; el campo izquierdo se trunca con `.take()` en el caso raro de un "N - Case/Unit of Q" muy largo — no afecta rate/total, que siempre se ven completos). **Anchos de línea del ticket impreso — fuente única (Fase 91.6, fix)** — antes cada línea del ticket (nombre de empresa, subtítulo, dirección, cliente, ítems, negative sale, subtotal/total) usaba su propio ancho suelto (24, 27, 28, 30, 32...) pasado a mano en cada llamada a `wrapText`/`twoCol`/`threeCol`, y varios campos de la cabecera (`companyName`, `subtitle`, `address`, `city`, `phone`) usaban `.take(N)` en vez de wrap — truncaban en silencio si el texto era largo, en vez de saltar de línea. El bug real: al ajustar a mano el ancho de una sola llamada (`threeCol(..., width = 48)`, mientras el físico máximo con Font 4 es ~33.9 chars) esa fila se salía de `PAGE-WIDTH` sin que el `y` del comando stream avanzara lo que la impresora de verdad imprimía — la impresora envolvía el texto por su cuenta y la línea siguiente quedaba pisando encima. Fix: `PW / F4_CHAR_PX` (17px/char) calcula `MAX_LINE_CHARS` (límite físico duro, ~33), `LINE_WIDTH = MAX_LINE_CHARS - 2` es el único ancho que usa **todo** el ticket por default (subir/bajar ese único número reajusta cada línea a la vez, ninguna queda desincronizada); `wrapText`/`twoCol`/`threeCol` además clampan (`coerceAtMost(MAX_LINE_CHARS)`) contra el máximo físico así que aunque alguien pase un ancho más grande en una llamada puntual nunca se desborda la página. Los campos de cabecera que truncaban con `.take()` ahora usan `StringBuilder.tWrapped()` (helper nuevo, hace wrap real y devuelve el `y` avanzado) — nombre de empresa/subtítulo/dirección largos ahora hacen salto de línea real en vez de perder texto o desbordarse. Las líneas se agrupan por producto (ver `GroupedTicketItem` abajo) — un producto escaneado varias veces en el mismo pedido aparece en **una sola línea** con peso y total sumados. **Qty/W — cantidad total real, sin texto de unidad (Fase 96, fix)** — antes el campo qty mostraba texto (`"N - Case/Unit"`, `"N - Case/Unit of Q"`, `"N - X.XX lb"`); el usuario pidió que sea solo el número, y que para Case/Unit sea el total de unidades individuales, no el número de cajas: `displayQty = quantity * (caseQty ?: 1)` si la categoría es `"CASE/UNIT"` (ej. 3 cajas de 12 = 36), `displayQty = quantity` tal cual para `"LBS"`/`"BUCKET"`/otras (ya son el total real — peso sumado o conteo de buckets, sin multiplicador). `qtyStr` = `"%.2f lb"` para categorías de peso (el sufijo `"lb"` volvió en la Fase 100 — un número puro tipo "105" no dejaba claro que era peso), `"%d %s"` para el resto usando `shortQtyUnit(category)` (Fase 101 — `"CASE/UNIT"`→`"cs/unt"`, `"BUCKET"`→`"bkt"`, fallback: 3 primeras letras de la categoría en minúscula), ej. `"36 cs/unt"`, `"2 bkt"` — distinto de `unitLabel()` (nombre completo, usado en el header de categoría y el pie del ticket). El rate (columna del medio) se recalcula sobre `displayQty` (`total / displayQty`, no `total / quantity`) para que `rate × qty` siga dando el total de la línea — en Case/Unit esto significa que el rate pasó de ser "precio por caja" a "precio por unidad individual". El total de la línea (columna derecha) no cambia. Los ítems además se agrupan por categoría (LBS → CASE/UNIT → BUCKET → otras alfabético) — el encabezado de categoría **siempre se muestra** (Fase 98, fix — antes solo aparecía si el pedido mezclaba más de un tipo; con un solo tipo, ej. 2 productos Case/Unit, no se veía ningún header) y va **enmarcado con un separador arriba y abajo** (Fase 100 — antes quedaba pegado al texto de alrededor y se perdía visualmente; `DASH`/`addSep(heavy=false)` antes y después del nombre de categoría, misma sección propia en ambos, impreso y pantalla). La línea de cantidad total al pie del ticket suma cantidad+unidad solo si hay una única categoría (`"22.80 lb total"`); si hay mezcla, muestra `"N items total"` en su lugar. Helpers compartidos con `TicketDetailActivity.buildReceipt()` (misma lógica para el ticket impreso y la vista en pantalla, incluyendo el número de línea y las 3 columnas): `ticketCategoryFor()`, `isWeightTicketCategory()`, `byTicketCategory()` en `data/Models.kt`.
+**Ítems layout (Fase 91 — formato descripción / qty / rate / total; Fase 95 — quitado el número de línea corrido del nombre; Fase 97 — nuevo prefijo "N -" con la cantidad seleccionada; Fase 121 — rate de Case/Unit vuelve a ser el precio de la CAJA):** encabezado fijo una sola vez antes de la lista — `"Desc"` (antes `"#  Description"`) + `threeCol("Qty/Weight", "Rate", "Total")` (bold en pantalla vía `addLine`/`addThreeCol(bold=true)`; el impreso no tiene bold real en CPCL, va en texto plano igual que el resto). Después, por cada ítem: línea 1 = `"$pickCount - $nombre"` (F4, x=0, wrapText — el prefijo va solo en la primera línea si el nombre hace wrap; **`pickCount` es la cantidad "cruda" seleccionada**: Lbs = `g.count`, cuántas pesadas individuales se agruparon; Case/Unit y Bucket = `formatQty(g.quantity)`, cuántas unidades se eligieron. Siempre se muestra, incluso si es 1 — a diferencia del viejo `itemNumber` de la Fase 91, que era un consecutivo por todo el ticket sin relación con la cantidad); línea 2 `threeCol(qty, rate, total)` (F4, x=4) — 3 columnas: cantidad/peso a la izquierda (ancho flexible), rate y total pegados a la derecha en ancho fijo (`midWidth=7`, `rightWidth=8` sobre `width=32`; el campo izquierdo se trunca con `.take()` en el caso raro de un "N - Case/Unit of Q" muy largo — no afecta rate/total, que siempre se ven completos). **Las 3 columnas las arma `ticketItemLine(g, category)` (`data/Models.kt`) — fuente única, NO duplicar el cálculo en `PrintService.buildCpcl()` ni en `TicketDetailActivity.buildReceipt()`** (Fase 121): antes `displayQty`/`avgPrice`/`qtyStr` estaban escritos a mano en los dos renderizadores y ya se habían desincronizado una vez. Devuelve las 3 strings ya formateadas en un `TicketItemLine(qty, rate, total)`.
+ **Anchos de línea del ticket impreso — fuente única (Fase 91.6, fix)** — antes cada línea del ticket (nombre de empresa, subtítulo, dirección, cliente, ítems, negative sale, subtotal/total) usaba su propio ancho suelto (24, 27, 28, 30, 32...) pasado a mano en cada llamada a `wrapText`/`twoCol`/`threeCol`, y varios campos de la cabecera (`companyName`, `subtitle`, `address`, `city`, `phone`) usaban `.take(N)` en vez de wrap — truncaban en silencio si el texto era largo, en vez de saltar de línea. El bug real: al ajustar a mano el ancho de una sola llamada (`threeCol(..., width = 48)`, mientras el físico máximo con Font 4 es ~33.9 chars) esa fila se salía de `PAGE-WIDTH` sin que el `y` del comando stream avanzara lo que la impresora de verdad imprimía — la impresora envolvía el texto por su cuenta y la línea siguiente quedaba pisando encima. Fix: `PW / F4_CHAR_PX` (17px/char) calcula `MAX_LINE_CHARS` (límite físico duro, ~33), `LINE_WIDTH = MAX_LINE_CHARS - 2` es el único ancho que usa **todo** el ticket por default (subir/bajar ese único número reajusta cada línea a la vez, ninguna queda desincronizada); `wrapText`/`twoCol`/`threeCol` además clampan (`coerceAtMost(MAX_LINE_CHARS)`) contra el máximo físico así que aunque alguien pase un ancho más grande en una llamada puntual nunca se desborda la página. Los campos de cabecera que truncaban con `.take()` ahora usan `StringBuilder.tWrapped()` (helper nuevo, hace wrap real y devuelve el `y` avanzado) — nombre de empresa/subtítulo/dirección largos ahora hacen salto de línea real en vez de perder texto o desbordarse. Las líneas se agrupan por producto (ver `GroupedTicketItem` abajo) — un producto escaneado varias veces en el mismo pedido aparece en **una sola línea** con peso y total sumados. **Qty/W y Rate (Fase 121 — ⚠️ la parte del rate de Case/Unit quedó SUPERADA por la Fase 122: el rate ahora es el precio por UNIDAD (`total / (quantity × caseQty)`), no el precio de la caja. Ver la sección Fase 122 arriba. El resto de esta nota — cómo se fue formateando la columna Qty y por qué Bucket no cambia — sigue vigente):** antes el campo qty mostraba texto (`"N - Case/Unit"`, `"N - Case/Unit of Q"`, `"N - X.XX lb"`); la Fase 96 lo dejó como número solo y la Fase 100/101 le agregó el sufijo de unidad. **Bucket no cambia en ninguna fase**: `quantity` ya es el conteo de baldes y `products.price` el precio del balde completo, así que el rate siempre fue el precio real de la unidad — `caseQty` solo se setea en productos Case/Unit (`ProductDetailActivity.kt:129-130`), nunca en un Bucket. Para **Case/Unit el rate es `total / quantity`** (ambos en escala de cajas) = **precio de la caja completa**, y `qtyStr` es el **número de cajas** con el tamaño de caja explícito, tomado del `caseQty` real de cada producto: `"3 cs/unt x24"`, o `"3 cs/unt"` si el producto no tiene `caseQty` o es 1 (mismo criterio `if (cq > 1)` que ya usa `ProductDetailActivity.kt:420`) — **no todos los productos traen 24**. Para **Lbs** no hay cambio: `"%.2f lb"` con `quantity` (el peso real sumado) y rate = `total / quantity` (el precio por libra). Las categorías de conteo (Case/Unit y Bucket) usan `formatQty(quantity)` y no `.toInt()` — una fila de **cortesía parcial** llega en cajas fraccionarias (`courtesyRowsFor()` en el backend parte "regalar 3 unidades de un case de 24" en `quantity = 0.125`) y `.toInt()` la truncaba a `"0 cs/unt"`, una cantidad 0 en el ticket. El prefijo `"N -"` del nombre usa el mismo criterio, si no la línea mostraría "0 -" al lado de "0.13 cs/unt x24". LBS → CASE/UNIT → BUCKET/otras usan `shortQtyUnit(category)` (Fase 101) como sufijo abreviado, distinto de `unitLabel()` (nombre completo, usado en el header de categoría y el pie del ticket). `rate × qty` sigue dando el total de la línea en las 3 categorías; el total (columna derecha) nunca cambia.
+
+> **Por qué se revirtió la Fase 96 (que multiplicaba por `caseQty`):** `displayQty = quantity * caseQty` dejaba el rate de Case/Unit en 1/24 del precio real — una caja de $1.50 se imprimía como `$0.06`, un número que no aparece en ninguna otra pantalla de la app (`ProductDetailActivity.kt:421` y `CurrentOrderActivity.kt:846` ya mostraban la caja como número principal, con el per-unit entre paréntesis). Además Qty/W en unidades (72) contradecía el resto del ticket, que cuenta cajas en los otros dos lugares: el prefijo `"N -"` del nombre y la línea de total del pie (`totalQty = items.sumOf { it.quantity }`). Con las tres columnas en cajas, el ticket queda internamente consistente y el "24" queda explícito en la propia línea, sin depender de que el nombre del producto lo mencione.
+
+Los ítems además se agrupan por categoría (LBS → CASE/UNIT → BUCKET → otras alfabético) — el encabezado de categoría **siempre se muestra** (Fase 98, fix — antes solo aparecía si el pedido mezclaba más de un tipo; con un solo tipo, ej. 2 productos Case/Unit, no se veía ningún header) y va **enmarcado con un separador arriba y abajo** (Fase 100 — antes quedaba pegado al texto de alrededor y se perdía visualmente; `DASH`/`addSep(heavy=false)` antes y después del nombre de categoría, misma sección propia en ambos, impreso y pantalla). La línea de cantidad total al pie del ticket suma cantidad+unidad solo si hay una única categoría (`"22.80 lb total"`); si hay mezcla, muestra `"N items total"` en su lugar. Helpers compartidos con `TicketDetailActivity.buildReceipt()` (misma lógica para el ticket impreso y la vista en pantalla, incluyendo el número de línea y las 3 columnas): `ticketCategoryFor()`, `isWeightTicketCategory()`, `byTicketCategory()`, `shortQtyUnit()`, `ticketItemLine()` y el `data class TicketItemLine` en `data/Models.kt`.
 **TOTAL:** `twoCol("TOTAL:", "$XX.XX", 28)` en F4 — misma línea, mismo tamaño que el resto del ticket (esta línea no cambió con la Fase 91, sigue siendo 2 columnas).
 **Helpers:** `twoCol(left, right, width)` rellena con espacios; `threeCol(left, mid, right, width, midWidth, rightWidth)` (Fase 91) — mid/right ancho fijo alineadas a la derecha, left toma el resto y se trunca si no entra; `wrapText(text, maxChars)` primero parte por `\n` (párrafos) y recién ahí divide por palabras dentro de cada uno — necesario porque el comando CPCL `T` es de una sola línea; si una "palabra" arrastraba un salto de línea crudo (típico en el disclaimer guardado desde la webapp, con Enter entre cada punto numerado), rompía ese comando al imprimir y el texto después del salto se perdía. Un párrafo en blanco (`\n\n` seguido) genera una línea vacía para conservar el espaciado.
 
@@ -254,7 +513,7 @@ Scan to view               F4, LEFT
   **Nota histórica:** la Fase 76 documentó el ticket-doble pero `printFirstTicketThenAskPayment()` nunca se llamaba desde ningún lado (Fase 80 lo conectó, orden firma→crédito→impresora→pago); Fase 81 puso la impresora antes del crédito; Fase 82 movió el envío del batch al ticket #1; Fase 83 movió el crédito antes de la firma por la razón de arriba. Hasta la Fase 87 esto solo aplicaba a `CurrentOrderActivity` — `PreOrderDetailActivity` tenía su propio orden más simple con una sola impresión. **Desde la Fase 88, `PreOrderDetailActivity` usa el mismo patrón de doble impresión** (ver nota siguiente).
 - **Doble impresión en pre-órdenes (Fase 88)** — mismo patrón que `CurrentOrderActivity` arriba, adaptado a `PreOrderDetailActivity`: orden final `finalizeItem()`(s) → firma → dañados → crédito → impresora → **`doConvertAndPrintFirst(skipPrint)`** (manda `convertPreOrder` con `payment_method=null`, guarda la respuesta en `sentConversion`, imprime ticket #1 sin "Payment:") → **`askPaymentMethod(skipPrint)`** (ahora corre después de convertir, no antes) → **`sendPaymentAndPrint(skipPrint)`** (adjunta el pago vía `updateBatchPayment` — el mismo endpoint genérico de la Fase 82, sin cambios de backend, porque `convertPreOrder` ya escribe en `orders` con el mismo esquema de `batch_id` que `createBatch` — e imprime el ticket #2). A diferencia de `CurrentOrderActivity`, no hay rama offline (`isOfflinePending`) — las pre-órdenes requieren internet siempre (server-only). Detalle completo: Fase 88 en `excellentia/PROGRESS.md`.
 - **`payment_method` persistido en MySQL (Fase 77)** — `orders.payment_method VARCHAR(20) NULL`. Se guarda en `createBatch` (mismo valor repetido en cada fila del batch, igual que `customer_id`/`customer_name`) y en `convertPreOrder`. Antes solo viajaba de paso hacia el `CustomerMemo` de la factura de QBO y se descartaba; ahora queda consultable en MySQL y visible en la webapp (`/orders`: columna "Payment" + filtro + línea en el ticket modal). De paso quedó activado el diálogo obligatorio de pago en `PreOrderDetailActivity` (Cash/Check/On Account, mismo patrón que `CurrentOrderActivity` — antes era dead code ahí también). También corregí `retryBatchSync` en el backend: mandaba `paymentMethod = null` hardcodeado al reintentar una factura fallida (porque `orders` nunca lo guardaba); ahora lee el valor ya persistido en la fila.
-- **Negative Sale / Créditos por daño** — `pendingDamageItems: List<DamageItem>` en CurrentOrderActivity (barcode/productName/qty por producto, no un contador único). Tras confirmar firma, `askDamagedItems()` muestra diálogo para capturar unidades dañadas/caducas por producto, y calcula `unitPrice` de cada uno con `unitValueOf()` (espeja la regla del backend: para Case divide `order.price / caseQty` porque ahí `order.price` ya es el precio de la caja completa). Se pasa a `PrintService.printTicket(damageItems, creditsTotal)` y a `OrderRepository.sendBatch()` → `BatchRequest.damageItems` → backend, que calcula el crédito autoritativo (`creditCalculator.ts`), lo persiste, lo agrega como línea negativa real en la factura de QBO (no solo memo), y lo devuelve en `BatchResponse.creditsTotal`. El ticket (impreso y en pantalla) muestra `Subtotal`/`Credits`/`TOTAL` solo si hay crédito — ver `creditsTotalOf()` en `data/Models.kt`. Se limpia a lista vacía tras `sendBatch()`. Detalle completo: Fase 75 en `excellentia/PROGRESS.md`.
+- **Negative Sale / Créditos por daño** — `pendingDamageItems: List<DamageItem>` en CurrentOrderActivity (barcode/productName/qty por producto, no un contador único). Tras confirmar firma, `askDamagedItems()` muestra diálogo para capturar unidades dañadas/caducas por producto, y calcula `unitPrice` de cada uno con `unitValueOf()` (espeja la regla del backend: **Fase 122 → devuelve `order.price` directo, sin dividir por `caseQty`**, porque `order.price` ahora es el precio de una unidad; antes había que dividir porque era el de la caja). Se pasa a `PrintService.printTicket(damageItems, creditsTotal)` y a `OrderRepository.sendBatch()` → `BatchRequest.damageItems` → backend, que calcula el crédito autoritativo (`creditCalculator.ts`), lo persiste, lo agrega como línea negativa real en la factura de QBO (no solo memo), y lo devuelve en `BatchResponse.creditsTotal`. El ticket (impreso y en pantalla) muestra `Subtotal`/`Credits`/`TOTAL` solo si hay crédito — ver `creditsTotalOf()` en `data/Models.kt`. Se limpia a lista vacía tras `sendBatch()`. Detalle completo: Fase 75 en `excellentia/PROGRESS.md`.
 - **Agregar crédito de un producto que no está en el carrito (Fase 85, persistido en Fase 86)** — `CurrentOrderActivity` tiene un botón `btnAddCreditItem` ("+ Agregar crédito", arriba de "Ver ticket"/"Finalizar pedido") que abre un diálogo de búsqueda (mismo patrón que `IssueCreditActivity`/`CreatePreOrderActivity` — sin escaneo DataWedge, solo búsqueda por nombre), pide cantidad (`title_credit_qty`/`hint_credit_qty`, reusa los strings de `IssueCreditActivity`), y llama `OrderRepository.saveCreditItem(barcode, productName, qty, unitPrice)`. `estimatedUnitValueOf(product: ProductDto)` es el mismo cálculo que `IssueCreditActivity` (Case/Unit/Bucket → price; resto → price × weightPerUnit) — distinto de `unitValueOf(order: PendingOrderEntity)` (para productos ya en el carrito, con semántica de precio distinta para Case).
   **Persistencia (Fase 86)** — los credit items viven en la **misma tabla** `pending_orders` que el carrito normal, con una columna nueva `is_credit INTEGER DEFAULT 0` (`AppDatabase` v13). Así sobreviven cerrar la app igual que los productos normales, sin tabla/DAO paralelos — antes vivían solo en `pendingDamageItems` (variable en memoria de `CurrentOrderActivity`), que se perdía si Android mataba el proceso. `OrderDao.findActiveByBarcodeAndPrice()` (usado al mergear un re-escaneo normal) filtra `is_credit = 0` para no mezclarse por accidente con una fila de crédito del mismo barcode (riesgo real en Case/Unit/Bucket, donde el precio unitario del crédito coincide con el precio normal de escaneo); `findActiveCreditByBarcode()` es el equivalente para mergear credit items entre sí; `count()` (badge "Ver pedido (N)" en MainActivity) excluye `is_credit = 1` — un crédito no es un "producto".
   Los 6 lugares de `CurrentOrderActivity` que llaman `orderRepository.getPendingOrders()` separan el resultado en `normalItems`/`creditRows` (`pending.filter { !it.isCredit }` / `{ it.isCredit }`): `loadOrder()` (renderiza ambos, tag "CREDIT" en rojo, borrar reusa `confirmDelete()` — es la misma tabla, mismo id), `askCreditQtyThenAdd()` (guarda vía `saveCreditItem`), `openTicket()` (preview — usa `pendingDamageItems` si ya tiene contenido, si no arma el preview desde `creditRows.map { it.toDamageItem() }`, para no duplicar), `askDamagedItems()` (el modal por-producto se arma solo con `normalItems`; al confirmar/"Ninguno" siempre agrega `creditRows.map { it.toDamageItem() }` — reemplazó la lógica de merge por barcode de la Fase 85, ya no hace falta con los créditos en SQLite), `askApplyCredit()` (`maxApply` usa el total neto: normales menos créditos), y **`printFirstTicketThenAskPayment()`** (el más crítico: `toBatchItems()` se arma solo con `normalItems` — si un crédito se colara ahí, se mandaría como línea positiva real en la factura, bug de dinero). `PendingOrderEntity.toDamageItem()` es el helper de conversión (`barcode`/`productName`/`quantity.toInt()`/`price` → `DamageItem`).
@@ -292,8 +551,8 @@ Scan to view               F4, LEFT
 - **Ticket en inglés** — `TicketDetailActivity` y `PrintService`: `"Pedido #"→"Order #"`, `"Factura #"→"Invoice #"`, `"Cliente:"→"Customer:"`, `"lb en total"→"lb total"`. Layout `activity_ticket_detail.xml`: `"Ticket de venta"→"Sale Ticket"`, `"Reimprimir ticket"→"Reprint ticket"`. El subtítulo del encabezado del recibo viene de `SecurePreferences.getCompanySubtitle()` (configurable en webapp `/settings`).
 - **HistoryActivity** — botón retry (`btnRetryEntry`) oculto con `GONE` en pedidos locales pendientes. Los pedidos del carrito local aparecen en historial como informativos únicamente. `HistoryActivity.bindRetry()` existe en el código pero **no se llama desde ningún lado** — es código muerto de un intento anterior; el retry real se implementó en `TicketDetailActivity` ("Resend to QuickBooks").
 - **Editar ítem del carrito** — `CurrentOrderActivity.editItem(order)` reabre `ProductDetailActivity` con extra `EDIT_ORDER_ID = order.id` (reemplazó al diálogo genérico `dialog_edit_order.xml`, eliminado — hablaba de "lb" para cualquier tipo de producto). `PRODUCT_PRICE` se manda tal cual (`order.price`, sin reconstrucción) — desde el fix de precio de Case (ver nota siguiente) `ProductDetailActivity` ya no re-multiplica nada, así que no hace falta dividir antes de mandarlo. En `ProductDetailActivity`: `resetCount()` precarga la cantidad existente en vez de reiniciar a 1; el stepper +/- funciona igual que al agregar (para peso, agrega/ajusta entradas en `weights`); `saveOrder()` llama `updatePendingOrder(id, price, quantity)` sobre la fila existente — para peso, `quantity = weights.sum()` (suma todo lo que haya en la lista, no solo la primera entrada, por si se incrementó durante la edición). El chequeo de vinculación a QBO (`qbStateBlocked`) se salta en modo edición porque `editItem()` no manda `QB_ITEM_ID`/`QB_ACTIVE` (no viven en `pending_orders`) y el ítem ya pasó esa validación al agregarse; el chequeo de barcode obligatorio sí se mantiene, porque el barcode viaja completo siempre.
-- **Precio de Case = precio de la caja completa, no se multiplica por caseQty (fix)** — `products.price` para un producto `unit = "Case"` ya es el precio de venta de la caja entera (ej. caja de 12 a $2.69 total), no el precio de una sola unidad dentro de la caja. Antes `ProductDetailActivity` calculaba `baseTotal = productPrice * caseQty` (ej. $2.69 × 12 = $32.28 — incorrecto, la tienda nunca vendió la caja a ese precio). Ahora `baseTotal`/`pricePerLb = productPrice` directo, sin multiplicar (`onCreate()` y `showProduct()`). Los labels que mostraban precio-por-unidad (`"$X/unit"` en `tvPrice`/`tvTotalWeight`) se invirtieron a `productPrice / caseQty` para seguir mostrando el precio unitario real. Efecto en cascada: `editItem()` ya no reconstruye `order.price / caseQty` al reabrir `ProductDetailActivity` (ver nota anterior); `estimatedUnitValueOf()` (crédito de un producto suelto, duplicado en `CurrentOrderActivity` e `IssueCreditActivity`) pasó de usar `product.price` directo para Case a `product.price / caseSize` (mismo criterio que `unitValueOf(order)`, que **no** cambió — ya dividía `order.price / order.caseQty` y sigue siendo correcto porque `order.price` sigue significando "precio de la caja completa" en ambos esquemas). El backend de facturación (QBO invoice, min_price) no necesitó cambios — nunca multiplicaba por su cuenta, solo usa el precio que manda el cliente. **`creditCalculator.ts` (backend) SÍ tenía el mismo bug y se corrigió aparte** — ver nota de fusión Case/Unit más abajo, se arregló junto con eso. **`caseSize` en `estimatedUnitValueOf()` usa `product.caseQty?.takeIf{it>0} ?: product.qty.takeIf{it>0}`** — no `product.caseQty` solo, porque `products.case_qty` no existe en MySQL y ese campo siempre llega null/0 (ver nota de Fase 87 sobre `product.qty`/`caseQty`, abajo). ⚠️ Pendiente de verificar en el backend/admin: si `min_price` de estos productos Case fue cargado asumiendo el precio multiplicado (~$32), ahora bloqueará ediciones al precio real (~$2.69) — puede necesitar recarga de datos, fuera del alcance de este repo Android.
-- **Fusión de tipos "Case" + "Unit" → "Case/Unit"** — pedido del usuario: ya no existen como tipos separados, se muestran/guardan como un solo valor `"Case/Unit"`, reusando la lógica de Case (precio = precio total del paquete, se divide por `caseQty`/`qty` para obtener el valor de una unidad). Bucket y Lbs no se tocaron. `data/Models.kt` — nuevo helper `isCaseUnitType(unit)` (acepta `"Case/Unit"` y, por compatibilidad con datos históricos no migrados, también `"Case"`/`"Unit"` sueltos) usado en vez de comparar contra `"Case"` en: `ProductDetailActivity.isCaseBased`/fallback de `caseQty`, `CurrentOrderActivity.estimatedUnitValueOf()`/`unitValueOf(order)`/el diálogo de `askDamagedItems()`, `IssueCreditActivity.estimatedUnitValueOf()`. Categoría de ticket fusionada: `TICKET_CATEGORY_ORDER = [LBS, CASE/UNIT, BUCKET]`, `ticketCategoryFor()` mapea `Case`/`Unit`/`Case/Unit` al mismo `"CASE/UNIT"` — así un ticket con productos históricamente "Case" y "Unit" mezclados los agrupa en una sola sección, no dos. El desglose `"N - Case/Unit of Q x $Y"` (en `PrintService.kt`/`TicketDetailActivity.kt`) ahora solo se muestra cuando `caseQty > 1` (antes `> 0`) — con paquete de tamaño 1 (el caso típico de lo que antes era "Unit" puro) no tiene sentido imprimir "of 1". **Backend** — `creditCalculator.ts.unitValueOf()` tenía el mismo bug que se arregló ayer en Android (dividía por caseQty en Android pero el backend seguía devolviendo `price` directo para Case, sub-corrigiendo el crédito real aplicado en la factura de QuickBooks): ahora también divide `price / qty` para Case/Unit/Case/Unit (agregó `qty` al SELECT — `products` no tiene `case_qty`, ver nota de Fase 87). **Webapp** (`excellentia-webapp/app/products/_components/ProductModal.tsx`) — dropdown de tipo de producto colapsado a un solo `<option value="Case/Unit">`; al editar un producto viejo con `unit="Case"`/`"Unit"` se normaliza a `"Case/Unit"` al popular el form para que el select preseleccione bien. `ProductRow.tsx` normaliza igual en la columna de la tabla. **Migración de datos** — `excellentia/src/routes/setup.ts` (endpoint `/api/setup`, se corre a mano tras el deploy): `UPDATE products SET unit='Case/Unit' WHERE unit IN ('Case','Unit')` — solo el catálogo vivo; `orders`/`pre_order_items` históricos **no** se tocan (quedan con el unit con el que se vendieron de verdad), la app y el backend ya tratan esos valores viejos como equivalentes a `Case/Unit` en la lectura.
+- **Precio de Case = precio de la caja completa, no se multiplica por caseQty (fix) — ⚠️ NOTA HISTÓRICA, SUPERADA por la Fase 122** — esta nota describe el esquema anterior, donde `products.price` era el precio de la caja y había que dividir por `caseQty`. **Hoy `products.price` ya es el precio de una unidad**, así que la división se eliminó por completo (`lineTotal()` multiplica, no divide). Todo lo de abajo sobre `/ caseQty` y `productPrice / caseQty` para los labels queda obsoleto: hoy `tvPrice`/`tvTotalWeight` muestran `productPrice` directo (unitario) y el total sale de `lineTotal()`. El resto del contexto histórico (Fase 87, `products.qty` como tamaño de caja, la normalización del dropdown en la webapp) sigue siendo válido. El texto original: `products.price` para un producto `unit = "Case"` ya es el precio de venta de la caja entera (ej. caja de 12 a $2.69 total), no el precio de una sola unidad dentro de la caja. Antes `ProductDetailActivity` calculaba `baseTotal = productPrice * caseQty` (ej. $2.69 × 12 = $32.28 — incorrecto, la tienda nunca vendió la caja a ese precio). Ahora `baseTotal`/`pricePerLb = productPrice` directo, sin multiplicar (`onCreate()` y `showProduct()`). Los labels que mostraban precio-por-unidad (`"$X/unit"` en `tvPrice`/`tvTotalWeight`) se invirtieron a `productPrice / caseQty` para seguir mostrando el precio unitario real. Efecto en cascada: `editItem()` ya no reconstruye `order.price / caseQty` al reabrir `ProductDetailActivity` (ver nota anterior); `estimatedUnitValueOf()` (crédito de un producto suelto, duplicado en `CurrentOrderActivity` e `IssueCreditActivity`) pasó de usar `product.price` directo para Case a `product.price / caseSize` (mismo criterio que `unitValueOf(order)`, que **no** cambió — ya dividía `order.price / order.caseQty` y sigue siendo correcto porque `order.price` sigue significando "precio de la caja completa" en ambos esquemas). El backend de facturación (QBO invoice, min_price) no necesitó cambios — nunca multiplicaba por su cuenta, solo usa el precio que manda el cliente. **`creditCalculator.ts` (backend) SÍ tenía el mismo bug y se corrigió aparte** — ver nota de fusión Case/Unit más abajo, se arregló junto con eso. **`caseSize` en `estimatedUnitValueOf()` usa `product.caseQty?.takeIf{it>0} ?: product.qty.takeIf{it>0}`** — no `product.caseQty` solo, porque `products.case_qty` no existe en MySQL y ese campo siempre llega null/0 (ver nota de Fase 87 sobre `product.qty`/`caseQty`, abajo). ⚠️ Pendiente de verificar en el backend/admin: si `min_price` de estos productos Case fue cargado asumiendo el precio multiplicado (~$32), ahora bloqueará ediciones al precio real (~$2.69) — puede necesitar recarga de datos, fuera del alcance de este repo Android.
+- **Fusión de tipos "Case" + "Unit" → "Case/Unit"** — pedido del usuario: ya no existen como tipos separados, se muestran/guardan como un solo valor `"Case/Unit"`, reusando la lógica de Case (⚠️ la parte de "el precio es el total del paquete y se divide por `caseQty`/`qty` para obtener el valor de una unidad" quedó SUPERADA por la Fase 122 — `price` ya es unitario y no se divide; ver la sección Fase 122 arriba. La fusión de los dos valores, y todo lo de `isCaseUnitType()`/categorías de ticket/normalización en la webapp, sigue vigente). Bucket y Lbs no se tocaron. `data/Models.kt` — nuevo helper `isCaseUnitType(unit)` (acepta `"Case/Unit"` y, por compatibilidad con datos históricos no migrados, también `"Case"`/`"Unit"` sueltos) usado en vez de comparar contra `"Case"` en: `ProductDetailActivity.isCaseBased`/fallback de `caseQty`, `CurrentOrderActivity.estimatedUnitValueOf()`/`unitValueOf(order)`/el diálogo de `askDamagedItems()`, `IssueCreditActivity.estimatedUnitValueOf()`. Categoría de ticket fusionada: `TICKET_CATEGORY_ORDER = [LBS, CASE/UNIT, BUCKET]`, `ticketCategoryFor()` mapea `Case`/`Unit`/`Case/Unit` al mismo `"CASE/UNIT"` — así un ticket con productos históricamente "Case" y "Unit" mezclados los agrupa en una sola sección, no dos. El desglose `"N - Case/Unit of Q x $Y"` (en `PrintService.kt`/`TicketDetailActivity.kt`) ahora solo se muestra cuando `caseQty > 1` (antes `> 0`) — con paquete de tamaño 1 (el caso típico de lo que antes era "Unit" puro) no tiene sentido imprimir "of 1". **Backend** — `creditCalculator.ts.unitValueOf()` tenía el mismo bug que se arregló ayer en Android (dividía por caseQty en Android pero el backend seguía devolviendo `price` directo para Case, sub-corrigiendo el crédito real aplicado en la factura de QuickBooks). **Fase 122: esa división se eliminó de los DOS lados** — `unitValueOf()` devuelve `price` directo y el `qty` que se le había agregado al SELECT ya no se usa para valuar (el `SELECT` sigue trayendo `qty` porque otros consumidores lo necesitan). **Webapp** (`excellentia-webapp/app/products/_components/ProductModal.tsx`) — dropdown de tipo de producto colapsado a un solo `<option value="Case/Unit">`; al editar un producto viejo con `unit="Case"`/`"Unit"` se normaliza a `"Case/Unit"` al popular el form para que el select preseleccione bien. `ProductRow.tsx` normaliza igual en la columna de la tabla. **Migración de datos** — `excellentia/src/routes/setup.ts` (endpoint `/api/setup`, se corre a mano tras el deploy): `UPDATE products SET unit='Case/Unit' WHERE unit IN ('Case','Unit')` — solo el catálogo vivo; `orders`/`pre_order_items` históricos **no** se tocan (quedan con el unit con el que se vendieron de verdad), la app y el backend ya tratan esos valores viejos como equivalentes a `Case/Unit` en la lectura.
 - **`formatQty()` en ProductDetailActivity** — muestra cantidades sin decimales de sobra ("2" en vez de "2.00"), conservando la parte fraccionaria cuando sí existe ("6.5"). Usado en los labels de cantidad/peso de esta pantalla (`tvTotalWeight`, `label_weight_display`) — no toca el ticket, que sigue mostrando siempre 2 decimales por convención de recibo.
 - **`values-es/strings.xml` existe y duplica algunos strings** — hay traducciones propias para varios recursos (ej. `label_weight_display`). Al cambiar el *formato* de un placeholder (`%.2f` → `%s`, agregar/quitar un argumento) en `values/strings.xml`, hay que revisar si ese mismo string tiene copia en `values-es/` y actualizarla igual — si no, un dispositivo en español carga la versión vieja con el placeholder desincronizado y explota con `IllegalFormatConversionException` en tiempo de ejecución (no lo detecta el compilador). Pasó con `label_weight_display` en la Fase 73.
 - **Ticket — agrupación de productos repetidos** — `GroupedTicketItem(barcode, productName, quantity, total)` en `data/Models.kt`, con extensiones `List<OrderDto>.groupedForTicket()` y `List<BatchItem>.groupedForTicket()` (`@JvmName` distinto por choque de firma JVM tras erasure). Agrupa por `barcode` (fallback `productName` si viene vacío), preserva orden de primera aparición, suma `quantity`/`total`; el precio/lb mostrado es el promedio ponderado `total/quantity`. Usado en `TicketDetailActivity.buildReceipt()` y `PrintService.buildCpcl()` — afecta vista "Ver ticket", ticket final, reimpresión e historial por igual. `grandTotal`/`totalQty` se siguen calculando sobre la lista completa (no la agrupada). `CurrentOrderActivity` (pantalla de edición) **no** agrupa — cada escaneo sigue siendo editable individualmente.

@@ -12,6 +12,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.PreOrderItem
+import com.example.test.data.lineTotal
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.repository.OrderRepository
@@ -134,10 +135,14 @@ class ProductDetailActivity : BaseActivity() {
             intent.getDoubleExtra(KEY_PREFILL_UNITS, 0.0).takeIf { it > 0 } else null
         routeLoadedUnits = if (intent.hasExtra(KEY_ROUTE_LOADED_UNITS))
             intent.getDoubleExtra(KEY_ROUTE_LOADED_UNITS, 0.0).takeIf { it > 0 } else null
-        // productPrice ya es el precio de la caja completa (no el de una unidad
-        // dentro de la caja) — no se multiplica por caseQty.
+        // Fase 122 — `productPrice` es el precio de UNA UNIDAD y es lo que se
+        // guarda en la orden (`price = pricePerLb`) y lo que viaja al backend.
+        // El precio de la CAJA completa (price × caseQty) solo se usa para
+        // mostrar y para multiplicar por la cantidad — nunca se persiste como
+        // `price`, porque `lineTotal()` (data/Models.kt) vuelve a multiplicar
+        // por caseQty y el total saldría 24x inflado.
         baseTotal = productPrice
-        pricePerLb = productPrice
+        pricePerLb = baseTotal
 
         val db = AppDatabase.getInstance(this)
         val securePrefs = SecurePreferences(this)
@@ -295,6 +300,22 @@ class ProductDetailActivity : BaseActivity() {
         // en PreOrderDetailActivity sobre una cantidad ya guardada), arrancar desde
         // ahí — solo aplica a case-based, que es donde QUANTITY ya está ocupado con
         // el tamaño de la caja y no puede llevar también la cantidad elegida.
+        //
+        // Bucket: `defaultWeight` acá SIEMPRE vale 1 cuando la pantalla se abre
+        // desde el catálogo, porque los 5 call sites que arman QUANTITY pasan por
+        // seedQuantityForStepper() (data/Models.kt) y para Bucket devuelven 1 fijo
+        // — su products.qty son las libras del balde, no un conteo. Por eso el
+        // "1 Bucket" es un dato, no un default de esta rama. NO agregar un guard
+        // "si es Bucket forzar 1" acá: en modo edición y en el "Cambiar" de
+        // pre-órdenes este mismo extra trae la cantidad REAL que eligió el
+        // operador (ej. 3 baldes) y un guard la pisaría.
+        //
+        // Lbs no pasa por acá: es isWeightBased → resetWeights(), que usa
+        // defaultWeight como el peso de cada bolsa. Ahí el mismo seed ya
+        // garantiza que sea weight_per_unit y no products.qty (que no es un
+        // peso) — por eso el orden inverso de esas dos columnas importa acá
+        // también, no solo en el texto de la pantalla: defaultWeight termina en
+        // orders.quantity y en la factura de QBO.
         units = when {
             editOrderId != null || !isCaseBased -> defaultWeight.toInt().coerceAtLeast(1)
             prefillUnits != null -> prefillUnits!!.toInt().coerceAtLeast(1)
@@ -411,6 +432,9 @@ class ProductDetailActivity : BaseActivity() {
     }
 
     private fun showProduct() {
+        // Fase 122 — `pricePerLb` es el precio por unidad y así se persiste.
+        // Para Case/Unit el total de la pantalla sale de `lineTotal()`, que ya
+        // multiplica por el tamaño de la caja.
         pricePerLb = productPrice
         tvBarcode.text = barcode
         tvProductName.text = productName
@@ -418,16 +442,16 @@ class ProductDetailActivity : BaseActivity() {
             isCaseBased -> {
                 val cq = caseQty ?: 0
                 tvPrice.text = if (cq > 1)
-                    String.format(Locale.US, "$%.2f / Case/Unit of %d ($%.2f/unit)", baseTotal, cq, productPrice / cq)
+                    String.format(Locale.US, "$%.2f / unit  ·  Case/Unit of %d ($%.2f/case)", productPrice, cq, productPrice * cq)
                 else
-                    String.format(Locale.US, "$%.2f / Case/Unit", baseTotal)
+                    String.format(Locale.US, "$%.2f / Case/Unit", productPrice)
             }
-            isWeightBased -> tvPrice.text = String.format(Locale.US, "$%.2f", baseTotal)
-            else -> tvPrice.text = String.format(Locale.US, "$%.2f / %s", baseTotal, productUnit ?: "Unit")
+            isWeightBased -> tvPrice.text = String.format(Locale.US, "$%.2f", productPrice)
+            else -> tvPrice.text = String.format(Locale.US, "$%.2f / %s", productPrice, productUnit ?: "Unit")
         }
         tvUnits.text = units.toString()
         when {
-            isCaseBased -> tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * units)
+            isCaseBased -> tvTotal.text = String.format(Locale.US, "$%.2f", lineTotal(pricePerLb, units.toDouble(), productUnit, caseQty))
             isWeightBased -> tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * defaultWeight)
             else -> tvTotal.text = String.format(Locale.US, "$%.2f", pricePerLb * units)
         }
@@ -438,16 +462,15 @@ class ProductDetailActivity : BaseActivity() {
         tvUnits.text = units.toString()
         when {
             isCaseBased -> {
-                val total = units * pricePerLb
+                val total = lineTotal(pricePerLb, units.toDouble(), productUnit, caseQty)
                 val cq = caseQty ?: 0
                 // cq <= 1 cubre tanto "case" real de tamaño 1 como los productos que
                 // antes eran "Unit" puro (se venden de a uno) — no tiene sentido
                 // desglosar "1 pack × 1 = 1 units" para esos.
                 tvTotalWeight.text = if (cq > 1) {
                     val totalUnits = units * cq
-                    val unitPrice = productPrice / cq
                     val packs = if (units > 1) "$units packs" else "1 pack"
-                    "$packs × $cq = $totalUnits units · ${String.format(Locale.US, "$%.2f", unitPrice)}/unit"
+                    "$packs × $cq = $totalUnits units · ${String.format(Locale.US, "$%.2f", productPrice)}/unit"
                 } else {
                     "$units Case/Unit"
                 }
@@ -561,7 +584,16 @@ class ProductDetailActivity : BaseActivity() {
 
                         val unitLabel = productUnit ?: "lb"
                         val tvPriceLine = TextView(this@ProductDetailActivity).apply {
-                            text = String.format(Locale.US, "%.2f %s  =  \$%.2f", item.quantity, unitLabel, item.price * item.quantity)
+                            // El total PERSISTIDO manda: el historial mezcla
+                            // ventas viejas (pre-Fase 122, precio de caja) con
+                            // las nuevas (precio por unidad) y `PriceHistoryItem`
+                            // no trae unit/caseQty de SU PROPIO registro para
+                            // poder decidir fila por fila. El fallback sí es
+                            // case-aware (usa el unit/case_qty del producto
+                            // que se está viendo), así que solo difiere para
+                            // filas que vinieron sin total.
+                            val shown = item.total ?: lineTotal(item.price, item.quantity, productUnit, caseQty)
+                            text = String.format(Locale.US, "%.2f %s  =  \$%.2f", item.quantity, unitLabel, shown)
                             textSize = 13f
                             setTextColor(resources.getColor(R.color.text_primary, theme))
                         }
@@ -606,7 +638,7 @@ class ProductDetailActivity : BaseActivity() {
                     productName = productName,
                     price = pricePerLb,
                     quantity = units.toDouble(),
-                    total = pricePerLb * units,
+                    total = lineTotal(pricePerLb, units.toDouble(), productUnit, caseQty),
                     unit = productUnit,
                     caseQty = caseQty,
                     shortName = productShortName

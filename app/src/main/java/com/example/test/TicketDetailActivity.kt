@@ -29,6 +29,7 @@ import com.example.test.data.OrderDto
 import com.example.test.data.byTicketCategory
 import com.example.test.data.creditsTotalOf
 import com.example.test.data.formatDamageQty
+import com.example.test.data.formatQty
 import com.example.test.data.groupedForTicket
 import com.example.test.data.isWeightTicketCategory
 import com.example.test.data.local.AppDatabase
@@ -36,6 +37,7 @@ import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.print.PrintService
 import com.example.test.data.repository.OrderRepository
+import com.example.test.data.ticketItemLine
 import com.google.android.material.button.MaterialButton
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
@@ -463,33 +465,23 @@ class TicketDetailActivity : AppCompatActivity() {
             addLine(category, bold = true, sizeSp = 11f)
             addSep(heavy = false)
             for (g in group) {
-                // Qty/W = cantidad total real seleccionada (Fase 96, pedido del
-                // usuario): Case/Unit multiplica por unidades por caja (caseQty) —
-                // 3 cajas de 12 = 36; Lbs/Bucket ya traen el total real en
-                // `quantity` (peso sumado / conteo de buckets), sin multiplicar. El
-                // rate se recalcula sobre esta cantidad (no sobre el número de
-                // cajas/pesadas) para que rate × qty siga dando el total de la línea.
-                val displayQty = if (category == "CASE/UNIT") {
-                    g.quantity * (g.caseQty?.takeIf { it > 0 } ?: 1)
-                } else {
-                    g.quantity
-                }
-                val avgPrice = if (displayQty != 0.0) g.total / displayQty else 0.0
-                // Cantidad seleccionada (prefijo del nombre, no confundir con
-                // displayQty de arriba): Lbs = cuántas pesadas individuales se
-                // agruparon en esta línea; Case/Unit y Bucket = cuántas unidades se
-                // eligieron (antes de multiplicar por unidades por caja).
-                val pickCount = if (isWeightTicketCategory(category)) g.count else g.quantity.toInt()
+                // Las 3 columnas (Qty/W · Rate · Total) las arma el helper
+                // compartido ticketItemLine() — mismo string exacto que se
+                // imprime, para que el preview y el ticket no se desincronicen.
+                val cols = ticketItemLine(g, category)
+                // Cantidad seleccionada (prefijo del nombre, no confundir con la
+                // columna Qty/W): Lbs = cuántas pesadas individuales se agruparon
+                // en esta línea; Case/Unit y Bucket = cuántas unidades se eligieron.
+                // `formatQty()` y no `.toInt()` por la misma razón que en
+                // ticketItemLine() — una cortesía parcial llega en cajas
+                // fraccionarias y se truncaría a "0 -".
+                val pickCount = if (isWeightTicketCategory(category)) g.count.toString()
+                    else formatQty(g.quantity)
                 addLine("$pickCount - ${g.productName}", sizeSp = 12f)
-                // Fase 100/101 — indicador corto de unidad en Qty/W.
-                val qtyStr = if (isWeightTicketCategory(category))
-                    String.format(Locale.US, "%.2f lb", displayQty)
-                else
-                    String.format(Locale.US, "%d %s", displayQty.toInt(), shortQtyUnit(category))
                 addThreeCol(
-                    left  = qtyStr,
-                    mid   = String.format(Locale.US, "\$%.2f", avgPrice),
-                    right = String.format(Locale.US, "\$%.2f", g.total),
+                    left  = cols.qty,
+                    mid   = cols.rate,
+                    right = cols.total,
                     sizeSp = 12f
                 )
                 addBlank(4)
@@ -637,20 +629,15 @@ class TicketDetailActivity : AppCompatActivity() {
         }
     }
 
+    // Indicador corto de unidad para la columna Qty/W (Fase 101) — NO es local:
+    // vive en `shortQtyUnit()` (data/Models.kt) junto al resto de los helpers de
+    // ticket, para que el preview y el ticket impreso no puedan desincronizarse.
+    // `unitLabel()` (nombre completo) sigue siendo local porque es el que se usa
+    // en el header de categoría y el pie del ticket.
     private fun unitLabel(unit: String?): String = when {
         unit.isNullOrBlank() || unit == "Lbs" -> "lb"
         com.example.test.data.isCaseUnitType(unit) -> "Case/Unit"
         else -> unit
-    }
-
-    // Indicador corto de unidad para la columna Qty/W (Fase 101) — a diferencia
-    // de unitLabel() (nombre completo, usado en el header de categoría), acá va
-    // abreviado porque comparte fila con rate/total. Basado en
-    // `ticketCategoryFor()` (ya normalizado a mayúsculas), no en el `unit` crudo.
-    private fun shortQtyUnit(category: String): String = when (category) {
-        "CASE/UNIT" -> "cs/unt"
-        "BUCKET" -> "bkt"
-        else -> category.take(3).lowercase(Locale.US)
     }
 
     // ── View helpers ──────────────────────────────────────────────────────────

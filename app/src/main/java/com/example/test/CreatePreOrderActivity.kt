@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test.data.PreOrderItem
 import com.example.test.data.PreOrderRequest
 import com.example.test.data.UserBrief
+import com.example.test.data.seedQuantityForStepper
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
@@ -346,11 +347,11 @@ class CreatePreOrderActivity : BaseActivity() {
                 getString(R.string.error_already_in_preorder), Snackbar.LENGTH_SHORT).show()
             return
         }
-        // Igual que PreOrderDetailActivity.finalizeItem(): QUANTITY acá es el
-        // tamaño de la caja (o el peso default), no una cantidad previamente
-        // elegida — es la primera vez que se agrega este producto.
-        val initialQty = if (product.qty > 0) product.qty.toDouble()
-            else product.weightPerUnit?.takeIf { it > 0 } ?: 1.0
+        // Igual que PreOrderDetailActivity.finalizeItem(): QUANTITY acá es la
+        // semilla del stepper (peso nominal / tamaño de caja / 1 fijo para
+        // Bucket), no una cantidad previamente elegida — es la primera vez que
+        // se agrega este producto. Ver seedQuantityForStepper().
+        val initialQty = seedQuantityForStepper(product.qty, product.weightPerUnit, product.unit)
         addItemLauncher.launch(Intent(this, ProductDetailActivity::class.java).apply {
             putExtra("BARCODE", barcode)
             putExtra("PRODUCT_NAME", product.name)

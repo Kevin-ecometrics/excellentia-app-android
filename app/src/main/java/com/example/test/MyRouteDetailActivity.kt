@@ -15,6 +15,7 @@ import com.example.test.data.RouteItemDto
 import com.example.test.data.RouteRequest
 import com.example.test.data.RouteStopDto
 import com.example.test.data.UpdateStopStatusRequest
+import com.example.test.data.seedQuantityForStepper
 import com.example.test.data.local.AppDatabase
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
@@ -503,8 +504,12 @@ class MyRouteDetailActivity : BaseActivity() {
                 Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_product_not_found, barcode), Snackbar.LENGTH_LONG).show()
                 return@launch
             }
-            val initialQty = if (product.qty > 0) product.qty.toDouble()
-                             else product.weightPerUnit?.takeIf { it > 0 } ?: 1.0
+            // QUANTITY es la semilla del stepper, no una cantidad elegida: el
+            // peso nominal para Lbs, el tamaño de caja para Case/Unit y 1 fijo
+            // para Bucket (products.qty son las libras del balde, no baldes) —
+            // ver seedQuantityForStepper(). El peso REALMENTE cargado a esta
+            // ruta no viaja por acá sino por KEY_ROUTE_LOADED_UNITS (abajo).
+            val initialQty = seedQuantityForStepper(product.qty, product.weightPerUnit, product.unit)
             startActivity(
                 Intent(this@MyRouteDetailActivity, ProductDetailActivity::class.java).apply {
                     putExtra("BARCODE", barcode)

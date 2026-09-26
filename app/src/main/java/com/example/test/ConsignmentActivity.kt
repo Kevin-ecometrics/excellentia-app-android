@@ -19,6 +19,7 @@ import com.example.test.data.ConsignmentSettleItem
 import com.example.test.data.ConsignmentSettleRequest
 import com.example.test.data.ProductDto
 import com.example.test.data.UpdateStopStatusRequest
+import com.example.test.data.isCaseUnitType
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.scan.DataWedgeScanner
@@ -353,7 +354,22 @@ class ConsignmentActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().registerConsignment(
                     routeId, stopId,
                     ConsignmentRegisterRequest(items = listOf(
-                        ConsignmentRegisterItem(productId = product.id, quantity = quantity, unit = product.unit, caseQty = product.caseQty)
+                        // La tabla `products` NO tiene columna case_qty (ver
+                        // ProductDetailActivity.kt:130-131): el tamaño real de la
+                        // caja viaja en `products.qty`, así que product.caseQty
+                        // llega siempre null y mandarlo crudo perdía el dato.
+                        // Sin case_qty, el backend liquida con
+                        // lineTotal(price, qty, unit, null) = price × qty — un
+                        // case de 24 a $1.50 en 2 cajas facturaba $3.00 en vez
+                        // de $72.00, y la fila de orders salía sin case_qty
+                        // (ticket sin el "× 24"). Mismo criterio que
+                        // EditBatchActivity.showAddProductDialog().
+                        ConsignmentRegisterItem(
+                            productId = product.id,
+                            quantity = quantity,
+                            unit = product.unit,
+                            caseQty = if (isCaseUnitType(product.unit)) product.qty else null
+                        )
                     ))
                 )
                 if (resp.isSuccessful) {

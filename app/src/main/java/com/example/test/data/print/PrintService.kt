@@ -13,7 +13,10 @@ import com.example.test.data.courtesyQuantityOrFull
 import com.example.test.data.courtesyUnitsOrFull
 import com.example.test.data.groupedForTicket
 import com.example.test.data.isWeightTicketCategory
+import com.example.test.data.lineTotal
 import com.example.test.data.courtesyQuantityOrFull
+import com.example.test.data.formatQty
+import com.example.test.data.ticketItemLine
 import com.example.test.data.local.SecurePreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -388,31 +391,18 @@ object PrintService {
             body.t(BODY_FONT, X_LEFT, y, category);                            y += BODY_H + 3
             body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 6
             for (g in group) {
-                // Qty/W = cantidad total real seleccionada (Fase 96, pedido del
-                // usuario): Case/Unit multiplica por unidades por caja (caseQty) —
-                // 3 cajas de 12 = 36; Lbs/Bucket ya traen el total real en
-                // `quantity` (peso sumado / conteo de buckets), sin multiplicar. El
-                // rate se recalcula sobre esta cantidad (no sobre el número de
-                // cajas/pesadas) para que rate × qty siga dando el total de la línea.
-                val displayQty = if (category == "CASE/UNIT") {
-                    g.quantity * (g.caseQty?.takeIf { it > 0 } ?: 1)
-                } else {
-                    g.quantity
-                }
-                val avgPrice  = if (displayQty != 0.0) g.total / displayQty else 0.0
-                val totalStr  = String.format(Locale.US, "\$%.2f", g.total)
-                val rateStr   = String.format(Locale.US, "\$%.2f", avgPrice)
-                // Fase 100/101 — indicador corto de unidad en Qty/W, un número puro
-                // ("105", "36") se prestaba a confusión sin contexto.
-                val qtyStr = if (isWeightTicketCategory(category))
-                    String.format(Locale.US, "%.2f lb", displayQty)
-                else
-                    String.format(Locale.US, "%d %s", displayQty.toInt(), shortQtyUnit(category))
+                // Las 3 columnas (Qty/W · Rate · Total) las arma el helper
+                // compartido ticketItemLine() — mismo string exacto que muestra
+                // el preview en pantalla, para que no se desincronicen.
+                val cols = ticketItemLine(g, category)
                 // Cantidad seleccionada (para el prefijo del nombre, no confundir con
-                // displayQty de arriba): Lbs = cuántas pesadas individuales se
+                // la columna Qty/W de arriba): Lbs = cuántas pesadas individuales se
                 // agruparon en esta línea; Case/Unit y Bucket = cuántas unidades se
-                // eligieron (antes de multiplicar por unidades por caja).
-                val pickCount = if (isWeightTicketCategory(category)) g.count else g.quantity.toInt()
+                // eligieron. `formatQty()` y no `.toInt()` por la misma razón que en
+                // ticketItemLine() — una cortesía parcial llega en cajas
+                // fraccionarias y se truncaría a "0 -".
+                val pickCount = if (isWeightTicketCategory(category)) g.count.toString()
+                    else formatQty(g.quantity)
                 val nameLines = wrapText(g.productName, ITEM_NAME_WIDTH)
                 for ((idx, line) in nameLines.withIndex()) {
                     if (idx == 0) {
@@ -421,7 +411,7 @@ object PrintService {
                         body.t(BODY_FONT, X_LEFT, y, line);                    y += BODY_H + 3
                     }
                 }
-                body.t(BODY_FONT, X_LEFT, y, threeCol(qtyStr, rateStr, totalStr )); y += BODY_H + 4
+                body.t(BODY_FONT, X_LEFT, y, threeCol(cols.qty, cols.rate, cols.total)); y += BODY_H + 4
                 y += 8
             }
         }
@@ -436,13 +426,13 @@ object PrintService {
         // una parte (courtesyQty). Se lista y descuenta la parte regalada
         // (courtesyQuantityOrFull() × price), no toda la fila; para cortesía
         // completa coincides con el it.total de Fase 115.5.
-        val courtesyTotal = courtesyItems.sumOf { it.price * it.courtesyQuantityOrFull() }
+        val courtesyTotal = courtesyItems.sumOf { lineTotal(it.price, it.courtesyQuantityOrFull(), it.unit, it.caseQty) }
         if (courtesyItems.isNotEmpty()) {
             body.t(BODY_FONT, X_LEFT, y, DASH);                                y += BODY_H + 6
             body.t(BODY_FONT, X_LEFT, y, "Courtesy Summary:");                 y += BODY_H + 4
             for (item in courtesyItems) {
                 val courtesyQty = item.courtesyQuantityOrFull()
-                val lineAmount = String.format(Locale.US, "\$%.2f", item.price * courtesyQty)
+                val lineAmount = String.format(Locale.US, "\$%.2f", lineTotal(item.price, courtesyQty, item.unit, item.caseQty))
                 // courtesyUnitsOrFull() — mismo criterio que en el carrito
                 // (CurrentOrderActivity): el texto se muestra en unidades
                 // individuales sueltas ("3 unit(s)"), no en cajas fraccionarias
@@ -713,21 +703,14 @@ object PrintService {
     private fun StringBuilder.left()   = append("LEFT\r\n")
     private fun StringBuilder.center() = append("CENTER\r\n")
 
+    // Nombre COMPLETO de la unidad — header de categoría y pie del ticket. El
+    // indicador corto de la columna Qty/W (`shortQtyUnit`) NO es local: vive en
+    // data/Models.kt junto al resto de los helpers de ticket, para que el
+    // impreso y el preview en pantalla no puedan desincronizarse.
     private fun unitLabel(unit: String?): String = when {
         unit.isNullOrBlank() || unit == "Lbs" -> "lb"
         com.example.test.data.isCaseUnitType(unit) -> "Case/Unit"
         else -> unit
-    }
-
-    // Indicador corto de unidad para la columna Qty/W (Fase 101) — a diferencia
-    // de unitLabel() (nombre completo, usado en el header de categoría y el pie
-    // del ticket), acá va abreviado porque comparte línea con rate/total en un
-    // ancho angosto. Basado en `ticketCategoryFor()` (ya normalizado a mayúsculas),
-    // no en el `unit` crudo del producto.
-    private fun shortQtyUnit(category: String): String = when (category) {
-        "CASE/UNIT" -> "cs/unt"
-        "BUCKET" -> "bkt"
-        else -> category.take(3).lowercase(Locale.US)
     }
 
     // Parte una dirección en líneas más naturales que el wrap por ancho solo.

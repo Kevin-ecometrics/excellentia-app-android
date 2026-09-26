@@ -32,6 +32,7 @@ import com.example.test.data.local.dao.ProductDao
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.repository.ProductRepository
 import com.example.test.data.repository.OrderRepository
+import com.example.test.data.seedQuantityForStepper
 import com.example.test.data.sync.SyncWorker
 import com.example.test.data.sync.OrderStatusWorker
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -610,8 +611,11 @@ class MainActivity : BaseActivity() {
                 runOnUiThread { showProductNotFound(barcode) }
                 return@launch
             }
-            val initialQty = if (product.qty > 0) product.qty.toDouble()
-                             else product.weightPerUnit?.takeIf { it > 0 } ?: quantity
+            // QUANTITY es la semilla del stepper, NO una cantidad elegida: el
+            // peso nominal para Lbs, el tamaño de caja para Case/Unit y 1 fijo
+            // para Bucket (su products.qty son las libras del balde). Ver
+            // seedQuantityForStepper() — no repetir el `if (qty > 0)` acá.
+            val initialQty = seedQuantityForStepper(product.qty, product.weightPerUnit, product.unit, quantity)
             securePrefs.saveLastScan(barcode, product.name)
             updateLastScan()
             startActivity(
@@ -650,6 +654,10 @@ class MainActivity : BaseActivity() {
 
     // Abre el detalle directo desde un resultado de búsqueda ya cargado (sin volver a
     // consultar por barcode) — permite mostrar y abrir productos sin barcode asignado.
+    // QUANTITY se arma con el MISMO seedQuantityForStepper() que openDetail() de arriba:
+    // si este path lo hiciera con su propio `if (qty > 0)`, el mismo producto abriría
+    // con semillas distintas según se escanee o se busque (un Bucket abriría con sus
+    // 32 libras como cantidad, y un Lbs con qty en vez de weight_per_unit).
     private fun openSuggestion(item: SuggestionItem) {
         val barcode = item.barcode ?: "unknown"
         if (item.barcode != null) {
@@ -662,7 +670,7 @@ class MainActivity : BaseActivity() {
                     putExtra("PRODUCT_NAME", item.name)
                     putExtra("SHORT_NAME", item.shortName)
                     putExtra("PRODUCT_PRICE", item.price)
-                    putExtra("QUANTITY", if (item.qty > 0) item.qty.toDouble() else item.weightPerUnit?.takeIf { it > 0 } ?: 1.0)
+                    putExtra("QUANTITY", seedQuantityForStepper(item.qty, item.weightPerUnit, item.unit))
                     putExtra("STOCK", item.stock)
                     putExtra("CUSTOMER_ID", securePrefs.getActiveCustomerId())
                     putExtra("CUSTOMER_NAME", securePrefs.getActiveCustomerName())

@@ -20,6 +20,7 @@ import com.example.test.data.OrderDto
 import com.example.test.data.ProductDto
 import com.example.test.data.courtesyQuantityOrFull
 import com.example.test.data.courtesyUnitsOrFull
+import com.example.test.data.lineTotal
 import com.example.test.data.UpdateStopStatusRequest
 import com.example.test.data.print.PrintService
 import com.example.test.data.local.AppDatabase
@@ -251,7 +252,7 @@ class CurrentOrderActivity : BaseActivity() {
                 val unitLabel = if (order.unit.isNullOrBlank() || order.unit == "Lbs") "lb" else order.unit
                 row.findViewById<TextView>(R.id.tvPendingName).text = order.productName
                 row.findViewById<TextView>(R.id.tvPendingMeta).text =
-                    "${order.barcode}  ·  ${String.format(Locale.US, "$%.2f total", order.price * order.quantity)}"
+                    "${order.barcode}  ·  ${String.format(Locale.US, "$%.2f total", order.lineTotal())}"
                 // Fase 115.5 — cortesía se muestra en $0.00 acá, igual que ya
                 // pasa en el ticket (Subtotal/Courtesy/Total) — price/quantity
                 // reales no cambian en la DB, es puramente el texto de esta
@@ -276,11 +277,11 @@ class CurrentOrderActivity : BaseActivity() {
                         setTextColor(getColor(R.color.ex_navy))
                     } else if (courtesyQty > 0) {
                         val paidQty = order.quantity - courtesyQty
-                        val paidAmount = order.price * paidQty
+                        val paidAmount = lineTotal(order.price, paidQty, order.unit, order.caseQty)
                         text = String.format(Locale.US, "%.2f %s  =  $%.2f · %d individual unit(s) %s", paidQty, unitLabel, paidAmount, courtesyUnits.toInt(), getString(R.string.label_courtesy_tag))
                         setTextColor(getColor(R.color.ex_navy))
                     } else {
-                        text = String.format(Locale.US, "%.2f %s  =  $%.2f", order.quantity, unitLabel, order.price * order.quantity)
+                        text = String.format(Locale.US, "%.2f %s  =  $%.2f", order.quantity, unitLabel, order.lineTotal())
                         setTextColor(getColor(R.color.primary))
                     }
                 }
@@ -341,12 +342,12 @@ class CurrentOrderActivity : BaseActivity() {
                 layoutOrderItems.addView(row)
             }
 
-            val grandTotal = normalItems.sumOf { it.price * it.quantity }
-            val creditsTotal = creditRows.sumOf { it.price * it.quantity }
+            val grandTotal = normalItems.sumOf { it.lineTotal() }
+            val creditsTotal = creditRows.sumOf { it.lineTotal() }
             // Fase 115.5 — mismo criterio que creditsTotal: se resta del ORDER
             // TOTAL mostrado acá, estimación local (el backend recalcula la
             // cifra autoritativa al armar la factura, ver createBatchInvoice).
-            val courtesyTotal = normalItems.sumOf { it.price * it.courtesyQuantityOrFull() }
+            val courtesyTotal = normalItems.sumOf { lineTotal(it.price, it.courtesyQuantityOrFull(), it.unit, it.caseQty) }
             val totalQty = normalItems.sumOf { it.quantity }
             val overallUnit = normalItems.firstOrNull()?.let {
                 if (it.unit.isNullOrBlank() || it.unit == "Lbs") "lb" else it.unit
@@ -503,22 +504,12 @@ class CurrentOrderActivity : BaseActivity() {
 
     // Espeja unitValueOf() del backend (creditCalculator.ts) — mismo criterio
     // que IssueCreditActivity, para un producto recién buscado (no viene de
-    // una fila del carrito). Case/Unit: product.price es el precio del
-    // paquete completo, se divide por el tamaño de paquete para obtener el
-    // valor de una sola unidad dañada (mismo ajuste que
-    // unitValueOf(order: PendingOrderEntity) más abajo). products.case_qty no
-    // existe en MySQL — product.caseQty siempre llega null/0, el tamaño real
-    // de paquete viaja en product.qty (ver MainActivity.openDetail()).
-    private fun estimatedUnitValueOf(product: ProductDto): Double {
-        val caseSize = product.caseQty?.takeIf { it > 0 } ?: product.qty.takeIf { it > 0 }
-        return if (com.example.test.data.isCaseUnitType(product.unit) && caseSize != null)
-            product.price / caseSize
-        else
-            // Bucket y Lbs: product.price ya es el valor por unidad/lb, directo
-            // (para Lbs, qty ya es el peso real dañado, no hace falta estimar
-            // con weightPerUnit).
-            product.price
-    }
+    // una fila del carrito). Fase 122: `product.price` es el precio de UNA
+    // UNIDAD, así que para Case/Unit no hay nada que ajustar — el tamaño de
+    // paquete (products.case_qty no existe en MySQL, el real viaja en
+    // product.qty) ya se aplicó cuando se armó el precio. Antes se dividía acá
+    // y eso dividía dos veces: $1.50 de unidad / 24 = $0.06.
+    private fun estimatedUnitValueOf(product: ProductDto): Double = product.price
 
     private fun askCreditQtyThenAdd(product: ProductDto) {
         val barcode = product.barcode ?: return
@@ -626,14 +617,14 @@ class CurrentOrderActivity : BaseActivity() {
                         listOf(
                             OrderDto(
                                 id = order.id, barcode = order.barcode, productName = order.productName,
-                                price = order.price, quantity = paidQty, total = order.price * paidQty,
+                                price = order.price, quantity = paidQty, total = lineTotal(order.price, paidQty, order.unit, order.caseQty),
                                 status = "PENDING", customerId = customerId, customerName = customerName,
                                 unit = order.unit, caseQty = order.caseQty, shortName = order.shortName,
                                 isCourtesy = false
                             ),
                             OrderDto(
                                 id = order.id + 1_000_000, barcode = order.barcode, productName = order.productName,
-                                price = order.price, quantity = courtesyQty, total = order.price * courtesyQty,
+                                price = order.price, quantity = courtesyQty, total = lineTotal(order.price, courtesyQty, order.unit, order.caseQty),
                                 status = "PENDING", customerId = customerId, customerName = customerName,
                                 unit = order.unit, caseQty = order.caseQty, shortName = order.shortName,
                                 isCourtesy = true
@@ -643,7 +634,7 @@ class CurrentOrderActivity : BaseActivity() {
                         listOf(
                             OrderDto(
                                 id = order.id, barcode = order.barcode, productName = order.productName,
-                                price = order.price, quantity = order.quantity, total = order.price * order.quantity,
+                                price = order.price, quantity = order.quantity, total = order.lineTotal(),
                                 status = "PENDING", customerId = customerId, customerName = customerName,
                                 unit = order.unit, caseQty = order.caseQty, shortName = order.shortName,
                                 isCourtesy = order.isCourtesy || courtesyQty > 0
@@ -735,17 +726,15 @@ class CurrentOrderActivity : BaseActivity() {
 
     // Valor por unidad de un producto en el carrito, para la estimación LOCAL
     // del crédito (preview antes de finalizar, y ticket offline). Espeja la
-    // regla autoritativa del backend (creditCalculator.ts): para Case/Unit,
-    // order.price ya es el precio del paquete completo — se divide por
-    // caseQty para volver al valor de una sola unidad. Para Lbs/Bucket,
-    // order.price ya es efectivamente el valor por unidad. Filas viejas de
-    // "Unit" guardadas antes de la fusión Case+Unit no tienen caseQty — caen
-    // al fallback `order.price` tal cual, igual que se comportaba "Unit" antes.
+    // regla autoritativa del backend (creditCalculator.ts) — Fase 122:
+    // `products.price` YA es el valor de una unidad, así que para Case/Unit no
+    // hay nada que ajustar. Antes se dividía por `caseQty` y, con el precio
+    // ahora en escala unitaria, eso dividía dos veces ($1.50 / 24 = $0.06
+    // cuando el valor real de una unidad es $1.50). Para Lbs/Bucket también
+    // es `price` directo. El `caseQty` queda sin uso acá — la cantidad de
+    // unidades de una fila se calcula con displayUnitsOf()/courtesyUnitsOrFull().
     private fun unitValueOf(order: com.example.test.data.local.entities.PendingOrderEntity): Double =
-        if (com.example.test.data.isCaseUnitType(order.unit) && (order.caseQty ?: 0) > 0)
-            order.price / order.caseQty!!
-        else
-            order.price
+        order.price
 
     // Fase 86 — una fila de crédito (is_credit = true) ya guarda barcode/
     // productName/quantity/price con la semántica correcta de DamageItem
@@ -842,8 +831,10 @@ class CurrentOrderActivity : BaseActivity() {
                 }
                 val tvDetail = android.widget.TextView(ctx).apply {
                     val detailText = if (com.example.test.data.isCaseUnitType(order.unit) && (order.caseQty ?: 0) > 1) {
-                        val perUnitPrice = order.price / order.caseQty!!
-                        String.format(Locale.US, "%.0f %s of %d · \$%.2f/unit", order.quantity, unitLabel, order.caseQty, perUnitPrice)
+                        // Fase 122 — `price` ya es el precio de una unidad, no
+                        // del paquete: se muestra directo (antes se dividía
+                        // por caseQty y daba 1/24 del valor real).
+                        String.format(Locale.US, "%.0f %s of %d · \$%.2f/unit", order.quantity, unitLabel, order.caseQty, order.price)
                     } else if (order.unit.isNullOrBlank() || order.unit == "Lbs") {
                         String.format(Locale.US, "%.2f %s · \$%.2f/%s", order.quantity, unitLabel, order.price, unitLabel)
                     } else {
@@ -930,7 +921,7 @@ class CurrentOrderActivity : BaseActivity() {
                 productName = order.productName,
                 price = order.price,
                 quantity = order.quantity,
-                total = order.price * order.quantity,
+                total = order.lineTotal(),
                 unit = order.unit,
                 caseQty = order.caseQty,
                 isCourtesy = order.courtesyQuantityOrFull() > 0,
@@ -1066,8 +1057,8 @@ class CurrentOrderActivity : BaseActivity() {
                         // parcial se resta solo la parte regalada
                         // (courtesyQuantityOrFull), no toda la fila.
                         val netTotal = pendingAll.filter { !it.isCredit }
-                            .sumOf { it.price * (it.quantity - it.courtesyQuantityOrFull()) } -
-                            pendingAll.filter { it.isCredit }.sumOf { it.price * it.quantity }
+                            .sumOf { lineTotal(it.price, it.quantity - it.courtesyQuantityOrFull(), it.unit, it.caseQty) } -
+                            pendingAll.filter { it.isCredit }.sumOf { it.lineTotal() }
                         val maxApply = minOf(balance.balance, netTotal.coerceAtLeast(0.0))
                         val msg = getString(R.string.msg_credit_apply,
                             String.format(Locale.US, "%.2f", balance.balance),
@@ -1312,8 +1303,8 @@ class CurrentOrderActivity : BaseActivity() {
                             if (courtesyQty > 0 && courtesyQty < bi.quantity) {
                                 val paidQty = bi.quantity - courtesyQty
                                 listOf(
-                                    row(0, paidQty, bi.price * paidQty, false),
-                                    row(1, courtesyQty, bi.price * courtesyQty, true)
+                                    row(0, paidQty, lineTotal(bi.price, paidQty, bi.unit, bi.caseQty), false),
+                                    row(1, courtesyQty, lineTotal(bi.price, courtesyQty, bi.unit, bi.caseQty), true)
                                 )
                             } else {
                                 listOf(row(0, bi.quantity, bi.total, bi.isCourtesy))

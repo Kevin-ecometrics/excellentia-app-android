@@ -28,7 +28,12 @@ data class ScanEntry(
     val quantity: Double,
     val timestamp: Long = System.currentTimeMillis(),
     val status: SyncStatus = SyncStatus.PENDING,
-    val unit: String? = null
+    val unit: String? = null,
+    // Fase 122 — hace falta para el total de la fila: `price` es el precio de
+    // una unidad y para Case/Unit el total multiplica por el tamaño de caja
+    // (lineTotal()). Venía del OrderDto pero se perdía en este DTO intermedio,
+    // y sin él la fila de Historial mostraba $3.00 en vez de $72.00.
+    val caseQty: Int? = null
 ) {
     val formattedTime: String
         get() = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(timestamp))
@@ -237,14 +242,109 @@ fun List<OrderDto>.groupedForTicket(): List<GroupedTicketItem> {
 // número de CAJAS) — mismo criterio que `courtesyRowsFor()` en el backend
 // (orderController.ts). Esta función convierte de vuelta a la escala de
 // `quantity` (cajas, puede quedar fraccionario) para que el resto del código
-// (comparaciones contra `quantity`, `price * courtesyQuantityOrFull()` para
-// el total en dólares, el split pagada/cortesía del ticket) seguya
-// funcionando sin tener que conocer `caseQty` en cada lugar donde se usa.
+// (comparaciones contra `quantity`, el split pagada/cortesía del ticket)
+// seguya funcionando sin tener que conocer `caseQty` en cada lugar donde se
+// usa. Para el total en dólares NO se usa esta conversión: desde la Fase 122
+// el precio es por unidad y el total sale de `lineTotal()`, que aplica el
+// `× caseQty` una sola vez y en la escala correcta.
 // Antes de este fix, courtesyQty se comparaba directo contra `quantity` sin
 // pasar por caseQty — "regalar 1 unidad suelta de un case de 24" se leía
 // como "regalar 1 caja completa" y cobraba/acreditaba 24x de más.
 private fun courtesyCaseSize(unit: String?, caseQty: Int?): Int =
     if (isLbsUnit(unit)) 1 else (caseQty?.takeIf { it > 0 } ?: 1)
+
+// ── Fase 122 — `products.price` es el precio de UNA UNIDAD ──────────────────
+// `price` dejó de ser el precio del paquete completo: para Case/Unit es el
+// valor de una unidad suelta dentro de la caja, así que el total de la línea
+// hay que multiplicarlo por el tamaño de la caja. Un case de 24 a $1.50
+// vendido en 2 cajas es 1.50 × 24 × 2 = $72.00, no $3.00.
+//
+//   Case/Unit → price × caseQty × quantity   (1.50 × 24 × 2 = 72.00)
+//   Lbs       → price × quantity             (peso real, sin cambios)
+//   Bucket    → price × quantity             (price x qty, sin cambios)
+//
+// Todo el dinero de la app pasa por acá en vez de repetir el `× caseQty` en
+// cada pantalla — 13 sitios distintos con el producto embebido era la forma
+// más corta de que dos pantallas calcularan distinto. Espeja
+// `unitValueOf()` del backend (creditCalculator.ts), que post-Fase 122 ya no
+// divide el precio por el tamaño de caja.
+fun lineTotal(price: Double, quantity: Double, unit: String?, caseQty: Int?): Double {
+    val caseSize = if (isCaseUnitType(unit)) (caseQty?.takeIf { it > 0 } ?: 1) else 1
+    return price * caseSize * quantity
+}
+
+fun BatchItem.lineTotal(): Double = lineTotal(price, quantity, unit, caseQty)
+
+fun com.example.test.data.local.entities.PendingOrderEntity.lineTotal(): Double =
+    lineTotal(price, quantity, unit, caseQty)
+
+// ── Semilla de cantidad del stepper de venta (extra `QUANTITY`) ─────────────
+// `products.qty` significa una cosa distinta según el tipo, y por eso no puede
+// servirse como "cantidad a la que arranca el stepper" en todos los casos:
+//
+//   Lbs       → la semilla es `weight_per_unit` (el peso nominal del
+//               catálogo, ej. una bolsa de 2.35 lb). `qty` es un dato que
+//               puede existir sin ser un peso (ver abajo)
+//   Case/Unit → products.qty son las UNIDADES POR CAJA (ej. 24) — es un
+//               atributo del producto, no una cantidad elegida
+//   Bucket    → products.qty son las LIBRAS DEL BALDE (un "32# Bucket" tiene
+//               qty = 32) — tampoco es una cantidad elegida
+//
+// LA PRIORIDAD PARA LBS: `weight_per_unit` gana siempre que esté cargado, y
+// `qty` queda solo como último recurso. Antes el orden era `qty > 0` primero
+// para todos los tipos, así que un Lbs que tuviera ambos campos llenados
+// abría con el `qty` como peso. Para un Lbs eso no es un detalle de
+// pantalla: el extra `QUANTITY` es el peso de la bolsa en `resetWeights()`
+// → `orders.quantity`/`total` → factura de QBO. Un "2.35 lb" con `qty = 24`
+// facturaba 24.00 lb.
+// No es una preferencia inventada acá: el resto de la app ya usa
+// `weight_per_unit` como el peso del producto y NUNCA mira `qty` para eso —
+// `ReceivingActivity.expectedWeight`, `WarehouseRouteDetailActivity`
+// (diálogos de cantidad), `InventoryMovementsActivity`/`WarehouseInventoryActivity`
+// (expectedBoxWeight) y `EditBatchActivity.showAddProductDialog()`
+// (`if (isLbsUnit(p.unit)) (p.weightPerUnit ?: 1.0) else 1.0`). El seed del
+// stepper era el único que se había quedado con el orden viejo.
+//
+// Por qué `qty` igual queda como último resort en vez de descartarse: un Lbs
+// (o un producto con `unit` en blanco, que `isLbsUnit()` también trata como
+// Lbs) puede no tener `weight_per_unit` cargado. Es el único dato disponible
+// en ese caso, así que se usa antes que el `fallback`.
+//
+// El caso de Bucket era el mismo tipo de bug: los call sites hacían
+// `if (qty > 0) qty` a secas, así que escanear un Bucket abría la pantalla de
+// venta con "32 Bucket" y un total 32x. Bucket arranca siempre en 1 (un balde),
+// que es lo mismo que ya hacían `EditBatchActivity.showAddProductDialog()` y el
+// propio `MyRouteDetailActivity` en su comentario. Solo cambia el valor de
+// ARRANQUE, no la matemática: `lineTotal()` para Bucket sigue siendo
+// `price × quantity` (el `qty` en libras nunca entra, ni acá ni ahí), y para
+// Lbs sigue siendo `price × peso`.
+//
+// El `else` final cubre valores de `unit` que no son Lbs/Case-Unit/Bucket
+// (ej. un "Pounds" legacy): para esos no hay regla documentada, así que se
+// conserva el `qty` primero como antes.
+//
+// No confundir con el otro sentido de `QUANTITY`: cuando se edita una fila del
+// carrito (`EDIT_ORDER_ID`) o se precarga una cantidad ya elegida
+// (`PREFILL_UNITS` / pre-orden "Cambiar"), ese extra trae la cantidad REAL
+// que quiere el operador y hay que respetarla — por eso la validación vive
+// acá, en el paso catálogo → semilla, y no como un guard en el receptor.
+fun seedQuantityForStepper(
+    qty: Int,
+    weightPerUnit: Double?,
+    unit: String?,
+    fallback: Double = 1.0
+): Double = when {
+    isBucketUnit(unit) -> 1.0
+    // Para Lbs el peso nominal del catálogo manda, y `qty` queda de último
+    // recurso (ver el comentario de arriba). Ojo: `isLbsUnit()` da true
+    // también con `unit` en blanco, así que esta rama cubre los productos sin
+    // tipo cargado — que es donde más fácil coexisten los dos campos.
+    isLbsUnit(unit) -> weightPerUnit?.takeIf { it > 0 }
+        ?: qty.takeIf { it > 0 }?.toDouble()
+        ?: fallback
+    qty > 0 -> qty.toDouble()
+    else -> weightPerUnit?.takeIf { it > 0 } ?: fallback
+}
 
 fun BatchItem.courtesyQuantityOrFull(): Double {
     val caseSize = courtesyCaseSize(unit, caseQty)
@@ -331,6 +431,10 @@ fun isCaseUnitType(unit: String?): Boolean =
 // Bucket siguen siendo conteos enteros de piezas.
 fun isLbsUnit(unit: String?): Boolean = unit.isNullOrBlank() || unit.equals("Lbs", true)
 
+// Tercer tipo de venta, para lo que necesita distinguirse de "Lbs" y de
+// "Case/Unit" explícitamente (no por descarte del `when`).
+fun isBucketUnit(unit: String?): Boolean = unit.equals("Bucket", true)
+
 fun formatDamageQty(qty: Double, unit: String?): String =
     if (isLbsUnit(unit)) String.format(Locale.US, "%.2f lb", qty)
     else String.format(Locale.US, "%d unit(s)", qty.toInt())
@@ -381,6 +485,52 @@ fun List<GroupedTicketItem>.byTicketCategory(): List<Pair<String, List<GroupedTi
     val orderedKeys = TICKET_CATEGORY_ORDER.filter { groups.containsKey(it) } +
         groups.keys.filter { it !in TICKET_CATEGORY_ORDER }.sorted()
     return orderedKeys.map { it to groups.getValue(it) }
+}
+
+// Indicador corto de unidad para la columna Qty/W (Fase 101) — a diferencia de
+// `unitLabel()` (nombre completo, usado en el header de categoría y el pie del
+// ticket), acá va abreviado porque comparte línea con rate/total. Basado en
+// `ticketCategoryFor()` (ya normalizado a mayúsculas), no en el `unit` crudo.
+fun shortQtyUnit(category: String): String = when (category) {
+    "CASE/UNIT" -> "cs/unt"
+    "BUCKET" -> "bkt"
+    else -> category.take(3).lowercase(Locale.US)
+}
+
+// Las 3 columnas de la línea de ítem del ticket, ya formateadas.
+data class TicketItemLine(val qty: String, val rate: String, val total: String)
+
+// Arma Qty/W · Rate · Total de una línea de ítem del ticket. Compartido por el
+// ticket impreso (PrintService.buildCpcl) y el preview en pantalla
+// (TicketDetailActivity.buildReceipt): antes el cálculo estaba duplicado a mano
+// en los dos y ya se desincronizó una vez.
+fun ticketItemLine(g: GroupedTicketItem, category: String): TicketItemLine {
+    // Fase 121/122 — para Case/Unit el Rate es el precio de UNA UNIDAD dentro
+    // de la caja. `products.price` ya es ese valor y `quantity` viene en cajas,
+    // así que el total de la línea vive una escala más arriba: dividir solo por
+    // `quantity` daba el precio de la CAJA ($36.00) en vez del de la unidad
+    // ($1.50). Con `caseQty` en el denominador el Rate vuelve a ser el número
+    // que la app muestra en la pantalla de venta, y `rate × caseQty × qty`
+    // sigue dando el total. Qty/W NO se toca — sigue mostrando cajas con el
+    // tamaño explícito ("2 cs/unt x24"), que es lo que se pidió.
+    val caseSize = g.caseQty ?: 0
+    val qty = when {
+        isWeightTicketCategory(category) -> String.format(Locale.US, "%.2f lb", g.quantity)
+        category == "CASE/UNIT" && caseSize > 1 ->
+            String.format(Locale.US, "%s cs/unt x%d", formatQty(g.quantity), caseSize)
+        else -> String.format(Locale.US, "%s %s", formatQty(g.quantity), shortQtyUnit(category))
+    }
+    // `rate × qty` tiene que dar el total: para Case/Unit `qty` está en cajas
+    // pero el total cubre `qty × caseQty` unidades, así que el Rate se deriva
+    // dividiendo por las dos escalas. Para Lbs y Bucket caseSize = 0/1 y queda
+    // el `total / quantity` de siempre.
+    val rateDivisor = g.quantity * (if (category == "CASE/UNIT" && caseSize > 1) caseSize else 1)
+    val rateValue = if (rateDivisor != 0.0) g.total / rateDivisor else 0.0
+    return TicketItemLine(
+        qty   = qty,
+        rate  = String.format(Locale.US, "\$%.2f", rateValue),
+        total = String.format(Locale.US, "\$%.2f", g.total)
+    )
 }
 
 // ── Ticket: créditos por daño ───────────────────────────────────────────────

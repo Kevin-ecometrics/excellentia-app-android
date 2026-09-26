@@ -24,6 +24,7 @@ import com.example.test.data.ConvertPreOrderRequest
 import com.example.test.data.ConvertPreOrderResponse
 import com.example.test.data.courtesyQuantityOrFull
 import com.example.test.data.DamageItem
+import com.example.test.data.lineTotal
 import com.example.test.data.OrderDto
 import com.example.test.data.PreOrderDto
 import com.example.test.data.PreOrderItem
@@ -36,6 +37,7 @@ import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
 import com.example.test.data.print.PrintService
 import com.example.test.data.repository.PreOrderRepository
+import com.example.test.data.seedQuantityForStepper
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
@@ -599,12 +601,13 @@ class PreOrderDetailActivity : BaseActivity() {
                 // el tamaño de la caja, así que la cantidad elegida viaja aparte por
                 // PREFILL_UNITS; para peso/unidad simple no hay conflicto y puede
                 // reemplazar directo el seed de QUANTITY.
+                //
+                // La rama del seed es seedQuantityForStepper() (no `if (qty > 0)`):
+                // para un Bucket su products.qty son las LIBRAS del balde, así que
+                // usarlo como cantidad guardaría una pre-orden de "32 baldes".
                 val isCaseBasedProduct = com.example.test.data.isCaseUnitType(product.unit) && (product.caseQty ?: 0) > 0
-                val initialQty = when {
-                    prefillUnits != null && !isCaseBasedProduct -> prefillUnits
-                    product.qty > 0 -> product.qty.toDouble()
-                    else -> product.weightPerUnit?.takeIf { it > 0 } ?: 1.0
-                }
+                val initialQty = if (prefillUnits != null && !isCaseBasedProduct) prefillUnits
+                    else seedQuantityForStepper(product.qty, product.weightPerUnit, product.unit)
                 pendingFinalizeIndex = index
                 finalizeItemLauncher.launch(Intent(this@PreOrderDetailActivity, ProductDetailActivity::class.java).apply {
                     putExtra("BARCODE", draft.barcode)
@@ -661,14 +664,21 @@ class PreOrderDetailActivity : BaseActivity() {
                     return@launch
                 }
                 val freshPrice = product.price
+                // Fase 122 — resolver unit/caseQty ANTES del total: `price` es
+                // el precio de una UNIDAD y `quantity` viene en cajas para
+                // Case/Unit, así que el total tiene que pasar por lineTotal()
+                // (1.50 × 24 × 2 = 72.00). Con `freshPrice * quantity` una
+                // pre-orden de 2 cajas quedaba en $3.00.
+                val finalUnit = draft.unit ?: product.unit
+                val finalCaseQty = draft.caseQty ?: product.caseQty
                 val finalized = PreOrderItem(
                     barcode = draft.barcode,
                     productName = product.name,
                     price = freshPrice,
                     quantity = quantity,
-                    total = freshPrice * quantity,
-                    unit = draft.unit ?: product.unit,
-                    caseQty = draft.caseQty ?: product.caseQty,
+                    total = lineTotal(freshPrice, quantity, finalUnit, finalCaseQty),
+                    unit = finalUnit,
+                    caseQty = finalCaseQty,
                     shortName = product.shortName ?: draft.shortName
                 )
                 finalizedByIndex[index] = listOf(finalized)
@@ -1152,8 +1162,8 @@ class PreOrderDetailActivity : BaseActivity() {
                             if (courtesyQty > 0 && courtesyQty < bi.quantity) {
                                 val paidQty = bi.quantity - courtesyQty
                                 listOf(
-                                    row(0, paidQty, bi.price * paidQty, false),
-                                    row(1, courtesyQty, bi.price * courtesyQty, true)
+                                    row(0, paidQty, lineTotal(bi.price, paidQty, bi.unit, bi.caseQty), false),
+                                    row(1, courtesyQty, lineTotal(bi.price, courtesyQty, bi.unit, bi.caseQty), true)
                                 )
                             } else {
                                 listOf(row(0, bi.quantity, bi.total, bi.isCourtesy))
