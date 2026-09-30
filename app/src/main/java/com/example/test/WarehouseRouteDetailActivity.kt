@@ -77,11 +77,16 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     private var pendingRetryProduct: ProductDto? = null
     private var pendingRetryQuantity: Double = 1.0
 
-    // route_stop_id (2026-09-18) — para qué parada/cliente es la carga
-    // actual; addRouteItem lo exige siempre. Se autocompleta sola si la
-    // ruta tiene una única parada, si no hay que elegirla a mano con
-    // btnLoadingForStop antes de poder escanear/buscar.
+    // route_stop_id (2026-09-18 → opcional desde 2026-09-28, backlog cliente
+    // #3): para qué parada/cliente es la carga actual. Se autocompleta sola
+    // si la ruta tiene una única parada; con 0 o 2+ paradas hay que elegir a
+    // mano con btnLoadingForStop — incluye la opción "Sin asignar (carga
+    // general)" para cargar el camión sin depender de que ya exista un
+    // cliente/parada. loadingStopDecided distingue "sin decidir todavía"
+    // (null + false, bloquea el escaneo) de "decidido: carga general"
+    // (null + true, ya se puede escanear con route_stop_id = null).
     private var currentLoadingStopId: Int? = null
+    private var loadingStopDecided: Boolean = false
 
     private val receivingLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -250,7 +255,10 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             })
         }
 
-        dwReceiver = DataWedgeScanner.createReceiver { barcode -> onBarcodeScanned(barcode) }
+        dwReceiver = DataWedgeScanner.createReceiver(
+            onBarcode = { barcode -> onBarcodeScanned(barcode) },
+            onEmpty = { if (weightTarget != null) onWeightScanned(null) }
+        )
 
         loadDetail()
     }
@@ -420,22 +428,32 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             getString(R.string.wh_route_completed_banner)
         btnAddStop.isEnabled = !locked && !directFull
 
-        // route_stop_id (2026-09-18) — si la parada que tenía elegida ya no
-        // existe (la borraron), se resetea. Con una sola parada se
-        // autocompleta sola y el botón queda informativo (no hace falta
-        // tocarlo); con 0 o 2+ hay que elegir a mano.
+        // route_stop_id (2026-09-18 → opcional desde 2026-09-28) — si la
+        // parada que tenía elegida ya no existe (la borraron), se resetea.
+        // Con una sola parada se autocompleta sola; sin ninguna parada
+        // todavía, se decide sola por "carga general" (nada para elegir);
+        // con 2+ hay que elegir a mano (incluye la opción "Sin asignar").
         if (currentLoadingStopId != null && d.stops.none { it.id == currentLoadingStopId }) {
             currentLoadingStopId = null
+            loadingStopDecided = false
         }
-        if (currentLoadingStopId == null && d.stops.size == 1) {
+        if (!loadingStopDecided && d.stops.size == 1) {
             currentLoadingStopId = d.stops[0].id
+            loadingStopDecided = true
+        }
+        if (!loadingStopDecided && d.stops.isEmpty()) {
+            currentLoadingStopId = null
+            loadingStopDecided = true
         }
         val chosenStop = d.stops.firstOrNull { it.id == currentLoadingStopId }
-        btnLoadingForStop.text = chosenStop?.let { getString(R.string.wh_loading_for, it.customerName ?: "—") }
-            ?: getString(R.string.wh_choose_loading_stop)
-        btnLoadingForStop.isEnabled = !locked && d.stops.isNotEmpty()
-        btnManualEntry.isEnabled = !locked && d.stops.isNotEmpty()
-        btnFromReceiving.isEnabled = !locked && d.stops.isNotEmpty()
+        btnLoadingForStop.text = when {
+            chosenStop != null -> getString(R.string.wh_loading_for, chosenStop.customerName ?: "—")
+            loadingStopDecided -> getString(R.string.wh_loading_for, getString(R.string.wh_unassigned_load))
+            else -> getString(R.string.wh_choose_loading_stop)
+        }
+        btnLoadingForStop.isEnabled = !locked
+        btnManualEntry.isEnabled = !locked
+        btnFromReceiving.isEnabled = !locked
         // Fase 112 — revisar devoluciones solo tiene sentido con el camión ya
         // de vuelta (COMPLETED); antes no hay nada físico que contar todavía.
         // Ya revisada: se deja visible pero deshabilitada (en vez de ocultarla)
@@ -451,30 +469,37 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         renderItems(d.items)
     }
 
-    // Corta el flujo de carga (escanear/buscar) si todavía no se eligió para
+    // Corta el flujo de carga (escanear/buscar) si todavía no se decidió para
     // qué parada es — en vez de dejar que addRouteItem falle con un 400 sin
-    // contexto. true = ya hay una elegida, se puede seguir.
+    // contexto. true = ya se decidió (una parada puntual O "sin asignar"),
+    // se puede seguir. Con 0 paradas, renderRoute() ya decidió sola "sin
+    // asignar" — este método casi no dispara en ese caso.
     private fun ensureLoadingStopChosen(): Boolean {
-        val d = detail
-        if (currentLoadingStopId != null) return true
-        val msg = if (d != null && d.stops.isEmpty()) R.string.wh_no_stops_to_load else R.string.wh_pick_stop_first
-        Snackbar.make(findViewById(android.R.id.content), getString(msg), Snackbar.LENGTH_SHORT).show()
-        if (d != null && d.stops.isNotEmpty()) showLoadingStopPicker()
+        if (loadingStopDecided) return true
+        Snackbar.make(findViewById(android.R.id.content), getString(R.string.wh_pick_stop_first), Snackbar.LENGTH_SHORT).show()
+        showLoadingStopPicker()
         return false
     }
 
     private fun showLoadingStopPicker() {
-        val stops = detail?.stops ?: return
-        if (stops.isEmpty()) {
-            Snackbar.make(findViewById(android.R.id.content), getString(R.string.wh_no_stops_to_load), Snackbar.LENGTH_SHORT).show()
-            return
-        }
-        val labels = stops.map { it.customerName ?: "—" }.toTypedArray()
+        val stops = detail?.stops ?: emptyList()
+        // Backlog cliente (2026-09-28) — "Sin asignar" siempre es una opción,
+        // incluso habiendo paradas: cargar el camión en general y repartirlo
+        // por parada más tarde, en vez de depender de que ya exista un
+        // cliente/parada para poder escanear.
+        val labels = (listOf(getString(R.string.wh_unassigned_load)) + stops.map { it.customerName ?: "—" }).toTypedArray()
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.wh_choose_loading_stop))
             .setItems(labels) { _, which ->
-                val stop = stops[which]
+                if (which == 0) {
+                    currentLoadingStopId = null
+                    loadingStopDecided = true
+                    btnLoadingForStop.text = getString(R.string.wh_loading_for, getString(R.string.wh_unassigned_load))
+                    return@setItems
+                }
+                val stop = stops[which - 1]
                 currentLoadingStopId = stop.id
+                loadingStopDecided = true
                 btnLoadingForStop.text = getString(R.string.wh_loading_for, stop.customerName ?: "—")
                 if (stop.stopType == "BATCH" || stop.stopType == "PRE_ORDER") showExpectedItemsReference(stop.id)
             }
@@ -492,16 +517,61 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().getExpectedStopItems(routeId, stopId)
                 val items = if (resp.isSuccessful) resp.body()?.data ?: emptyList() else emptyList()
                 if (items.isEmpty()) return@launch
+                // Paso 2 (2026-09-28): si la pre-orden prometió una caja puntual
+                // (peso variable), se muestra con su peso/lote en vez de "0 lb", y
+                // se ofrece cargarla completa. Warehouse puede ignorarlo y elegir
+                // otra caja por el flujo de siempre.
                 val lines = items.joinToString("\n") { it ->
-                    val qty = com.example.test.data.formatQty(it.quantity) + (it.unit?.let { u -> " $u" } ?: "")
-                    getString(R.string.wh_expected_item_line, it.productName, qty)
+                    when {
+                        it.lotId != null && it.lotAvailable == true ->
+                            getString(R.string.wh_promised_box_line, it.productName,
+                                com.example.test.data.formatQty(it.lotRemainingQty ?: it.lotWeight ?: 0.0), it.lotNumber ?: "-")
+                        it.lotId != null ->
+                            getString(R.string.wh_promised_box_unavailable_line, it.productName)
+                        else -> {
+                            val qty = com.example.test.data.formatQty(it.quantity) + (it.unit?.let { u -> " $u" } ?: "")
+                            getString(R.string.wh_expected_item_line, it.productName, qty)
+                        }
+                    }
                 }
-                MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
+                val promised = items.filter { it.lotId != null && it.lotAvailable == true && it.barcode != null }
+                val builder = MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
                     .setTitle(getString(R.string.wh_expected_items_title))
                     .setMessage(lines)
                     .setPositiveButton(getString(R.string.btn_understood), null)
-                    .show()
+                if (promised.isNotEmpty()) {
+                    builder.setNeutralButton(getString(R.string.wh_btn_load_promised_boxes)) { _, _ ->
+                        loadPromisedBoxes(promised, 0)
+                    }
+                }
+                builder.show()
             } catch (_: Exception) { }
+        }
+    }
+
+    // Carga completas, una por una, las cajas prometidas por la pre-orden de la
+    // parada elegida. Secuencial por la misma razón que loadBoxesSequentially
+    // (UNIQUE de route_items). Si una falla, addRouteItem ya muestra el error y
+    // no continúa con las siguientes.
+    private fun loadPromisedBoxes(items: List<com.example.test.data.ExpectedStopItemDto>, index: Int) {
+        if (index >= items.size) return
+        val item = items[index]
+        val barcode = item.barcode ?: run { loadPromisedBoxes(items, index + 1); return }
+        val lotId = item.lotId ?: run { loadPromisedBoxes(items, index + 1); return }
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getProductByBarcode(barcode)
+                val product = if (resp.isSuccessful) resp.body()?.data else null
+                if (product == null) {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_product_not_found_barcode, barcode), Snackbar.LENGTH_SHORT).show()
+                    return@launch
+                }
+                addRouteItem(product, item.lotRemainingQty ?: item.lotWeight ?: 0.0, lotId, wholeBox = true) {
+                    loadPromisedBoxes(items, index + 1)
+                }
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -629,11 +699,14 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             // escaneo de esta línea pisó la sugerencia FIFO a mano.
             val expPart = item.minExpirationDate?.take(10)?.let { getString(R.string.wh_item_expiration_suffix, it) } ?: ""
             val overridePart = if (item.usedOverride == 1) " · ${getString(R.string.wh_override_badge)}" else ""
-            // route_stop_id (2026-09-18) — a quién le corresponde esta línea,
-            // para que el almacenista pueda revisar la carga por cliente sin
-            // salir de esta pantalla.
+            // route_stop_id (2026-09-18 → opcional desde 2026-09-28) — a quién
+            // le corresponde esta línea, para que el almacenista pueda
+            // revisar la carga por cliente sin salir de esta pantalla.
+            // routeStopId == null es "carga sin asignar" explícito, no un
+            // dato faltante — se muestra igual que un cliente real.
             val stopName = detail?.stops?.firstOrNull { it.id == item.routeStopId }?.customerName
-            val stopPart = stopName?.let { " · $it" } ?: ""
+                ?: getString(R.string.wh_unassigned_load)
+            val stopPart = " · $stopName"
             row.findViewById<TextView>(R.id.tvItemMeta).text = metaBase + expPart + overridePart + stopPart
             row.findViewById<TextView>(R.id.tvItemQty).text = com.example.test.data.formatQty(item.quantity)
             val btnRemoveItem = row.findViewById<View>(R.id.btnRemoveItem)
@@ -646,7 +719,26 @@ class WarehouseRouteDetailActivity : BaseActivity() {
 
     // ── Escaneo → cargar producto a la ruta ──
 
+    // Campo de peso del diálogo abierto (null si no hay ninguno). Mientras hay
+    // uno, los escaneos son etiquetas de peso — no se busca un producto con
+    // ellas. Ver com.example.test.data.scan.WeightLabel.
+    private var weightTarget: EditText? = null
+
+    private fun onWeightScanned(raw: String?) {
+        val et = weightTarget ?: return
+        val w = com.example.test.data.scan.WeightLabel.parse(raw)
+        if (w == null) {
+            et.error = if (raw.isNullOrBlank()) getString(R.string.error_weight_scan_empty)
+                else getString(R.string.error_weight_scan_invalid, raw.trim().take(30))
+            return
+        }
+        et.error = null
+        et.setText(com.example.test.data.formatQty(w))
+        et.setSelection(et.text.length)
+    }
+
     private fun onBarcodeScanned(barcode: String) {
+        if (weightTarget != null) { onWeightScanned(barcode); return }
         val d = detail ?: return
         if (isLocked(d)) return
         if (!ensureLoadingStopChosen()) return
@@ -664,7 +756,57 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         }
     }
 
+    // Backlog cliente #2 (2026-09-28) — peso variable por caja: para Lbs se
+    // eligen cajas puntuales (cada lote de Recepción = una caja con su peso
+    // real) y se cargan COMPLETAS (whole_box), en vez de pedir libras sueltas y
+    // dejar que FIFO fraccione una caja entre varias. Si no hay lotes (stock
+    // sin respaldo) o el almacenista prefiere una cantidad, cae al diálogo de
+    // siempre.
     private fun showQuantityDialog(product: ProductDto) {
+        if (!com.example.test.data.isLbsUnit(product.unit)) { showQuantityDialogManual(product); return }
+        lifecycleScope.launch {
+            val lots = try {
+                val resp = RetrofitClient.getApi().listLots(productId = product.id)
+                if (resp.isSuccessful) (resp.body()?.data ?: emptyList()).filter { it.remainingQty > 0 } else emptyList()
+            } catch (_: Exception) { emptyList() }
+            if (lots.isEmpty()) { showQuantityDialogManual(product); return@launch }
+            val labels = lots.map { lot ->
+                val exp = lot.expirationDate?.take(10) ?: getString(R.string.wh_no_expiration)
+                // Paso 4 (opción A): Warehouse ve qué cajas ya fueron prometidas a
+                // una pre-orden, para no cargarlas por error a otra parada.
+                val claims = lot.claimedBy.orEmpty()
+                val claimPart = claims.firstOrNull()?.let { c ->
+                    getString(R.string.wh_box_claimed_suffix, c.preOrderId, c.customerName ?: "—") +
+                        (if (claims.size > 1) getString(R.string.wh_box_claimed_more, claims.size - 1) else "")
+                } ?: ""
+                getString(R.string.wh_box_picker_line, com.example.test.data.formatQty(lot.remainingQty), exp, lot.lotNumber ?: "-") + claimPart
+            }.toTypedArray()
+            val checked = BooleanArray(lots.size)
+            MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
+                .setTitle(getString(R.string.wh_pick_boxes_title))
+                .setMultiChoiceItems(labels, checked) { _, which, isChecked -> checked[which] = isChecked }
+                .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                    val chosen = lots.filterIndexed { i, _ -> checked[i] }
+                    if (chosen.isNotEmpty()) loadBoxesSequentially(product, chosen, 0)
+                }
+                .setNeutralButton(getString(R.string.wh_btn_other_quantity)) { _, _ -> showQuantityDialogManual(product) }
+                .setNegativeButton(getString(R.string.btn_cancel), null)
+                .show()
+        }
+    }
+
+    // Secuencial a propósito: dos POST en paralelo sobre el mismo producto/
+    // parada podrían ambos no encontrar la fila de route_items y chocar con el
+    // UNIQUE al insertar.
+    private fun loadBoxesSequentially(product: ProductDto, lots: List<com.example.test.data.ProductLotDto>, index: Int) {
+        if (index >= lots.size) return
+        val lot = lots[index]
+        addRouteItem(product, lot.remainingQty, lot.id, wholeBox = true) {
+            loadBoxesSequentially(product, lots, index + 1)
+        }
+    }
+
+    private fun showQuantityDialogManual(product: ProductDto) {
         // Decimal solo para Lbs (peso real) — Case/Unit y Bucket son
         // conteos enteros, mismo criterio que ReceivingActivity/
         // ConsignmentActivity (Fase 118 — antes esta pantalla forzaba
@@ -717,10 +859,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             cbUseStock.text = getString(R.string.wh_use_stock_checkbox, unbacked.toInt())
             cbUseStock.isEnabled = unbacked > 0
         }
+        if (isLbs) weightTarget = etQty
         MaterialAlertDialogBuilder(this)
             .setTitle(if (isLbs) getString(R.string.title_load_quantity_lbs) else getString(R.string.title_load_quantity))
-            .setMessage(product.name)
+            .setMessage(if (isLbs) product.name + "\n" + getString(R.string.hint_scan_weight_label) else product.name)
             .setView(layout)
+            .setOnDismissListener { if (weightTarget === etQty) weightTarget = null }
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 // El modal se cierra al toque — el aviso de carga va en la
                 // pantalla (junto a "Cargado en el camión"), no acá, para no
@@ -798,18 +942,23 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // que el backend elija. source = "STOCK" salta lotes por completo y
     // descuenta products.stock directo (checkbox "Usar stock general" en
     // showQuantityDialog) — lotId se ignora en ese caso.
-    private fun addRouteItem(product: ProductDto, quantity: Double, lotId: Int?, source: String? = null) {
+    // wholeBox = true (backlog #2) — el backend carga la caja `lotId` entera
+    // con su remaining_qty real. onSuccess encadena la siguiente caja elegida.
+    private fun addRouteItem(product: ProductDto, quantity: Double, lotId: Int?, source: String? = null, wholeBox: Boolean? = null, onSuccess: (() -> Unit)? = null) {
+        // route_stop_id ahora es opcional (backlog cliente #3) — stopId
+        // puede ser null legítimamente ("carga general"). Lo que bloquea el
+        // escaneo es no haber DECIDIDO todavía, no que sea null.
+        if (!ensureLoadingStopChosen()) return
         val stopId = currentLoadingStopId
-        if (stopId == null) { ensureLoadingStopChosen(); return }
         pendingItemLoads++
         tvAddingItemLabel.text = getString(R.string.label_adding_item)
         layoutAddingItem.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val request = if (product.barcode != null)
-                    AddRouteItemRequest(barcode = product.barcode, quantity = quantity, lotId = lotId, source = source, routeStopId = stopId)
+                    AddRouteItemRequest(barcode = product.barcode, quantity = quantity, lotId = lotId, source = source, routeStopId = stopId, wholeBox = wholeBox)
                 else
-                    AddRouteItemRequest(productId = product.id, quantity = quantity, lotId = lotId, source = source, routeStopId = stopId)
+                    AddRouteItemRequest(productId = product.id, quantity = quantity, lotId = lotId, source = source, routeStopId = stopId, wholeBox = wholeBox)
                 val resp = RetrofitClient.getApi().addRouteItem(routeId, request)
                 if (resp.isSuccessful) {
                     val body = resp.body()
@@ -824,6 +973,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                     // ítem no aparecía hasta salir y volver a entrar a la ruta.
                     body?.item?.let { applyItemLocally(it) }
                     loadDetail()
+                    onSuccess?.invoke()
                 } else if (resp.code() == 409) {
                     handleInsufficientStock(resp.errorBody()?.string(), product, quantity)
                 } else {
@@ -909,7 +1059,16 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 }.toTypedArray()
                 MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
                     .setTitle(getString(R.string.wh_from_receiving_title))
-                    .setItems(labels) { _, which -> showQuantityDialogForAvailable(products[which]) }
+                    .setItems(labels) { _, which ->
+                        // Peso variable (backlog #2): para Lbs se listan las cajas
+                        // individuales con su peso real (mismo selector que el
+                        // escaneo) en vez de un total agregado. showQuantityDialog
+                        // cae solo al diálogo manual si el producto no tiene lotes
+                        // o se elige "Otra cantidad".
+                        val p = products[which]
+                        if (com.example.test.data.isLbsUnit(p.unit)) showQuantityDialog(p)
+                        else showQuantityDialogForAvailable(p)
+                    }
                     .setNegativeButton(getString(R.string.btn_cancel), null)
                     .show()
             } catch (e: Exception) {
@@ -933,10 +1092,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             setText(com.example.test.data.formatQty(defaultQty))
             selectAll()
         }
+        if (isLbs) weightTarget = etQty
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_load_quantity))
-            .setMessage(product.name)
+            .setMessage(if (isLbs) product.name + "\n" + getString(R.string.hint_scan_weight_label) else product.name)
             .setView(etQty)
+            .setOnDismissListener { if (weightTarget === etQty) weightTarget = null }
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: defaultQty
                 addRouteItem(product, qty, null)

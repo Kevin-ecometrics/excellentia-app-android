@@ -778,7 +778,16 @@ data class PreOrderItem(
     val total: Double? = null,
     val unit: String? = null,
     @SerializedName("case_qty") val caseQty: Int? = null,
-    @SerializedName("short_name") val shortName: String? = null
+    @SerializedName("short_name") val shortName: String? = null,
+    // Backlog #2 — caja (product_lots.id) elegida al armar la pre-orden; informativa.
+    @SerializedName("lot_id") val lotId: Int? = null,
+    // Solo lectura (GET /api/preorders/:id): datos vivos de la caja elegida.
+    @SerializedName("lot_weight") val lotWeight: Double? = null,
+    @SerializedName("lot_number") val lotNumber: String? = null,
+    @SerializedName("lot_available") val lotAvailable: Boolean? = null,
+    // Paso 3 (2026-09-28) — la caja elegida ya fue cargada a una ruta: no es
+    // "no disponible", solo ya no está en el sub-inventario porque va en el camión.
+    @SerializedName("lot_on_route") val lotOnRoute: Boolean? = null
 )
 
 data class PreOrderRequest(
@@ -905,7 +914,12 @@ data class RouteItemDto(
     // (MAX(1 - used_suggested_lot)) y Gson revienta si el campo declarado es
     // Boolean y llega un número — mismo gotcha ya documentado para qb_active.
     @SerializedName("min_expiration_date") val minExpirationDate: String? = null,
-    @SerializedName("used_override") val usedOverride: Int? = null
+    @SerializedName("used_override") val usedOverride: Int? = null,
+    // 2026-09-29 — vendido y cargado del producto en TODA la ruta (no por
+    // parada), para mostrar cuánto queda en el camión aunque la carga sea
+    // "Sin asignar".
+    @SerializedName("sold_qty") val soldQty: Double = 0.0,
+    @SerializedName("total_loaded_qty") val totalLoadedQty: Double? = null
 )
 
 data class RouteDetailDto(
@@ -922,7 +936,10 @@ data class RouteDetailDto(
     // deshabilita todos los botones de edición de WarehouseRouteDetailActivity.
     @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null,
     // Fase 115 — ver comentario en RouteDto.
-    @SerializedName("route_type") val routeType: String = "MULTI_STOP"
+    @SerializedName("route_type") val routeType: String = "MULTI_STOP",
+    // 2026-09-29 — el operador sumó clientes sobre la marcha: la ruta no se
+    // cierra sola, la termina él con "Finalizar ruta".
+    @SerializedName("manual_close") val manualClose: Boolean = false
 )
 
 data class AddStopRequest(
@@ -1016,9 +1033,12 @@ data class AddRouteItemRequest(
     // para stock real que nunca pasó por Recepción. Default null = "LOT",
     // mismo comportamiento de siempre.
     val source: String? = null,
-    // route_stop_id (2026-09-18) — obligatorio: para qué parada/cliente es
-    // esta carga. El backend lo rechaza si falta.
-    @SerializedName("route_stop_id") val routeStopId: Int
+    // route_stop_id (2026-09-18 → opcional desde 2026-09-28, backlog cliente
+    // #3): para qué parada/cliente es esta carga. null = "carga general",
+    // sin parada asignada todavía — el backend ya lo acepta.
+    @SerializedName("route_stop_id") val routeStopId: Int? = null,
+    // Backlog #2 — con lot_id, carga la caja completa (peso real del lote).
+    @SerializedName("whole_box") val wholeBox: Boolean? = null
 )
 
 data class CreateRouteResponse(
@@ -1036,7 +1056,13 @@ data class ExpectedStopItemDto(
     @SerializedName("product_name") val productName: String,
     val quantity: Double,
     val unit: String? = null,
-    @SerializedName("case_qty") val caseQty: Int? = null
+    @SerializedName("case_qty") val caseQty: Int? = null,
+    // Paso 2 (2026-09-28) — caja puntual que la pre-orden prometió (solo PRE_ORDER).
+    @SerializedName("lot_id") val lotId: Int? = null,
+    @SerializedName("lot_remaining_qty") val lotRemainingQty: Double? = null,
+    @SerializedName("lot_weight") val lotWeight: Double? = null,
+    @SerializedName("lot_number") val lotNumber: String? = null,
+    @SerializedName("lot_available") val lotAvailable: Boolean? = null
 )
 
 data class AddStopResponse(
@@ -1153,7 +1179,15 @@ data class ProductLotDto(
     // Backlog cliente (2026-09-23) — peso esperado de una caja completa
     // (catálogo), para mostrar "≈ N cajas" en la pestaña Disponible, mismo
     // criterio que ProductRow.tsx en la webapp — puramente informativo.
-    @SerializedName("weight_per_unit") val weightPerUnit: Double? = null
+    @SerializedName("weight_per_unit") val weightPerUnit: Double? = null,
+    // Backlog #2 paso 4 (2026-09-28) — pre-órdenes activas que ya eligieron esta
+    // caja. Solo viene cuando se pide listLots por producto. Informativo.
+    @SerializedName("claimed_by") val claimedBy: List<LotClaimDto>? = null
+)
+
+data class LotClaimDto(
+    @SerializedName("pre_order_id") val preOrderId: Int,
+    @SerializedName("customer_name") val customerName: String? = null
 )
 
 // Respuesta de /api/warehouse/lots/suggest — qué lote(s) usaría FIFO para una

@@ -534,6 +534,7 @@
     <string name="btn_mark_skipped">Saltar</string>
     <string name="btn_start_route">Salir a reparto</string>
     <string name="btn_finish_route">Terminar ruta</string>
+    <string name="btn_add_client">Agregar cliente / Nueva venta</string>
     <string name="title_confirm_start_route">¿Salir a reparto?</string>
     <string name="msg_confirm_start_route">Esto marca la ruta como en curso. ¿Continuar?</string>
     <string name="title_confirm_finish_route">¿Terminar ruta?</string>
@@ -602,6 +603,19 @@
     <string name="wh_no_lots_available">No hay lotes disponibles para este producto</string>
     <string name="wh_lot_picker_line">Vence %1$s · %2$.2f disponible</string>
     <string name="wh_choose_lot_title">Elegir lote</string>
+    <string name="preorder_pick_box_title">Elegí una caja</string>
+    <string name="preorder_no_box">Sin caja puntual</string>
+    <string name="preorder_box_chosen">Caja: %1$s lb · lote %2$s</string>
+    <string name="preorder_box_unavailable">La caja elegida ya no está disponible</string>
+    <string name="preorder_box_on_route">Caja cargada en la ruta: %1$s lb · lote %2$s</string>
+    <string name="wh_promised_box_line">%1$s — caja prometida: %2$s lb · lote %3$s</string>
+    <string name="wh_promised_box_unavailable_line">%1$s — la caja prometida ya no está disponible</string>
+    <string name="wh_btn_load_promised_boxes">Cargar cajas prometidas</string>
+    <string name="wh_pick_boxes_title">Elegí las cajas a cargar</string>
+    <string name="wh_box_picker_line">%1$s lb · vence %2$s · lote %3$s</string>
+    <string name="wh_box_claimed_suffix"> · ya elegida en pre-orden #%1$d (%2$s)</string>
+    <string name="wh_box_claimed_more"> +%1$d más</string>
+    <string name="wh_btn_other_quantity">Otra cantidad</string>
     <string name="wh_item_expiration_suffix"> · vence %1$s</string>
     <string name="wh_override_badge">lote manual</string>
     <string name="wh_btn_review_returns">Revisar devoluciones</string>
@@ -621,6 +635,12 @@
     <string name="wh_no_expiration_set">Sin fecha de expiración</string>
     <string name="title_receiving_qty">Cantidad recibida</string>
     <string name="title_receiving_qty_lbs">¿Cuántas libras trae esta caja?</string>
+    <string name="title_receiving_box_count">¿Cuántas cajas son?</string>
+    <string name="title_receiving_box_weight">Peso de la caja %1$d de %2$d (lbs)</string>
+    <string name="error_box_weight_required">Ingresá el peso de la caja</string>
+    <string name="hint_scan_weight_label">Escaneá la etiqueta de peso o escribí el peso</string>
+    <string name="error_weight_scan_empty">El escaneo no trajo datos. Probá de nuevo o escribí el peso</string>
+    <string name="error_weight_scan_invalid">No es una etiqueta de peso: \"%1$s\". Escaneá el código de barras chico del peso o escribilo</string>
     <string name="wh_btn_save_receipt">Guardar recepción</string>
     <string name="msg_receipt_saved">Recepción guardada: %1$d línea(s)</string>
     <string name="msg_receipt_ticket_printed">Ticket de recepción enviado a la impresora</string>
@@ -658,6 +678,8 @@
     <string name="wh_consignment_partial_progress">Ya liquidado: %1$.2f vendido · %2$.2f devuelto · %3$.2f pendiente</string>
     <string name="wh_consignmentSold_label">Vendido</string>
     <string name="wh_item_sold_badge">Vendido</string>
+    <string name="label_route_item_left">Quedan %1$s</string>
+    <string name="msg_route_item_sold_out">Este producto ya se vendió completo — no queda en el camión</string>
     <string name="wh_consignmentReturned_label">Devuelto</string>
     <string name="btn_settle_consignment">Liquidar</string>
     <string name="error_consignment_settle_empty">Ingresá una cantidad vendida o devuelta</string>
@@ -727,6 +749,7 @@
     <string name="wh_loading_for">Cargando para: %1$s</string>
     <string name="wh_pick_stop_first">Elegí primero para quién es esta carga</string>
     <string name="wh_no_stops_to_load">Agregá una parada a esta ruta antes de cargar productos</string>
+    <string name="wh_unassigned_load">Sin asignar (carga general)</string>
     <string name="wh_expected_items_title">Se espera para esta parada</string>
     <string name="wh_expected_item_line">%1$s — %2$s</string>
     <string name="wh_from_receiving_title">Disponible en el almacén</string>

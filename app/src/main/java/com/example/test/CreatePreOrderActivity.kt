@@ -62,6 +62,9 @@ class CreatePreOrderActivity : BaseActivity() {
     private var selectedSalespersonUserId: Int? = null
     private var selectedDate: String? = null
     private val items = mutableListOf<PreOrderItem>()
+    // Caja (product_lots.id) elegida para el item que se está agregando ahora
+    // mismo — la lee addItemLauncher al volver del stepper.
+    private var pendingLotId: Int? = null
     private val salespersons = mutableListOf<UserBrief>()
 
     private companion object {
@@ -102,7 +105,7 @@ class CreatePreOrderActivity : BaseActivity() {
                 try {
                     val type = object : TypeToken<List<PreOrderItem>>() {}.type
                     val newItems: List<PreOrderItem> = Gson().fromJson(itemsJson, type)
-                    addItems(newItems)
+                    addItems(newItems.map { it.copy(lotId = pendingLotId) })
                 } catch (_: Exception) {
                     Snackbar.make(findViewById(android.R.id.content),
                         getString(R.string.error_finalizing_item), Snackbar.LENGTH_SHORT).show()
@@ -351,7 +354,44 @@ class CreatePreOrderActivity : BaseActivity() {
         // semilla del stepper (peso nominal / tamaño de caja / 1 fijo para
         // Bucket), no una cantidad previamente elegida — es la primera vez que
         // se agrega este producto. Ver seedQuantityForStepper().
-        val initialQty = seedQuantityForStepper(product.qty, product.weightPerUnit, product.unit)
+        // Backlog cliente #2 (2026-09-28) — peso variable por caja: para Lbs se
+        // ofrece elegir una caja puntual del Sub-inventario (peso real). Es
+        // solo informativo (no reserva la caja): queda en pre_order_items.lot_id.
+        if (!com.example.test.data.isLbsUnit(product.unit)) {
+            launchAddItemStepper(barcode, product, null)
+            return
+        }
+        lifecycleScope.launch {
+            val lots = try {
+                val resp = RetrofitClient.getApi().listLots(productId = product.id)
+                if (resp.isSuccessful) (resp.body()?.data ?: emptyList()).filter { it.remainingQty > 0 } else emptyList()
+            } catch (_: Exception) { emptyList() }
+            if (lots.isEmpty()) { launchAddItemStepper(barcode, product, null); return@launch }
+            val labels = lots.map { lot ->
+                val exp = lot.expirationDate?.take(10) ?: getString(R.string.wh_no_expiration)
+                // Paso 4 (opción A): avisa si otra pre-orden ya eligió esta caja,
+                // sin bloquear — elegirla sigue siendo permitido.
+                val claims = lot.claimedBy.orEmpty()
+                val claimPart = claims.firstOrNull()?.let { c ->
+                    getString(R.string.wh_box_claimed_suffix, c.preOrderId, c.customerName ?: "—") +
+                        (if (claims.size > 1) getString(R.string.wh_box_claimed_more, claims.size - 1) else "")
+                } ?: ""
+                getString(R.string.wh_box_picker_line, com.example.test.data.formatQty(lot.remainingQty), exp, lot.lotNumber ?: "-") + claimPart
+            }.toTypedArray()
+            MaterialAlertDialogBuilder(this@CreatePreOrderActivity)
+                .setTitle(getString(R.string.preorder_pick_box_title))
+                .setItems(labels) { _, which -> launchAddItemStepper(barcode, product, lots[which]) }
+                .setNeutralButton(getString(R.string.preorder_no_box)) { _, _ -> launchAddItemStepper(barcode, product, null) }
+                .setNegativeButton(getString(R.string.btn_cancel), null)
+                .show()
+        }
+    }
+
+    // lot != null → la cantidad inicial es el peso real de esa caja y el item
+    // resultante queda vinculado a ella (pendingLotId, ver addItemLauncher).
+    private fun launchAddItemStepper(barcode: String, product: com.example.test.data.ProductDto, lot: com.example.test.data.ProductLotDto?) {
+        pendingLotId = lot?.id
+        val initialQty = lot?.remainingQty ?: seedQuantityForStepper(product.qty, product.weightPerUnit, product.unit)
         addItemLauncher.launch(Intent(this, ProductDetailActivity::class.java).apply {
             putExtra("BARCODE", barcode)
             putExtra("PRODUCT_NAME", product.name)

@@ -19,12 +19,16 @@ object DataWedgeScanner {
     private const val DW_EXTRA_DATA_ALT = "com.motorolasolutions.emdk.datawedge.data_string"
     private const val DW_CATEGORY = "android.intent.category.DEFAULT"
 
-    fun createReceiver(onBarcode: (String) -> Unit): BroadcastReceiver = object : BroadcastReceiver() {
+    // onEmpty (opcional): DataWedge mandó el intent pero sin datos. Por defecto
+    // se ignora en silencio (comportamiento de siempre para el resto de las
+    // pantallas); solo lo pide quien necesita avisar "el escaneo vino vacío".
+    // (onBarcode va al final para que los call sites `createReceiver { ... }` sigan compilando.)
+    fun createReceiver(onEmpty: (() -> Unit)? = null, onBarcode: (String) -> Unit): BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != DW_RESULT_ACTION) return
             var data = intent.getStringExtra(DW_EXTRA_DATA)
             if (data.isNullOrBlank()) data = intent.getStringExtra(DW_EXTRA_DATA_ALT)
-            if (!data.isNullOrBlank()) onBarcode(data)
+            if (!data.isNullOrBlank()) onBarcode(data) else onEmpty?.invoke()
         }
     }
 

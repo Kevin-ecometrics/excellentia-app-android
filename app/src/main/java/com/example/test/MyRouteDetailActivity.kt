@@ -1,7 +1,10 @@
 package com.example.test
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.test.data.AddStopRequest
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
@@ -40,6 +43,8 @@ class MyRouteDetailActivity : BaseActivity() {
     private lateinit var tvRouteStatus: TextView
     private lateinit var tvRouteNotes: TextView
     private lateinit var btnRouteAction: MaterialButton
+    private lateinit var btnAddClient: MaterialButton
+    private lateinit var btnFinishRoute: MaterialButton
     private lateinit var layoutStops: LinearLayout
     private lateinit var tvNoStops: TextView
     private lateinit var layoutItems: LinearLayout
@@ -77,8 +82,10 @@ class MyRouteDetailActivity : BaseActivity() {
         tvRouteStatus  = findViewById(R.id.tvRouteStatus)
         tvRouteNotes   = findViewById(R.id.tvRouteNotes)
         btnRouteAction = findViewById(R.id.btnRouteAction)
+        btnAddClient   = findViewById(R.id.btnAddClient)
+        btnFinishRoute = findViewById(R.id.btnFinishRoute)
         layoutStops    = findViewById(R.id.layoutStops)
-        tvNoStops      = findViewById(R.id.tvNoStops)
+        tvNoStops     = findViewById(R.id.tvNoStops)
         layoutItems    = findViewById(R.id.layoutItems)
         tvNoItems      = findViewById(R.id.tvNoItems)
         cardSellActions = findViewById(R.id.cardSellActions)
@@ -90,8 +97,51 @@ class MyRouteDetailActivity : BaseActivity() {
         // ruta — sin CLEAR_TOP, así "atrás" vuelve a esta pantalla.
         btnScanOther.setOnClickListener { startActivity(Intent(this, MainActivity::class.java)) }
         btnGoToSale.setOnClickListener { startActivity(Intent(this, CurrentOrderActivity::class.java)) }
+        btnAddClient.setOnClickListener { customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java)) }
+        btnFinishRoute.setOnClickListener { confirmRouteTransition("COMPLETED") }
 
         loadDetail()
+    }
+
+    // 2026-09-29 — el repartidor no sabe de antemano cuántos clientes va a
+    // visitar: elige el cliente, se crea la parada CUSTOMER al vuelo (el
+    // backend pasa la ruta a cierre manual) y arranca la venta de una.
+    private val customerPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+        val id = result.data?.getStringExtra("customer_id") ?: return@registerForActivityResult
+        val name = result.data?.getStringExtra("customer_name") ?: return@registerForActivityResult
+        val address = result.data?.getStringExtra("customer_address")
+        addClientStopAndSell(id, name, address)
+    }
+
+    private fun addClientStopAndSell(customerId: String, customerName: String, address: String?) {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().addRouteStop(routeId, AddStopRequest(stopType = "CUSTOMER", customerId = customerId, customerName = customerName))
+                val stopId = resp.body()?.id
+                if (resp.isSuccessful && stopId != null) {
+                    securePrefs.setActiveCustomer(customerId, customerName, address)
+                    securePrefs.saveActiveRouteStop(routeId, stopId)
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_tap_to_add_hint), Snackbar.LENGTH_LONG).show()
+                    loadDetail()
+                } else {
+                    showServerError(resp)
+                }
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Muestra el motivo real del backend ({"error": "..."}) cuando lo hay —
+    // ej. "Hay paradas pendientes" al finalizar — en vez de solo el código HTTP.
+    private fun showServerError(resp: retrofit2.Response<*>) {
+        val detail = try {
+            org.json.JSONObject(resp.errorBody()?.string() ?: "").optString("error").takeIf { it.isNotBlank() }
+        } catch (_: Exception) { null }
+        Snackbar.make(findViewById(android.R.id.content), detail ?: getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_LONG).show()
     }
 
     override fun onResume() {
@@ -180,6 +230,14 @@ class MyRouteDetailActivity : BaseActivity() {
 
         val activeStop = d.stops.firstOrNull { isSellingStop(it) }
         val sellingActive = activeStop != null
+        // Agregar cliente sobre la marcha: solo en reparto y sin otra venta en
+        // curso (un solo cliente activo a la vez en SecurePreferences).
+        // Finalizar: solo en rutas de cierre manual o sin paradas — las
+        // armadas por el almacén se siguen cerrando solas al resolver la última.
+        val inProgress = d.status == "IN_PROGRESS"
+        btnAddClient.visibility = if (inProgress && !sellingActive) View.VISIBLE else View.GONE
+        // Ya ninguna ruta se cierra sola al entregar: siempre se termina a mano.
+        btnFinishRoute.visibility = if (inProgress) View.VISIBLE else View.GONE
         cardSellActions.visibility = if (sellingActive) View.VISIBLE else View.GONE
 
         renderStops(d.stops, d.status)
@@ -190,7 +248,7 @@ class MyRouteDetailActivity : BaseActivity() {
         // vendido-vs-cargado comparan contra lo que de verdad le corresponde,
         // no contra el camión entero. Sin venta activa se sigue viendo el
         // manifiesto completo (vista general de la ruta).
-        val itemsForDisplay = activeStop?.let { stop -> d.items.filter { it.routeStopId == stop.id } } ?: d.items
+        val itemsForDisplay = activeStop?.let { stop -> d.items.filter { it.routeStopId == stop.id || it.routeStopId == null } } ?: d.items
         renderItems(itemsForDisplay, d.stops, sellingActive, pendingOrders)
     }
 
@@ -212,7 +270,7 @@ class MyRouteDetailActivity : BaseActivity() {
                 if (resp.isSuccessful) {
                     loadDetail()
                 } else {
-                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
+                    showServerError(resp)
                 }
             } catch (e: Exception) {
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
@@ -551,7 +609,18 @@ class MyRouteDetailActivity : BaseActivity() {
             val row = inflater.inflate(R.layout.item_route_item, layoutItems, false)
             row.findViewById<TextView>(R.id.tvItemName).text = item.name
             val itemStop = item.routeStopId?.let { stopById[it] }
-            val soldBadge = if (itemStop?.status == "DELIVERED") " · ${getString(R.string.wh_item_sold_badge)}" else ""
+            // 2026-09-29 — cuánto queda en el camión de este producto: cargado
+            // − vendido, a nivel ruta (el backend ya lo suma por barcode,
+            // incluye cargas "Sin asignar" que no tienen parada). Si nada se
+            // vendió todavía, cae al criterio viejo por parada entregada.
+            val totalLoaded = item.totalLoadedQty ?: item.quantity
+            val left = (totalLoaded - item.soldQty).coerceAtLeast(0.0)
+            val soldBadge = when {
+                item.soldQty > 0 && left <= 0.0001 -> " · ${getString(R.string.wh_item_sold_badge)}"
+                item.soldQty > 0 -> " · ${getString(R.string.label_route_item_left, com.example.test.data.formatQty(left))}"
+                itemStop?.status == "DELIVERED" -> " · ${getString(R.string.wh_item_sold_badge)}"
+                else -> ""
+            }
             row.findViewById<TextView>(R.id.tvItemMeta).text =
                 (item.sku ?: item.barcode ?: "—") + (item.unit?.let { " · $it" } ?: "") + soldBadge
             // Backlog cliente (2026-09-23) — pedido explícito: que el operador
@@ -574,11 +643,18 @@ class MyRouteDetailActivity : BaseActivity() {
                 // contar filas equivale a bolsas ya agregadas. Case/Unit/Bucket:
                 // una sola fila con quantity = unidades, se suma directo.
                 val soldQty = if (isLbs) matching.size.toDouble() else matching.sumOf { it.quantity }
+                // 2026-09-29 — lo que queda en el camión (cargado − ya vendido
+                // a clientes anteriores de esta ruta, ver `left` arriba). Si ya
+                // no queda nada, el producto se muestra apagado y no se puede
+                // volver a agregar a otra venta.
+                val soldOut = left <= 0.0001
                 val colorRes = when {
+                    soldOut -> R.color.divider
                     soldQty <= 0.0 -> R.color.red
-                    soldQty >= item.quantity -> R.color.success
+                    soldQty >= left -> R.color.success
                     else -> R.color.amber
                 }
+                row.alpha = if (soldOut) 0.5f else 1f
                 // Punto de color junto al nombre — la fila entera se queda con
                 // su fondo normal, no se pinta completa (Tanda 3, ajuste
                 // 2026-09-08 a pedido del usuario: quería un indicador chico,
@@ -590,8 +666,16 @@ class MyRouteDetailActivity : BaseActivity() {
                 // se manda para prefillear ese mismo peso en ProductDetailActivity.
                 // Case/Unit/Bucket se quedan con el comportamiento de siempre
                 // (arranca en 1).
-                val routeUnits = if (isLbs) item.quantity else null
-                row.setOnClickListener { openProductForBarcode(barcode, routeUnits) }
+                // Lo disponible (left), no lo cargado total: lo ya vendido a
+                // otro cliente no se vuelve a ofrecer.
+                val routeUnits = if (isLbs) left else null
+                if (soldOut) {
+                    row.setOnClickListener {
+                        Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_route_item_sold_out), Snackbar.LENGTH_SHORT).show()
+                    }
+                } else {
+                    row.setOnClickListener { openProductForBarcode(barcode, routeUnits) }
+                }
             } else {
                 statusDot.visibility = View.GONE
                 row.setOnClickListener(null)

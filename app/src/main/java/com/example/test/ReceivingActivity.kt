@@ -100,7 +100,10 @@ class ReceivingActivity : BaseActivity() {
         btnSearchProduct.setOnClickListener { showProductSearchDialog() }
         btnSaveReceipt.setOnClickListener { saveReceipt() }
 
-        dwReceiver = DataWedgeScanner.createReceiver { barcode -> onBarcodeScanned(barcode) }
+        dwReceiver = DataWedgeScanner.createReceiver(
+            onBarcode = { barcode -> onBarcodeScanned(barcode) },
+            onEmpty = { if (weightTarget != null) onWeightScanned(null) }
+        )
 
         // Entrada directa desde el modal de "stock insuficiente" al cargar una
         // ruta (WarehouseRouteDetailActivity) — llega con el barcode ya
@@ -118,7 +121,26 @@ class ReceivingActivity : BaseActivity() {
         DataWedgeScanner.unregister(this, dwReceiver)
     }
 
+    // Campo de peso del diálogo abierto (null si no hay ninguno). Mientras hay
+    // uno, los escaneos son etiquetas de peso — no se busca un producto con
+    // ellas. Ver com.example.test.data.scan.WeightLabel.
+    private var weightTarget: EditText? = null
+
+    private fun onWeightScanned(raw: String?) {
+        val et = weightTarget ?: return
+        val w = com.example.test.data.scan.WeightLabel.parse(raw)
+        if (w == null) {
+            et.error = if (raw.isNullOrBlank()) getString(R.string.error_weight_scan_empty)
+                else getString(R.string.error_weight_scan_invalid, raw.trim().take(30))
+            return
+        }
+        et.error = null
+        et.setText(com.example.test.data.formatQty(w))
+        et.setSelection(et.text.length)
+    }
+
     private fun onBarcodeScanned(barcode: String) {
+        if (weightTarget != null) { onWeightScanned(barcode); return }
         lifecycleScope.launch {
             // ProductRepository.findByBarcode ya resuelve offline-first (va al
             // cache directo si `isOfflineMode()`, o cae ahí si la red falla) —
@@ -240,8 +262,64 @@ class ReceivingActivity : BaseActivity() {
         dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
     }
 
+    // Backlog cliente #2 (2026-09-28) — peso variable por caja: para Lbs se
+    // pregunta cuántas cajas son y el peso real de CADA una (caja 1 de N,
+    // 2 de N…) en un solo escaneo, en vez de re-escanear N veces. Cada caja
+    // queda como su propio lote (mismo modelo de datos de siempre).
+    private fun askBoxCount(product: Product) {
+        val etCount = EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText("1")
+            selectAll()
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.title_receiving_box_count))
+            .setMessage(product.name)
+            .setView(etCount)
+            .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
+                val count = (etCount.text.toString().toIntOrNull() ?: 1).coerceIn(1, 100)
+                askBoxWeight(product, 1, count, emptyList())
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun askBoxWeight(product: Product, index: Int, total: Int, collected: List<Double>) {
+        val expectedWeight = product.weightPerUnit?.takeIf { it > 0 }
+        val etWeight = EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(if (expectedWeight != null) com.example.test.data.formatQty(expectedWeight) else "")
+            selectAll()
+        }
+        weightTarget = etWeight
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.title_receiving_box_weight, index, total))
+            .setMessage(product.name + "\n" + getString(R.string.hint_scan_weight_label))
+            .setView(etWeight)
+            // Solo se limpia si sigue siendo ESTE campo: el positive button abre
+            // el diálogo de la caja siguiente (que ya se registró como target)
+            // antes de que este termine de cerrarse.
+            .setOnDismissListener { if (weightTarget === etWeight) weightTarget = null }
+            .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
+                // Peso vacío/inválido: no se registra la caja con un 0.01 lb
+                // inventado — se vuelve a pedir el mismo peso.
+                val w = etWeight.text.toString().toDoubleOrNull()?.takeIf { it > 0 } ?: expectedWeight
+                if (w == null) {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_box_weight_required), Snackbar.LENGTH_SHORT).show()
+                    askBoxWeight(product, index, total, collected)
+                    return@setPositiveButton
+                }
+                val all = collected + w
+                if (index < total) askBoxWeight(product, index + 1, total, all)
+                else askExpirationThenAdd(product, all)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
     private fun askQtyThenDate(product: Product) {
         val isLbs = com.example.test.data.isLbsUnit(product.unit)
+        if (isLbs) { askBoxCount(product); return }
         // Feedback cliente (2026-09-22) — para Lbs, "Cantidad recibida"
         // genérico + arrancar en "1" no tenía sentido: una caja de este tipo
         // de producto pesa varias libras (ej. 30), no 1. Se precarga con el
@@ -264,7 +342,7 @@ class ReceivingActivity : BaseActivity() {
             .setView(etQty)
             .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
                 val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: 1.0
-                askExpirationThenAdd(product, qty)
+                askExpirationThenAdd(product, listOf(qty))
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
@@ -284,7 +362,7 @@ class ReceivingActivity : BaseActivity() {
     // (mismo patrón que otros diálogos de la app que necesitan bloquear el
     // positive button hasta que la validación pase — se arma con .create()
     // en vez de dejar que el builder cierre solo con el listener).
-    private fun askExpirationThenAdd(product: Product, qty: Double) {
+    private fun askExpirationThenAdd(product: Product, weights: List<Double>) {
         var chosenDate: String? = null
         val density = resources.displayMetrics.density
         val tvDateError = TextView(this).apply {
@@ -377,7 +455,9 @@ class ReceivingActivity : BaseActivity() {
                 }
                 if (!valid) return@setOnClickListener
                 val lotNumber = if (cbNoLotNumber.isChecked) null else lotNumberTyped
-                addLine(product.barcode, product.name, qty, chosenDate, lotNumber, product.unit, supplier)
+                // Una línea (= un lote propio) por caja: mismo proveedor/lote/
+                // expiración, pero cada una con su peso real.
+                for (w in weights) addLine(product.barcode, product.name, w, chosenDate, lotNumber, product.unit, supplier)
                 dialog.dismiss()
             }
         }

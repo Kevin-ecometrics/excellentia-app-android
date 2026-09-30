@@ -140,7 +140,11 @@ class PreOrderDetailActivity : BaseActivity() {
             if (itemsJson != null) {
                 try {
                     val type = object : TypeToken<List<PreOrderItem>>() {}.type
-                    finalizedByIndex[idx] = Gson().fromJson(itemsJson, type)
+                    val parsed: List<PreOrderItem> = Gson().fromJson(itemsJson, type)
+                    // Backlog #2 — la caja elegida al armar la pre-orden viaja
+                    // hasta la conversión (el stepper no la conoce).
+                    val lotId = draftItems.getOrNull(idx)?.lotId
+                    finalizedByIndex[idx] = if (lotId != null) parsed.map { it.copy(lotId = lotId) } else parsed
                     renderItemsSection()
                 } catch (_: Exception) {
                     showError(getString(R.string.error_finalizing_item))
@@ -491,6 +495,30 @@ class PreOrderDetailActivity : BaseActivity() {
                     setTextColor(getColor(R.color.text_secondary))
                 })
             }
+            // Backlog #2 — caja puntual elegida al armar la pre-orden (peso
+            // variable). Informativa: si ya no está disponible se avisa en rojo
+            // para que el operador decida (el peso real puede ser otro).
+            if (draft.lotId != null) {
+                // Paso 3: si la caja ya no está en el sub-inventario porque
+                // Warehouse la cargó a una ruta, no es una alarma — va en el camión.
+                val onRoute = draft.lotOnRoute == true
+                val unavailable = draft.lotAvailable == false && !onRoute
+                info.addView(TextView(this).apply {
+                    text = when {
+                        onRoute -> getString(R.string.preorder_box_on_route,
+                            com.example.test.data.formatQty(draft.lotWeight ?: 0.0), draft.lotNumber ?: "-")
+                        unavailable -> getString(R.string.preorder_box_unavailable)
+                        else -> getString(R.string.preorder_box_chosen,
+                            com.example.test.data.formatQty(draft.lotWeight ?: 0.0), draft.lotNumber ?: "-")
+                    }
+                    textSize = 12f
+                    setTextColor(getColor(when {
+                        unavailable -> R.color.red
+                        onRoute -> R.color.success
+                        else -> R.color.text_secondary
+                    }))
+                })
+            }
             row.addView(info)
             row.addView(MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
                 text = if (rows != null) getString(R.string.btn_edit_detail) else getString(R.string.btn_add_detail)
@@ -679,7 +707,8 @@ class PreOrderDetailActivity : BaseActivity() {
                     total = lineTotal(freshPrice, quantity, finalUnit, finalCaseQty),
                     unit = finalUnit,
                     caseQty = finalCaseQty,
-                    shortName = product.shortName ?: draft.shortName
+                    shortName = product.shortName ?: draft.shortName,
+                    lotId = draft.lotId
                 )
                 finalizedByIndex[index] = listOf(finalized)
                 renderItemsSection()

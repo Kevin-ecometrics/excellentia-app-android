@@ -101,6 +101,31 @@
                         android:visibility="gone"
                         app:backgroundTint="@color/primary"
                         app:cornerRadius="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAddClient"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="12dp"
+                        android:fontFamily="@font/family_after"
+                        android:text="@string/btn_add_client"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        app:cornerRadius="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFinishRoute"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="12dp"
+                        android:fontFamily="@font/family_after"
+                        android:text="@string/btn_finish_route"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        app:backgroundTint="@color/primary"
+                        app:cornerRadius="0dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
