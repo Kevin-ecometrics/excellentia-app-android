@@ -281,7 +281,7 @@
     <string name="error_print_after_send">Order sent · Print error: %1$s</string>
     <string name="btn_add_detail">Detail</string>
     <string name="btn_edit_detail">Edit</string>
-    <string name="label_items_detailed_progress">%1$d of %2$d detailed</string>
+    <string name="label_items_detailed_progress">%1$d of %2$d confirmed</string>
     <string name="error_no_barcode_preorder">This product has no barcode and can\'t be added to a pre-order</string>
     <string name="error_already_in_preorder">This product is already in the list</string>
     <string name="error_finish_detailing_items">Finish detailing all products before converting</string>
@@ -629,6 +629,21 @@
     <string name="wh_choose_lot_title">Choose lot</string>
     <string name="preorder_pick_box_title">Choose a box</string>
     <string name="preorder_no_box">No specific box</string>
+    <string name="preorder_boxes_title">How many boxes?</string>
+    <string name="preorder_boxes_hint">Number of boxes</string>
+    <string name="preorder_buckets_title">How many buckets?</string>
+    <string name="preorder_buckets_hint">Number of buckets</string>
+    <string name="preorder_count_invalid">Enter a whole number (1–200)</string>
+    <string name="error_product_not_in_preorder">This product is not in the pre-order of this stop. Add it to the pre-order before loading it.</string>
+    <string name="preorder_box_position">Box %1$d of %2$d</string>
+    <plurals name="preorder_boxes_count">
+        <item quantity="one">%d box</item>
+        <item quantity="other">%d boxes</item>
+    </plurals>
+    <plurals name="preorder_boxes_line">
+        <item quantity="one">%1$s — %2$d box</item>
+        <item quantity="other">%1$s — %2$d boxes</item>
+    </plurals>
     <string name="preorder_box_chosen">Box: %1$s lb · lot %2$s</string>
     <string name="preorder_box_unavailable">Chosen box is no longer available</string>
     <string name="preorder_box_on_route">Box loaded on the route: %1$s lb · lot %2$s</string>
@@ -639,6 +654,9 @@
     <string name="wh_box_picker_line">%1$s lb · exp %2$s · lot %3$s</string>
     <string name="wh_scan_box_no_match">No %2$s box of %1$s lb available — pick it from the list</string>
     <string name="wh_scan_box_claimed">The %1$s lb box is reserved for a pre-order — pick it from the list</string>
+    <string name="wh_scan_weight_prompt">Now scan the box weight barcode</string>
+    <string name="wh_btn_view_list">View list</string>
+    <string name="wh_scan_box_multiple">%1$d boxes of %2$s lb with the same weight found — pick which one</string>
     <string name="wh_box_claimed_suffix"> · already chosen in pre-order #%1$d (%2$s)</string>
     <string name="wh_box_claimed_more"> +%1$d more</string>
     <string name="wh_btn_other_quantity">Other quantity</string>

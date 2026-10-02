@@ -276,7 +276,7 @@
     <string name="error_print_after_send">Pedido enviado · Error al imprimir: %1$s</string>
     <string name="btn_add_detail">Detallar</string>
     <string name="btn_edit_detail">Editar</string>
-    <string name="label_items_detailed_progress">%1$d de %2$d detallados</string>
+    <string name="label_items_detailed_progress">%1$d de %2$d confirmados</string>
     <string name="error_no_barcode_preorder">Este producto no tiene código de barras y no se puede agregar a una pre-orden</string>
     <string name="error_already_in_preorder">Este producto ya está en la lista</string>
     <string name="error_finish_detailing_items">Termina de detallar todos los productos antes de convertir</string>
@@ -603,6 +603,21 @@
     <string name="wh_choose_lot_title">Elegir lote</string>
     <string name="preorder_pick_box_title">Elegí una caja</string>
     <string name="preorder_no_box">Sin caja puntual</string>
+    <string name="preorder_boxes_title">¿Cuántas cajas?</string>
+    <string name="preorder_boxes_hint">Cantidad de cajas</string>
+    <string name="preorder_buckets_title">¿Cuántos baldes?</string>
+    <string name="preorder_buckets_hint">Cantidad de baldes</string>
+    <string name="preorder_count_invalid">Ingresá un número entero (1–200)</string>
+    <string name="error_product_not_in_preorder">Este producto no está en la pre-orden de esta parada. Agrégalo a la pre-orden antes de cargarlo.</string>
+    <string name="preorder_box_position">Caja %1$d de %2$d</string>
+    <plurals name="preorder_boxes_count">
+        <item quantity="one">%d caja</item>
+        <item quantity="other">%d cajas</item>
+    </plurals>
+    <plurals name="preorder_boxes_line">
+        <item quantity="one">%1$s — %2$d caja</item>
+        <item quantity="other">%1$s — %2$d cajas</item>
+    </plurals>
     <string name="preorder_box_chosen">Caja: %1$s lb · lote %2$s</string>
     <string name="preorder_box_unavailable">La caja elegida ya no está disponible</string>
     <string name="preorder_box_on_route">Caja cargada en la ruta: %1$s lb · lote %2$s</string>
@@ -613,6 +628,9 @@
     <string name="wh_box_picker_line">%1$s lb · vence %2$s · lote %3$s</string>
     <string name="wh_scan_box_no_match">No hay una caja de %1$s lb de %2$s — elegila de la lista</string>
     <string name="wh_scan_box_claimed">La caja de %1$s lb está reservada para una pre-orden — elegila de la lista</string>
+    <string name="wh_scan_weight_prompt">Ahora escaneá el código de barras del peso de la caja</string>
+    <string name="wh_btn_view_list">Ver lista</string>
+    <string name="wh_scan_box_multiple">Se encontraron %1$d cajas de %2$s lb con el mismo peso — elegí cuál es</string>
     <string name="wh_box_claimed_suffix"> · ya elegida en pre-orden #%1$d (%2$s)</string>
     <string name="wh_box_claimed_more"> +%1$d más</string>
     <string name="wh_btn_other_quantity">Otra cantidad</string>

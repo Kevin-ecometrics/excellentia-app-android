@@ -310,8 +310,18 @@ class MyRouteDetailActivity : BaseActivity() {
             val tvDetail = row.findViewById<TextView>(R.id.tvStopDetail)
             // Qué contiene la pre-orden vinculada, en línea acá mismo — antes
             // había que tocar "Abrir pre-orden" para enterarte qué llevar.
-            val itemsSummary = stop.preOrder?.items?.takeIf { it.isNotEmpty() }?.joinToString("\n") { item ->
-                val qty = item.quantity?.let { String.format(Locale.US, "%.2f", it) } ?: "?"
+            // Fase 146 — una línea por producto: Lbs "Producto — N cajas" (la pre-orden
+            // solo dice cuántas cajas, el peso se pesa al entregar), el resto con su
+            // cantidad como siempre. Sin summary (backend viejo) cae a las filas crudas.
+            val itemsSummary = stop.preOrder?.summary?.takeIf { it.isNotEmpty() }?.joinToString("\n") { line ->
+                if (line.boxCount != null) {
+                    "• " + resources.getQuantityString(R.plurals.preorder_boxes_line, line.boxCount, line.productName, line.boxCount)
+                } else {
+                    val qty = line.requestedQty?.let { com.example.test.data.formatPreOrderQty(it, line.unit) } ?: "?"
+                    "• ${line.productName} — $qty ${line.unit ?: ""}".trimEnd()
+                }
+            } ?: stop.preOrder?.items?.takeIf { it.isNotEmpty() }?.joinToString("\n") { item ->
+                val qty = item.quantity?.let { com.example.test.data.formatPreOrderQty(it, item.unit) } ?: "?"
                 "• ${item.productName} — $qty ${item.unit ?: ""}".trimEnd()
             }
             // Backlog cliente (2026-09-23) — mismo criterio que itemsSummary

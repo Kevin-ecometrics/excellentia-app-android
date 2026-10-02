@@ -316,7 +316,8 @@ class WarehouseActivity : BaseActivity() {
 
     private fun showPreOrderPicker(preOrders: List<AvailablePreOrder>) {
         val labels = preOrders.map {
-            "${it.customerName ?: "—"}  ·  #${it.id}  ·  \$${String.format(Locale.US, "%.2f", it.total)}"
+            // Sin monto: a Almacén no le interesa el precio de la pre-orden, solo cuál es.
+            "${it.customerName ?: "—"}  ·  #${it.id}"
         }.toTypedArray()
         val checked = BooleanArray(preOrders.size)
         MaterialAlertDialogBuilder(this)

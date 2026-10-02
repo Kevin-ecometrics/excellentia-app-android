@@ -540,6 +540,8 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 // otra caja por el flujo de siempre.
                 val lines = items.joinToString("\n") { it ->
                     when {
+                        // Fase 146 — pre-orden Lbs: solo cuántas cajas pidió, sin caja puntual.
+                        it.boxCount != null -> resources.getQuantityString(R.plurals.preorder_boxes_line, it.boxCount, it.productName, it.boxCount)
                         it.lotId != null && it.lotAvailable == true ->
                             getString(R.string.wh_promised_box_line, it.productName,
                                 com.example.test.data.formatQty(it.lotRemainingQty ?: it.lotWeight ?: 0.0), it.lotNumber ?: "-")
@@ -606,7 +608,17 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             val row = inflater.inflate(R.layout.item_route_stop, layoutStops, false)
             row.findViewById<TextView>(R.id.tvStopCustomer).text = "${i + 1}. ${stop.customerName ?: "—"}"
             val tvDetail = row.findViewById<TextView>(R.id.tvStopDetail)
-            val itemsSummary = stop.preOrder?.items?.takeIf { it.isNotEmpty() }?.joinToString("\n") { item ->
+            // Fase 146 — una línea por producto: "Producto – 3 cajas" (Lbs) o la
+            // cantidad pedida (Case/Unit/Bucket). Sin summary (backend viejo)
+            // cae a las filas crudas de siempre.
+            val itemsSummary = stop.preOrder?.summary?.takeIf { it.isNotEmpty() }?.joinToString("\n") { line ->
+                if (line.boxCount != null) {
+                    "• " + resources.getQuantityString(R.plurals.preorder_boxes_line, line.boxCount, line.productName, line.boxCount)
+                } else {
+                    val qty = line.requestedQty?.let { com.example.test.data.formatQty(it) } ?: "?"
+                    "• ${line.productName} — $qty ${line.unit ?: ""}".trimEnd()
+                }
+            } ?: stop.preOrder?.items?.takeIf { it.isNotEmpty() }?.joinToString("\n") { item ->
                 val qty = item.quantity?.let { String.format(Locale.US, "%.2f", it) } ?: "?"
                 "• ${item.productName} — $qty ${item.unit ?: ""}".trimEnd()
             }
@@ -769,26 +781,64 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     private class BoxScan(
         val product: ProductDto,
         val lots: List<com.example.test.data.ProductLotDto>,
-        val dialog: androidx.appcompat.app.AlertDialog
+        val dialog: androidx.appcompat.app.AlertDialog,
+        // true = modal "escaneá el peso" (los errores se muestran dentro del
+        // modal); false = la lista de cajas (errores en Snackbar).
+        val prompt: Boolean = false
     )
     private var boxScan: BoxScan? = null
 
     private fun onBoxWeightScanned(bs: BoxScan, weight: Double) {
         val matches = bs.lots.filter { kotlin.math.abs(it.remainingQty - weight) < 0.005 }
-        val free = matches.firstOrNull { it.claimedBy.isNullOrEmpty() }
+        val frees = matches.filter { it.claimedBy.isNullOrEmpty() }
+        val free = frees.firstOrNull()
         val w = com.example.test.data.formatQty(weight)
         when {
+            frees.size > 1 -> {
+                // Varias cajas libres con el mismo peso: se elige cuál es la que
+                // el almacenista tiene en la mano (vencimiento/lote distintos).
+                bs.dialog.dismiss()
+                showSameWeightChooser(bs.product, bs.lots, frees, w)
+            }
             free != null -> {
                 bs.dialog.dismiss()
                 addRouteItem(bs.product, free.remainingQty, free.id, wholeBox = true)
             }
             // La caja existe pero está prometida a una pre-orden: no se carga a
             // ciegas, se deja la lista abierta para que se decida a mano.
-            matches.isNotEmpty() ->
-                Snackbar.make(findViewById(android.R.id.content), getString(R.string.wh_scan_box_claimed, w), Snackbar.LENGTH_LONG).show()
-            else ->
-                Snackbar.make(findViewById(android.R.id.content), getString(R.string.wh_scan_box_no_match, w, bs.product.name), Snackbar.LENGTH_LONG).show()
+            matches.isNotEmpty() -> showBoxScanError(bs, getString(R.string.wh_scan_box_claimed, w))
+            else -> showBoxScanError(bs, getString(R.string.wh_scan_box_no_match, w, bs.product.name))
         }
+    }
+
+    private fun showSameWeightChooser(
+        product: ProductDto,
+        allLots: List<com.example.test.data.ProductLotDto>,
+        candidates: List<com.example.test.data.ProductLotDto>,
+        weightLabel: String
+    ) {
+        val labels = candidates.map { lot ->
+            val exp = lot.expirationDate?.take(10) ?: getString(R.string.wh_no_expiration)
+            getString(R.string.wh_box_picker_line, com.example.test.data.formatQty(lot.remainingQty), exp, lot.lotNumber ?: "-")
+        }.toTypedArray()
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(product.name)
+            .setMessage(getString(R.string.wh_scan_box_multiple, candidates.size, weightLabel))
+            .setItems(labels) { _, which ->
+                val lot = candidates[which]
+                addRouteItem(product, lot.remainingQty, lot.id, wholeBox = true)
+            }
+            .setOnDismissListener { d -> if (boxScan?.dialog === d) boxScan = null }
+            .setNeutralButton(getString(R.string.wh_btn_view_list)) { _, _ -> showBoxList(product, allLots) }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+        // prompt = false: un nuevo escaneo de peso re-resuelve desde acá.
+        boxScan = BoxScan(product, allLots, dialog)
+    }
+
+    private fun showBoxScanError(bs: BoxScan, msg: String) {
+        if (bs.prompt) bs.dialog.setMessage(bs.product.name + "\n\n" + msg)
+        else Snackbar.make(findViewById(android.R.id.content), msg, Snackbar.LENGTH_LONG).show()
     }
 
     private fun onBarcodeScanned(barcode: String) {
@@ -829,6 +879,26 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 if (resp.isSuccessful) (resp.body()?.data ?: emptyList()).filter { it.remainingQty > 0 } else emptyList()
             } catch (_: Exception) { emptyList() }
             if (lots.isEmpty()) { showQuantityDialogManual(product); return@launch }
+            showWeightScanPrompt(product, lots)
+        }
+    }
+
+    // Paso 2 del flujo Lbs: tras escanear el producto, pide escanear el código
+    // de barras del peso de la caja. Si no matchea (o no hay etiqueta legible)
+    // el modal avisa y "Ver lista" abre la lista de cajas de siempre.
+    private fun showWeightScanPrompt(product: ProductDto, lots: List<com.example.test.data.ProductLotDto>) {
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(product.name)
+            .setMessage(getString(R.string.wh_scan_weight_prompt))
+            .setOnDismissListener { d -> if (boxScan?.dialog === d) boxScan = null }
+            .setPositiveButton(getString(R.string.wh_btn_view_list)) { _, _ -> showBoxList(product, lots) }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+        boxScan = BoxScan(product, lots, dialog, prompt = true)
+    }
+
+    private fun showBoxList(product: ProductDto, lots: List<com.example.test.data.ProductLotDto>) {
+        run {
             val labels = lots.map { lot ->
                 val exp = lot.expirationDate?.take(10) ?: getString(R.string.wh_no_expiration)
                 // Paso 4 (opción A): Warehouse ve qué cajas ya fueron prometidas a
@@ -1041,9 +1111,13 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 } else if (resp.code() == 400) {
                     // Fase 141 — mensaje del backend (ej. cantidad con decimales
                     // en un producto Case/Unit/Bucket): se muestra tal cual.
-                    val msg = try {
-                        com.google.gson.Gson().fromJson(resp.errorBody()?.string(), com.example.test.data.ApiErrorBody::class.java)?.error
+                    val errorBody = try {
+                        com.google.gson.Gson().fromJson(resp.errorBody()?.string(), com.example.test.data.ApiErrorBody::class.java)
                     } catch (_: Exception) { null }
+                    // Fase 146 — producto fuera de la pre-orden de la parada: texto en el
+                    // idioma de la app (el `error` del backend viene siempre en español).
+                    val msg = if (errorBody?.code == "PRODUCT_NOT_IN_PREORDER") getString(R.string.error_product_not_in_preorder)
+                        else errorBody?.error
                     Snackbar.make(findViewById(android.R.id.content), msg ?: getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_LONG).show()
                 } else {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()

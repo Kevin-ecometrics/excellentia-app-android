@@ -455,6 +455,11 @@ fun unitDisplayLabel(unit: String?): String = when {
 // muestra un número de cantidad suelto (sin sufijo de unidad), ej.
 // route_items.quantity (Fase 118) — un Case/Unit/Bucket entero no debe
 // mostrar ".0" solo porque el campo ahora es Double.
+// Cantidad de una pre-orden: Lbs conserva "2.35" (peso real, 2 decimales); Case/Unit
+// y Bucket son conteos enteros, así que "2" en vez de "2.00".
+fun formatPreOrderQty(value: Double, unit: String?): String =
+    if (isLbsUnit(unit)) String.format(Locale.US, "%.2f", value) else formatQty(value)
+
 fun formatQty(value: Double): String {
     val rounded = Math.round(value * 100) / 100.0
     return if (rounded == rounded.toLong().toDouble()) {
@@ -689,7 +694,9 @@ data class EditBatchResponse(
     @SerializedName("itemCount") val itemCount: Int? = null
 )
 
-data class ApiErrorBody(val error: String? = null)
+// `code`: identificador estable del error (ej. PRODUCT_NOT_IN_PREORDER) para mostrarlo
+// en el idioma de la app; `error` es el texto del backend (español), solo de respaldo.
+data class ApiErrorBody(val error: String? = null, val code: String? = null)
 
 // Fase 112 — cuando addRouteItem/suggestLots fallan por falta de stock en el
 // almacén, el backend distingue "cero recibido" (available == 0, la app
@@ -787,7 +794,22 @@ data class PreOrderItem(
     @SerializedName("lot_available") val lotAvailable: Boolean? = null,
     // Paso 3 (2026-09-28) — la caja elegida ya fue cargada a una ruta: no es
     // "no disponible", solo ya no está en el sub-inventario porque va en el camión.
-    @SerializedName("lot_on_route") val lotOnRoute: Boolean? = null
+    @SerializedName("lot_on_route") val lotOnRoute: Boolean? = null,
+    // Fase 146 — solo al crear: cantidad de cajas pedidas de un producto Lbs. El
+    // backend la expande a N filas; nunca viene en las respuestas (ver PreOrderSummaryLine).
+    @SerializedName("box_count") val boxCount: Int? = null
+)
+
+// Fase 146 — resumen por producto de lo que pidió la pre-orden. Lbs: boxCount =
+// cajas (requestedQty igual); Case/Unit/Bucket: boxCount null y requestedQty =
+// cajas/baldes pedidos (null si todavía no trae cantidad).
+data class PreOrderSummaryLine(
+    val barcode: String? = null,
+    @SerializedName("product_name") val productName: String,
+    val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null,
+    @SerializedName("box_count") val boxCount: Int? = null,
+    @SerializedName("requested_qty") val requestedQty: Double? = null
 )
 
 data class PreOrderRequest(
@@ -814,7 +836,10 @@ data class PreOrderDto(
     @SerializedName("item_count") val itemCount: Int = 0,
     val total: Double = 0.0,
     @SerializedName("created_at") val createdAt: String? = null,
-    val items: List<PreOrderItem> = emptyList()
+    val items: List<PreOrderItem> = emptyList(),
+    // Fase 146 — solo GET /api/preorders/:id: una línea por producto con la unidad
+    // ya resuelta contra el catálogo (los ítems de borrador pueden traer unit null).
+    val summary: List<PreOrderSummaryLine> = emptyList()
 )
 
 data class UserBrief(
@@ -898,7 +923,8 @@ data class RouteStopPreOrder(
     val id: Int,
     val status: String,
     @SerializedName("scheduled_date") val scheduledDate: String? = null,
-    val items: List<PreOrderItem> = emptyList()
+    val items: List<PreOrderItem> = emptyList(),
+    val summary: List<PreOrderSummaryLine> = emptyList()
 )
 
 data class RouteItemDto(
@@ -1066,7 +1092,10 @@ data class ExpectedStopItemDto(
     @SerializedName("lot_remaining_qty") val lotRemainingQty: Double? = null,
     @SerializedName("lot_weight") val lotWeight: Double? = null,
     @SerializedName("lot_number") val lotNumber: String? = null,
-    @SerializedName("lot_available") val lotAvailable: Boolean? = null
+    @SerializedName("lot_available") val lotAvailable: Boolean? = null,
+    // Fase 146 — cajas pedidas (Lbs) / cajas-baldes pedidos (resto), solo PRE_ORDER.
+    @SerializedName("box_count") val boxCount: Int? = null,
+    @SerializedName("requested_qty") val requestedQty: Double? = null
 )
 
 data class AddStopResponse(
