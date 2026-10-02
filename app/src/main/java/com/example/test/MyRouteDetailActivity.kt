@@ -213,8 +213,18 @@ class MyRouteDetailActivity : BaseActivity() {
         when (d.status) {
             "PLANNED" -> {
                 btnRouteAction.visibility = View.VISIBLE
-                btnRouteAction.text = getString(R.string.btn_start_route)
-                btnRouteAction.setOnClickListener { confirmRouteTransition("IN_PROGRESS") }
+                // "Ruta terminada" (2026-10-01) — hasta que el almacén cierre la
+                // carga, la ruta no se puede iniciar (el backend también lo
+                // rechaza con 400; acá se evita que el operador llegue a ese error).
+                if (d.readyAt == null) {
+                    btnRouteAction.isEnabled = false
+                    btnRouteAction.text = getString(R.string.btn_waiting_warehouse)
+                    btnRouteAction.setOnClickListener(null)
+                } else {
+                    btnRouteAction.isEnabled = true
+                    btnRouteAction.text = getString(R.string.btn_start_route)
+                    btnRouteAction.setOnClickListener { confirmRouteTransition("IN_PROGRESS") }
+                }
             }
             // Fix (2026-09-23, pedido del usuario) — "Finalizar ruta" manual
             // se sacó: maybeAutoCloseRoute() (backend, updateStopStatus) ya
@@ -623,6 +633,12 @@ class MyRouteDetailActivity : BaseActivity() {
             }
             row.findViewById<TextView>(R.id.tvItemMeta).text =
                 (item.sku ?: item.barcode ?: "—") + (item.unit?.let { " · $it" } ?: "") + soldBadge
+            // Fase 141 — lote (y peso, si la carga se partió) de esta caja.
+            val lotsText = com.example.test.data.routeLotsSummary(this, item.lots.orEmpty(), item.unlottedQty, item.unit)
+            row.findViewById<TextView>(R.id.tvItemLots).apply {
+                text = lotsText
+                visibility = if (lotsText == null) View.GONE else View.VISIBLE
+            }
             // Backlog cliente (2026-09-23) — pedido explícito: que el operador
             // vea con claridad cuánto peso tiene cargado de un producto Lbs en
             // su camión (route_items.quantity ya es peso real desde la Fase

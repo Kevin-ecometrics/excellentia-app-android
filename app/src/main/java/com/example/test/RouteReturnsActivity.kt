@@ -121,7 +121,14 @@ class RouteReturnsActivity : BaseActivity() {
                 returnedExpiredQty = rows.sumOf { it.returnedExpiredQty },
                 returnedTransporterDamageQty = rows.sumOf { it.returnedTransporterDamageQty },
                 consignmentSettledQty = rows.sumOf { it.consignmentSettledQty },
-                discrepancy = rows.sumOf { it.discrepancy }
+                discrepancy = rows.sumOf { it.discrepancy },
+                // Fase 141 — cada caja/lote cargado de este producto en toda
+                // la ruta. Un mismo lote puede venir en 2 líneas (paradas
+                // distintas): se suma su cantidad en vez de repetirlo.
+                lots = rows.flatMap { it.lots.orEmpty() }.groupBy { it.lotId }.map { (_, l) ->
+                    l.first().copy(quantity = l.sumOf { it.quantity })
+                },
+                unlottedQty = rows.sumOf { it.unlottedQty }
             )
         }
     }
@@ -182,6 +189,18 @@ class RouteReturnsActivity : BaseActivity() {
                     setPadding(0, 4.dp, 0, 8.dp)
                 }
                 content.addView(tvDeparted)
+            }
+
+            // Fase 141 — lote y peso de cada caja que salió en el camión
+            // (referencia para contar lo que regresa; la devolución se sigue
+            // capturando por producto, no por lote).
+            com.example.test.data.routeLotsSummary(this, exp.lots.orEmpty(), exp.unlottedQty, exp.unit)?.let { lotsText ->
+                content.addView(TextView(this).apply {
+                    text = lotsText
+                    textSize = 12f
+                    setTextColor(getColor(R.color.text_secondary))
+                    setPadding(0, 0, 0, 8.dp)
+                })
             }
 
             // Fase 118 (fix) — decimal solo para Lbs (peso real); Case/Unit y
@@ -322,7 +341,12 @@ class RouteReturnsActivity : BaseActivity() {
                     setResult(Activity.RESULT_OK)
                     finish()
                 } else {
-                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_returns_failed, resp.code().toString()), Snackbar.LENGTH_LONG).show()
+                    // Fase 141 — 400 con mensaje propio del backend (ej. cantidad
+                    // con decimales en un Case/Unit/Bucket): se muestra tal cual.
+                    val serverMsg = if (resp.code() == 400) try {
+                        com.google.gson.Gson().fromJson(resp.errorBody()?.string(), com.example.test.data.ApiErrorBody::class.java)?.error
+                    } catch (_: Exception) { null } else null
+                    Snackbar.make(findViewById(android.R.id.content), serverMsg ?: getString(R.string.error_returns_failed, resp.code().toString()), Snackbar.LENGTH_LONG).show()
                     btnSaveReturns.isEnabled = true
                     btnSaveReturns.text = getString(R.string.wh_btn_save_returns)
                 }

@@ -40,7 +40,12 @@ class WarehouseRepository(
                 if (response.isSuccessful && response.body() != null) {
                     Result.success(response.body()!!)
                 } else {
-                    Result.failure(Exception("Error del servidor: ${response.code()}"))
+                    // Fase 141 — 400 con mensaje propio del backend (ej. "este
+                    // tipo de producto no puede ser 6.5"): se muestra tal cual.
+                    val serverMsg = if (response.code() == 400) try {
+                        com.google.gson.Gson().fromJson(response.errorBody()?.string(), com.example.test.data.ApiErrorBody::class.java)?.error
+                    } catch (_: Exception) { null } else null
+                    Result.failure(Exception(serverMsg ?: "Error del servidor: ${response.code()}"))
                 }
             } catch (e: Exception) {
                 // Sin red — guardar localmente para sincronizar cuando haya conexión

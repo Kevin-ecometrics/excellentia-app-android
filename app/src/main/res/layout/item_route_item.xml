@@ -39,6 +39,16 @@
             android:layout_marginTop="1dp"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
+
+        <!-- Fase 141 — lote(s) y peso de esta carga; GONE si no hay detalle. -->
+        <TextView
+            android:id="@+id/tvItemLots"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <TextView

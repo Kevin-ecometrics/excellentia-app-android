@@ -266,12 +266,6 @@ class WarehouseActivity : BaseActivity() {
     // se veía como botón de la marca pero las dos opciones de arriba no
     // parecían botones en absoluto. Reemplazado por dos MaterialButton
     // reales de ancho completo dentro de un setView().
-    //
-    // route_day_stops (2026-09-18) — "Desde pre-órdenes" sigue andando sin
-    // cambios: la lista de clientes pre-aprobados por día (showDayStopPicker
-    // en WarehouseRouteDetailActivity) solo aplica a paradas tipo CUSTOMER
-    // — una pre-orden confirmada ya es en sí la aprobación (alguien ya
-    // armó ese pedido), así que agregarla como parada sigue siendo libre.
     private fun showNewRouteChooser() {
         val density = resources.displayMetrics.density
         val layout = LinearLayout(this).apply {

@@ -137,6 +137,7 @@
 
             <!-- Stops card -->
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardStops"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
@@ -346,6 +347,17 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:orientation="vertical"
+                        android:visibility="gone" />
+
+                    <!-- "Ruta terminada" (2026-10-01) — cierra la carga: hasta que se
+                         aprieta, el operador no puede iniciar la ruta. Solo visible con la
+                         ruta PLANNED (ver bind() en WarehouseRouteDetailActivity). -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnMarkReady"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/wh_btn_mark_ready"
                         android:visibility="gone" />
 
                     <!-- Fase 112 — revisión de devoluciones, solo visible con la

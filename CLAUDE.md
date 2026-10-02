@@ -581,3 +581,7 @@ Los ítems además se agrupan por categoría (LBS → CASE/UNIT → BUCKET → o
 - [ ] **Almacenar pesos individuales** — guardar el desglose de unidades en `PendingOrderEntity` para poder editarlos individualmente después
 - [ ] **Editar pre-orden** — actualmente solo se puede ver y convertir; agregar edición de items/fecha/notas desde PreOrderDetailActivity
 - [ ] **Pre-órdenes offline** — actualmente requieren internet; considerar SQLite local (pre_orders v7) para borradores offline
+
+## "Ruta terminada" (2026-10-01)
+
+`routes.ready_at` (backend, ver `excellentia/CLAUDE.md`): el almacén cierra la carga con `POST /api/routes/:id/ready` y puede deshacerlo con `/reopen` mientras la ruta siga PLANNED. Android: `WarehouseRouteDetailActivity` tiene `btnMarkReady` (y `isLocked()` bloquea la edicion con la ruta lista); `MyRouteDetailActivity` deshabilita "Salir a reparto" mientras `readyAt == null`. Sin probar en el TC22.

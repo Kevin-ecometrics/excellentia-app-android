@@ -839,6 +839,9 @@ data class RouteDto(
     // ya se revisaron de cuáles todavía necesitan que el almacenista cuente
     // lo que volvió del camión.
     @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null,
+    // "Ruta terminada" (2026-10-01) — null mientras el almacén no cerró la
+    // carga; con la ruta PLANNED, el operador no puede iniciarla hasta que exista.
+    @SerializedName("ready_at") val readyAt: String? = null,
     // Fase 115 — 'DIRECT' (un solo destino) o 'MULTI_STOP' (default, flujo de siempre).
     @SerializedName("route_type") val routeType: String = "MULTI_STOP"
 )
@@ -919,7 +922,26 @@ data class RouteItemDto(
     // parada), para mostrar cuánto queda en el camión aunque la carga sea
     // "Sin asignar".
     @SerializedName("sold_qty") val soldQty: Double = 0.0,
-    @SerializedName("total_loaded_qty") val totalLoadedQty: Double? = null
+    @SerializedName("total_loaded_qty") val totalLoadedQty: Double? = null,
+    // Fase 141 — cada carga es su propia línea (una caja/lote); `lots` trae el
+    // lote y el peso exacto de esa carga. `unlottedQty` = parte cargada desde
+    // stock general (sin lote). Vacío/0 con un backend anterior.
+    // Nullable a propósito: con un backend anterior el campo no viene y Gson
+    // lo deja null aunque el default sea emptyList() — usar .orEmpty().
+    val lots: List<RouteItemLotDto>? = null,
+    @SerializedName("unlotted_qty") val unlottedQty: Double = 0.0
+)
+
+// Fase 141 — lote (y peso cargado) detrás de una línea de ruta. `quantity` es
+// lo cargado a la ruta desde ese lote (el peso de esa caja si es Lbs);
+// `receivedQty` es el tamaño original del lote al recibirlo.
+data class RouteItemLotDto(
+    @SerializedName("lot_id") val lotId: Int,
+    @SerializedName("lot_number") val lotNumber: String? = null,
+    val supplier: String? = null,
+    @SerializedName("expiration_date") val expirationDate: String? = null,
+    val quantity: Double = 0.0,
+    @SerializedName("received_qty") val receivedQty: Double = 0.0
 )
 
 data class RouteDetailDto(
@@ -935,6 +957,8 @@ data class RouteDetailDto(
     // Ver comentario en RouteDto — acá gatilla el banner "ya revisada" y
     // deshabilita todos los botones de edición de WarehouseRouteDetailActivity.
     @SerializedName("returns_reviewed_at") val returnsReviewedAt: String? = null,
+    // "Ruta terminada" — ver comentario en RouteDto.
+    @SerializedName("ready_at") val readyAt: String? = null,
     // Fase 115 — ver comentario en RouteDto.
     @SerializedName("route_type") val routeType: String = "MULTI_STOP",
     // 2026-09-29 — el operador sumó clientes sobre la marcha: la ruta no se
@@ -953,26 +977,6 @@ data class AddStopRequest(
 data class AvailableStopsResponse(
     val orders: List<AvailableOrder> = emptyList(),
     val preOrders: List<AvailablePreOrder> = emptyList()
-)
-
-// route_day_stops (2026-09-18) — lo que el admin pre-aprobó para un día
-// desde el dashboard, antes de que exista ninguna ruta/camión. El
-// almacenista arma su ruta como siempre, pero "+ Agregar parada" ahora
-// elige de acá (assignedRouteId == null = todavía libre) en vez de buscar
-// cualquier cliente — ver WarehouseRouteDetailActivity.showDayStopPicker().
-data class DayStopsResponse(val data: List<DayStopDto> = emptyList())
-
-// Solo clientes (2026-09-18) — se sacó la opción de pre-aprobar pedidos/
-// pre-órdenes ya existentes, nunca se usó en la práctica. BATCH/PRE_ORDER
-// siguen existiendo como stop_type de una ruta real (route_stops) y se
-// siguen agregando libres, sin pasar por esta lista.
-data class DayStopDto(
-    val id: Int,
-    @SerializedName("scheduled_date") val scheduledDate: String,
-    @SerializedName("customer_id") val customerId: String,
-    @SerializedName("customer_name") val customerName: String,
-    @SerializedName("assigned_route_id") val assignedRouteId: Int? = null,
-    @SerializedName("assigned_route_name") val assignedRouteName: String? = null
 )
 
 data class AvailableOrder(
@@ -1072,6 +1076,9 @@ data class AddStopResponse(
 
 data class RouteItemResponse(
     val item: RouteItemDto,
+    // Fase 141 — todas las líneas creadas por esta carga (una por lote si el
+    // FIFO la partió); `item` es la primera, por compatibilidad.
+    val items: List<RouteItemDto>? = null,
     val stock: Double,
     val lots: List<FifoAllocationDto>? = null,
     @SerializedName("qbSynced") val qbSynced: Boolean,
@@ -1352,7 +1359,11 @@ data class RouteReturnExpectedDto(
     // acepta stock ACTIVE, nunca dañado/vencido), se expone acá para mostrar
     // la línea de base junto al conteo de la devolución.
     @SerializedName("loaded_at") val loadedAt: String? = null,
-    @SerializedName("loaded_by_name") val loadedByName: String? = null
+    @SerializedName("loaded_by_name") val loadedByName: String? = null,
+    // Fase 141 — lote y peso de lo CARGADO en esta línea (solo referencia: la
+    // devolución se sigue capturando por producto, no por lote).
+    val lots: List<RouteItemLotDto>? = null,
+    @SerializedName("unlotted_qty") val unlottedQty: Double = 0.0
 )
 
 data class RouteReturnItemRequest(
