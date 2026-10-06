@@ -80,6 +80,15 @@
                         android:layout_height="wrap_content"
                         android:text="@string/wh_view_receipts" />
 
+                    <!-- Pestaña "Clientes" — solo consulta: inventario que hay en
+                         la tienda del cliente (consignación) y lo que se le vendió. -->
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipViewCustomers"
+                        style="@style/Widget.Excellentia.Chip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/wh_view_customers" />
+
                 </com.google.android.material.chip.ChipGroup>
 
                 <!-- ── Disponible: stock recibido y activo, agrupado por producto ── -->
@@ -280,6 +289,121 @@
                         android:paddingTop="64dp"
                         android:text="@string/wh_no_receipts"
                         android:textColor="@color/text_secondary"
+                        android:textSize="15sp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+                <!-- ── Clientes: elegir un cliente y consultar su inventario o sus ventas ── -->
+                <LinearLayout
+                    android:id="@+id/sectionCustomers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Fondo de pantalla y colorPrimary son el mismo verde de marca:
+                         los botones de esta pestaña llevan color explícito (blanco)
+                         para no quedar camuflados contra el fondo. -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPickCustomer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="16dp"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/wh_customer_pick"
+                        android:textColor="@color/ex_green"
+                        app:backgroundTint="@color/white" />
+
+                    <!-- Aparece al elegir el cliente. -->
+                    <LinearLayout
+                        android:id="@+id/layoutCustomerActions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp"
+                        android:visibility="gone">
+
+                        <!-- Vista activa = relleno blanco; la otra = solo borde blanco
+                             (ver highlightCustomerMode() en InventoryMovementsActivity). -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCustomerInventory"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/wh_customer_inventory"
+                            android:textColor="@color/white"
+                            android:textSize="12sp"
+                            app:strokeColor="@color/white" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCustomerSales"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:text="@string/wh_customer_sales"
+                            android:textColor="@color/white"
+                            android:textSize="12sp"
+                            app:strokeColor="@color/white" />
+                    </LinearLayout>
+
+                    <!-- Rango de "Vendido": 30 días (default) o Todo. -->
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chipGroupSalesRange"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp"
+                        android:visibility="gone"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipRange30"
+                            style="@style/Widget.Excellentia.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="@string/wh_range_30_days" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipRangeAll"
+                            style="@style/Widget.Excellentia.Chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/wh_range_all" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <TextView
+                        android:id="@+id/tvCustomerSummary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/layoutCustomerResults"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvNoCustomerResults"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:paddingTop="48dp"
+                        android:textColor="@color/ex_cream"
                         android:textSize="15sp"
                         android:visibility="gone" />
 

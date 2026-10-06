@@ -137,9 +137,65 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 customerPickerLauncher.launch(Intent(this@WarehouseRouteDetailActivity, CustomerPickerActivity::class.java))
             }
         }
+        // Pre-órdenes confirmadas todavía sin ruta: un repartidor solo puede
+        // tener una ruta activa, así que las pre-órdenes nuevas se suman acá
+        // en vez de crear una ruta por cada una.
+        val btnPreOrders = MaterialButton(this).apply {
+            text = getString(R.string.stop_type_preorders)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (8 * density).toInt()
+            }
+            setOnClickListener {
+                dialog.dismiss()
+                loadAvailablePreOrdersThenPick()
+            }
+        }
         layout.addView(btnCustomer)
         layout.addView(btnConsignment)
+        layout.addView(btnPreOrders)
         dialog.show()
+    }
+
+    private fun loadAvailablePreOrdersThenPick() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().listAvailableStops(null)
+                val preOrders = if (resp.isSuccessful) resp.body()?.preOrders ?: emptyList() else emptyList()
+                if (preOrders.isEmpty()) {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_no_available_stops), Snackbar.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val labels = preOrders.map { "${it.customerName ?: "—"}  ·  #${it.id}" }.toTypedArray()
+                val checked = BooleanArray(preOrders.size)
+                MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
+                    .setTitle(getString(R.string.label_available_preorders))
+                    .setMultiChoiceItems(labels, checked) { _, which, isChecked -> checked[which] = isChecked }
+                    .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
+                        val selected = preOrders.filterIndexed { i, _ -> checked[i] }
+                        if (selected.isNotEmpty()) addPreOrderStops(selected.map { it.id })
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                    .show()
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun addPreOrderStops(preOrderIds: List<Int>) {
+        lifecycleScope.launch {
+            var added = 0
+            for (poId in preOrderIds) {
+                try {
+                    val resp = RetrofitClient.getApi().addRouteStop(
+                        routeId, AddStopRequest(stopType = "PRE_ORDER", preOrderId = poId)
+                    )
+                    if (resp.isSuccessful) added++
+                } catch (_: Exception) { }
+            }
+            loadDetail()
+            Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_preorders_added, added), Snackbar.LENGTH_SHORT).show()
+        }
     }
 
     private val customerPickerLauncher = registerForActivityResult(

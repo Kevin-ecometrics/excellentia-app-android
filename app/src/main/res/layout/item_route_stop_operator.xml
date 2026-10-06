@@ -21,6 +21,17 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/tvStopNext"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="2dp"
+                android:text="@string/label_next_stop"
+                android:textColor="@color/primary"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/tvStopCustomer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

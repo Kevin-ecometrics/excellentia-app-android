@@ -1,6 +1,8 @@
 package com.example.test
 
+import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -8,12 +10,16 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.example.test.data.CustomerInventoryItemDto
+import com.example.test.data.CustomerSaleItemDto
 import com.example.test.data.InventoryMovementDto
 import com.example.test.data.ProductLotDto
+import com.example.test.data.formatQty
 import com.example.test.data.UpdateLotRequest
 import com.example.test.data.local.SecurePreferences
 import com.example.test.data.network.RetrofitClient
@@ -69,6 +75,32 @@ class InventoryMovementsActivity : BaseActivity() {
     // Fase 120 (addendum) — recepciones pasadas (pestaña "Recibos").
     private var allReceipts: List<com.example.test.data.ReceiptSummaryDto> = emptyList()
 
+    // Pestaña "Clientes" (solo consulta): cliente elegido y qué vista está abierta.
+    private lateinit var sectionCustomers: LinearLayout
+    private lateinit var btnPickCustomer: MaterialButton
+    private lateinit var layoutCustomerActions: View
+    private lateinit var btnCustomerInventory: MaterialButton
+    private lateinit var btnCustomerSales: MaterialButton
+    private lateinit var chipGroupSalesRange: ChipGroup
+    private lateinit var tvCustomerSummary: TextView
+    private lateinit var layoutCustomerResults: LinearLayout
+    private lateinit var tvNoCustomerResults: TextView
+    private var selectedCustomerId: String? = null
+    private var customerMode: String? = null // "inventory" | "sales"
+
+    private val customerPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val id = result.data?.getStringExtra("customer_id") ?: return@registerForActivityResult
+            val name = result.data?.getStringExtra("customer_name") ?: return@registerForActivityResult
+            selectedCustomerId = id
+            btnPickCustomer.text = name
+            layoutCustomerActions.visibility = View.VISIBLE
+            loadCustomerInventory()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -97,6 +129,15 @@ class InventoryMovementsActivity : BaseActivity() {
         etSearchReceipt       = findViewById(R.id.etSearchReceipt)
         layoutReceipts        = findViewById(R.id.layoutReceipts)
         tvNoReceipts          = findViewById(R.id.tvNoReceipts)
+        sectionCustomers      = findViewById(R.id.sectionCustomers)
+        btnPickCustomer       = findViewById(R.id.btnPickCustomer)
+        layoutCustomerActions = findViewById(R.id.layoutCustomerActions)
+        btnCustomerInventory  = findViewById(R.id.btnCustomerInventory)
+        btnCustomerSales      = findViewById(R.id.btnCustomerSales)
+        chipGroupSalesRange   = findViewById(R.id.chipGroupSalesRange)
+        tvCustomerSummary     = findViewById(R.id.tvCustomerSummary)
+        layoutCustomerResults = findViewById(R.id.layoutCustomerResults)
+        tvNoCustomerResults   = findViewById(R.id.tvNoCustomerResults)
 
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         swipeRefresh.setColorSchemeColors(getColor(R.color.primary))
@@ -109,12 +150,25 @@ class InventoryMovementsActivity : BaseActivity() {
         chipGroupView.setOnCheckedStateChangeListener { _, checkedIds ->
             val showHistory = checkedIds.contains(R.id.chipViewHistory)
             val showReceipts = checkedIds.contains(R.id.chipViewReceipts)
-            sectionAvailable.visibility = if (showHistory || showReceipts) View.GONE else View.VISIBLE
+            val showCustomers = checkedIds.contains(R.id.chipViewCustomers)
+            sectionAvailable.visibility = if (showHistory || showReceipts || showCustomers) View.GONE else View.VISIBLE
             sectionHistory.visibility = if (showHistory) View.VISIBLE else View.GONE
             sectionReceipts.visibility = if (showReceipts) View.VISIBLE else View.GONE
+            sectionCustomers.visibility = if (showCustomers) View.VISIBLE else View.GONE
             // Carga perezosa — recién al primer tap en la pestaña, no de
             // entrada junto con Disponible/Historial (que sí se usan siempre).
             if (showReceipts && allReceipts.isEmpty()) loadReceipts()
+        }
+
+        // Pestaña Clientes: mismo picker de clientes que el resto de la app.
+        showCustomerHint()
+        btnPickCustomer.setOnClickListener {
+            customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
+        }
+        btnCustomerInventory.setOnClickListener { loadCustomerInventory() }
+        btnCustomerSales.setOnClickListener { loadCustomerSales() }
+        chipGroupSalesRange.setOnCheckedStateChangeListener { _, _ ->
+            if (customerMode == "sales") loadCustomerSales()
         }
 
         var searchReceiptJob: kotlinx.coroutines.Job? = null
@@ -177,6 +231,153 @@ class InventoryMovementsActivity : BaseActivity() {
         // viejos hasta hacer swipe-to-refresh a mano.
         loadAvailable()
         loadMovements()
+    }
+
+    // ── Clientes: consulta de solo lectura ──
+
+    private fun showCustomerHint() {
+        layoutCustomerResults.removeAllViews()
+        tvCustomerSummary.visibility = View.GONE
+        tvNoCustomerResults.text = getString(R.string.wh_customer_select_hint)
+        tvNoCustomerResults.visibility = View.VISIBLE
+    }
+
+    // Vista activa = relleno blanco con texto verde; la inactiva = solo borde
+    // blanco (el fondo de pantalla y colorPrimary son el mismo verde, así que
+    // el estilo por defecto de MaterialButton quedaba camuflado).
+    private fun highlightCustomerMode() {
+        val white = android.content.res.ColorStateList.valueOf(getColor(R.color.white))
+        val clear = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+        for ((btn, active) in listOf(
+            btnCustomerInventory to (customerMode == "inventory"),
+            btnCustomerSales to (customerMode == "sales")
+        )) {
+            btn.backgroundTintList = if (active) white else clear
+            btn.setTextColor(getColor(if (active) R.color.ex_green else R.color.white))
+        }
+    }
+
+    private fun loadCustomerInventory() {
+        val id = selectedCustomerId ?: return
+        customerMode = "inventory"
+        highlightCustomerMode()
+        chipGroupSalesRange.visibility = View.GONE
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getCustomerInventory(id)
+                // Respuesta vieja de otro cliente/vista: se descarta.
+                if (customerMode != "inventory" || selectedCustomerId != id) return@launch
+                if (resp.isSuccessful) renderCustomerInventory(resp.body()?.data ?: emptyList())
+                else Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun loadCustomerSales() {
+        val id = selectedCustomerId ?: return
+        customerMode = "sales"
+        highlightCustomerMode()
+        chipGroupSalesRange.visibility = View.VISIBLE
+        val days = if (chipGroupSalesRange.checkedChipId == R.id.chipRangeAll) "all" else "30"
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getCustomerSales(id, days)
+                if (customerMode != "sales" || selectedCustomerId != id) return@launch
+                if (resp.isSuccessful) {
+                    val body = resp.body()
+                    renderCustomerSales(body?.data ?: emptyList(), body?.totalAmount ?: 0.0)
+                } else {
+                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun renderCustomerInventory(items: List<CustomerInventoryItemDto>) {
+        layoutCustomerResults.removeAllViews()
+        tvCustomerSummary.visibility = View.GONE
+        tvNoCustomerResults.text = getString(R.string.wh_customer_no_inventory)
+        tvNoCustomerResults.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        for (it in items) {
+            addCustomerCard(
+                title = it.productName,
+                badge = getString(R.string.wh_customer_remaining_badge, "${formatQty(it.remaining)} ${it.unit ?: "Lbs"}"),
+                detail = getString(R.string.wh_customer_inventory_detail, formatQty(it.quantityLeft), formatQty(it.quantitySold), formatQty(it.quantityReturned)),
+                note = null
+            )
+        }
+    }
+
+    private fun renderCustomerSales(items: List<CustomerSaleItemDto>, totalAmount: Double) {
+        layoutCustomerResults.removeAllViews()
+        tvNoCustomerResults.text = getString(R.string.wh_customer_no_sales)
+        tvNoCustomerResults.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        tvCustomerSummary.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
+        tvCustomerSummary.text = getString(R.string.wh_customer_sales_total, String.format(Locale.US, "$%.2f", totalAmount))
+        for (it in items) {
+            addCustomerCard(
+                title = it.productName,
+                badge = String.format(Locale.US, "$%.2f", it.total),
+                detail = getString(R.string.wh_customer_sales_detail, "${formatQty(it.quantity)} ${it.unit ?: "Lbs"}", it.lastSoldAt?.take(10) ?: "—"),
+                note = if (it.pendingLines > 0) getString(R.string.wh_customer_pending_approval, it.pendingLines) else null
+            )
+        }
+    }
+
+    private fun addCustomerCard(title: String, badge: String, detail: String, note: String?) {
+        val card = MaterialCardView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin = 6.dp
+            }
+            setCardBackgroundColor(getColor(R.color.surface))
+            radius = 0f
+            cardElevation = 1f
+        }
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16.dp, 10.dp, 16.dp, 10.dp)
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        header.addView(TextView(this).apply {
+            text = title
+            textSize = 13f
+            setTextColor(getColor(R.color.text_primary))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        header.addView(TextView(this).apply {
+            text = badge
+            textSize = 10f
+            setTextColor(getColor(R.color.success))
+            setBackgroundResource(R.drawable.bg_chip_sent)
+            setPadding(8.dp, 3.dp, 8.dp, 3.dp)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        col.addView(header)
+        col.addView(TextView(this).apply {
+            text = detail
+            textSize = 11f
+            setTextColor(getColor(R.color.text_secondary))
+            setPadding(0, 3.dp, 0, 0)
+        })
+        if (note != null) {
+            col.addView(TextView(this).apply {
+                text = note
+                textSize = 10f
+                setTextColor(getColor(R.color.amber_dark))
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setPadding(0, 2.dp, 0, 0)
+            })
+        }
+        card.addView(col)
+        layoutCustomerResults.addView(card)
     }
 
     private fun loadMovements() {

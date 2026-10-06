@@ -1221,6 +1221,40 @@ data class ProductLotDto(
     @SerializedName("claimed_by") val claimedBy: List<LotClaimDto>? = null
 )
 
+// Sub-inventario → pestaña "Clientes" (solo consulta). Cantidades Double: el
+// backend ya las manda como number (no string DECIMAL).
+data class CustomerInventoryItemDto(
+    @SerializedName("product_id") val productId: Int,
+    @SerializedName("product_name") val productName: String,
+    val sku: String? = null,
+    val unit: String? = null,
+    @SerializedName("case_qty") val caseQty: Int? = null,
+    @SerializedName("quantity_left") val quantityLeft: Double,
+    @SerializedName("quantity_sold") val quantitySold: Double,
+    @SerializedName("quantity_returned") val quantityReturned: Double,
+    val remaining: Double,
+    @SerializedName("last_left_at") val lastLeftAt: String? = null
+)
+
+data class CustomerInventoryResponse(val data: List<CustomerInventoryItemDto> = emptyList())
+
+data class CustomerSaleItemDto(
+    @SerializedName("product_name") val productName: String,
+    val barcode: String? = null,
+    val unit: String? = null,
+    val quantity: Double,
+    val total: Double,
+    @SerializedName("last_sold_at") val lastSoldAt: String? = null,
+    // Líneas todavía AWAITING_APPROVAL (no facturadas en QBO).
+    @SerializedName("pending_lines") val pendingLines: Int = 0
+)
+
+data class CustomerSalesResponse(
+    val data: List<CustomerSaleItemDto> = emptyList(),
+    @SerializedName("total_amount") val totalAmount: Double = 0.0,
+    val days: Int? = null
+)
+
 data class LotClaimDto(
     @SerializedName("pre_order_id") val preOrderId: Int,
     @SerializedName("customer_name") val customerName: String? = null

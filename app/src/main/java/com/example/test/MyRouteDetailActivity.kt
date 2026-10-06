@@ -302,9 +302,17 @@ class MyRouteDetailActivity : BaseActivity() {
         // contexto activo (carrito de A todavía sin mandar) tocando "Vender"
         // en B a mitad de camino.
         val anySellingActive = stops.any { isSellingStop(it) }
+        // "Siguiente" — primera parada PENDING por posición, solo como guía visual
+        // (no bloquea el orden). Consignación se excluye: su acción sigue
+        // disponible aunque la parada ya esté resuelta, no es un paso de la fila.
+        val nextStopId = if (routeStatus == "IN_PROGRESS" && !anySellingActive) {
+            stops.sortedBy { it.position }
+                .firstOrNull { it.status == "PENDING" && it.stopType != "CONSIGNMENT" }?.id
+        } else null
         val inflater = LayoutInflater.from(this)
         for ((i, stop) in stops.sortedBy { it.position }.withIndex()) {
             val row = inflater.inflate(R.layout.item_route_stop_operator, layoutStops, false)
+            row.findViewById<View>(R.id.tvStopNext).visibility = if (stop.id == nextStopId) View.VISIBLE else View.GONE
             row.findViewById<TextView>(R.id.tvStopCustomer).text = "${i + 1}. ${stop.customerName ?: "—"}"
 
             val tvDetail = row.findViewById<TextView>(R.id.tvStopDetail)

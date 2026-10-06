@@ -280,6 +280,16 @@ interface ApiService {
         @Query("settled") settled: Boolean? = null
     ): Response<ApiResponse<List<InventoryMovementDto>>>
 
+    // Sub-inventario → Clientes (solo lectura). days = null → backend default (30); "all" → sin filtro.
+    @GET("api/warehouse/customers/{customerId}/inventory")
+    suspend fun getCustomerInventory(@Path("customerId") customerId: String): Response<CustomerInventoryResponse>
+
+    @GET("api/warehouse/customers/{customerId}/sales")
+    suspend fun getCustomerSales(
+        @Path("customerId") customerId: String,
+        @Query("days") days: String? = null
+    ): Response<CustomerSalesResponse>
+
     @POST("api/warehouse/movements/{id}/retry-sync")
     suspend fun retryMovementSync(@Path("id") id: Int): Response<RetryMovementSyncResponse>
 }
