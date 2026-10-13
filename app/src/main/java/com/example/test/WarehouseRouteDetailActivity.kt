@@ -16,6 +16,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.AddRouteItemRequest
 import com.example.test.data.AddStopRequest
+import com.example.test.data.LoadStepProgress
+import com.example.test.data.computeLoadSteps
+import com.example.test.data.currentLoadStop
+import com.example.test.data.formatQty
+import com.example.test.data.isLbsUnit
 import com.example.test.data.FifoAllocationDto
 import com.example.test.data.ProductDto
 import com.example.test.data.ReorderStopsRequest
@@ -88,6 +93,20 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     // (null + true, ya se puede escanear con route_stop_id = null).
     private var currentLoadingStopId: Int? = null
     private var loadingStopDecided: Boolean = false
+
+    // Fase 148 — carga por pasos, una pre-orden a la vez (solo paradas
+    // PRE_ORDER). Todo el progreso se deriva de route_items vs el resumen de la
+    // pre-orden (ver data/RouteLoadProgress.kt); lo único local es qué
+    // pre-órdenes se dieron por listas en esta sesión. Al abrir la pantalla se
+    // siembran con las que ya estaban completas, así que volver a entrar no
+    // pide "Listo" de nuevo en las completas (una cerrada con faltantes sí
+    // reaparece — decisión de la opción A, ver PROGRESS.md Fase 148).
+    private val doneLoadStops = mutableSetOf<Int>()
+    private var loadStepsSeeded = false
+    private var focusLoadStopId: Int? = null
+    private var loadSteps: List<LoadStepProgress> = emptyList()
+    private var stepMode = false
+    private var currentStep: LoadStepProgress? = null
 
     private val receivingLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -492,6 +511,22 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         btnMarkReady.text = getString(if (d.readyAt != null) R.string.wh_btn_reopen_load else R.string.wh_btn_mark_ready)
         btnAddStop.isEnabled = !locked && !directFull
 
+        // Fase 148 — pasos de carga por pre-orden (bloqueada = solo lectura, vista de siempre).
+        loadSteps = computeLoadSteps(d.stops, d.items)
+        stepMode = loadSteps.isNotEmpty() && !locked
+        if (stepMode) {
+            val ids = loadSteps.map { it.stop.id }.toSet()
+            doneLoadStops.retainAll(ids)
+            if (!loadStepsSeeded) {
+                loadSteps.filter { it.complete }.forEach { doneLoadStops.add(it.stop.id) }
+                loadStepsSeeded = true
+            }
+            currentStep = loadSteps.firstOrNull { it.stop.id == focusLoadStopId && it.stop.id !in doneLoadStops }
+                ?: currentLoadStop(loadSteps, doneLoadStops)
+        } else {
+            currentStep = null
+        }
+
         // Ruta "desde cero" (MULTI_STOP sin paradas): el almacén no sabe a qué
         // clientes irán los choferes, así que no se muestra el apartado de
         // paradas ni el selector "cargando para". Si el chofer suma paradas en
@@ -499,7 +534,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         // necesita su único destino, por eso no entra en esta regla.
         val scratchRoute = d.routeType != "DIRECT" && d.stops.isEmpty()
         cardStops.visibility = if (scratchRoute) View.GONE else View.VISIBLE
-        btnLoadingForStop.visibility = if (scratchRoute) View.GONE else View.VISIBLE
+        btnLoadingForStop.visibility = if (scratchRoute || currentStep != null) View.GONE else View.VISIBLE
 
         // route_stop_id (2026-09-18 → opcional desde 2026-09-28) — si la
         // parada que tenía elegida ya no existe (la borraron), se resetea.
@@ -516,6 +551,10 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         }
         if (!loadingStopDecided && d.stops.isEmpty()) {
             currentLoadingStopId = null
+            loadingStopDecided = true
+        }
+        currentStep?.let {
+            currentLoadingStopId = it.stop.id
             loadingStopDecided = true
         }
         val chosenStop = d.stops.firstOrNull { it.id == currentLoadingStopId }
@@ -660,10 +699,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         val locked = isLocked(detail)
         val sorted = stops.sortedBy { it.position }
         val inflater = LayoutInflater.from(this)
+        if (stepMode) layoutStops.addView(buildStepCard())
         for ((i, stop) in sorted.withIndex()) {
             val row = inflater.inflate(R.layout.item_route_stop, layoutStops, false)
             row.findViewById<TextView>(R.id.tvStopCustomer).text = "${i + 1}. ${stop.customerName ?: "—"}"
             val tvDetail = row.findViewById<TextView>(R.id.tvStopDetail)
+            val step = if (stepMode) loadSteps.firstOrNull { it.stop.id == stop.id } else null
             // Fase 146 — una línea por producto: "Producto – 3 cajas" (Lbs) o la
             // cantidad pedida (Case/Unit/Bucket). Sin summary (backend viejo)
             // cae a las filas crudas de siempre.
@@ -678,36 +719,31 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 val qty = item.quantity?.let { String.format(Locale.US, "%.2f", it) } ?: "?"
                 "• ${item.productName} — $qty ${item.unit ?: ""}".trimEnd()
             }
-            when (stop.stopType) {
-                "BATCH" -> {
-                    val total = stop.batch?.total
-                    val label = getString(R.string.wh_order_label)
-                    tvDetail.text = if (total != null) "$label · ${String.format(Locale.US, "$%.2f", total)}" else label
-                    tvDetail.visibility = View.VISIBLE
-                }
-                "PRE_ORDER" -> {
+            when {
+                // Fase 148 — en modo pasos las pre-órdenes van compactas (el detalle
+                // de productos vive en la tarjeta del paso actual).
+                step != null -> {
+                    val done = stop.id in doneLoadStops
                     tvDetail.text = buildString {
                         append(getString(R.string.wh_preorder_label))
                         stop.preOrder?.id?.let { append(" #$it") }
-                        itemsSummary?.let { append("\n"); append(it) }
+                        append(" · ")
+                        append(getString(when {
+                            step.stop.id == currentStep?.stop?.id -> R.string.wh_step_status_current
+                            done -> R.string.wh_step_status_done
+                            else -> R.string.wh_step_status_pending
+                        }))
                     }
                     tvDetail.visibility = View.VISIBLE
-                }
-                "CONSIGNMENT" -> {
-                    tvDetail.text = getString(R.string.wh_consignment_label)
-                    tvDetail.visibility = View.VISIBLE
-                }
-                else -> if (stop.preOrder != null) {
-                    // CUSTOMER con pre-orden vinculada (opcional, ver checkPreOrderThenAddStop)
-                    tvDetail.text = buildString {
-                        append(getString(R.string.wh_preorder_label))
-                        append(" #${stop.preOrder!!.id}")
-                        itemsSummary?.let { append("\n"); append(it) }
+                    if (done && !locked) {
+                        row.setOnClickListener {
+                            doneLoadStops.remove(stop.id)
+                            focusLoadStopId = stop.id
+                            detail?.let { bind(it) }
+                        }
                     }
-                    tvDetail.visibility = View.VISIBLE
-                } else {
-                    tvDetail.visibility = View.GONE
                 }
+                else -> bindStopDetail(stop, tvDetail, itemsSummary)
             }
 
             val btnUp = row.findViewById<View>(R.id.btnStopUp)
@@ -725,6 +761,115 @@ class WarehouseRouteDetailActivity : BaseActivity() {
 
             layoutStops.addView(row)
         }
+    }
+
+    private fun bindStopDetail(stop: RouteStopDto, tvDetail: TextView, itemsSummary: String?) {
+        when (stop.stopType) {
+            "BATCH" -> {
+                val total = stop.batch?.total
+                val label = getString(R.string.wh_order_label)
+                tvDetail.text = if (total != null) "$label · ${String.format(Locale.US, "$%.2f", total)}" else label
+                tvDetail.visibility = View.VISIBLE
+            }
+            "PRE_ORDER" -> {
+                tvDetail.text = buildString {
+                    append(getString(R.string.wh_preorder_label))
+                    stop.preOrder?.id?.let { append(" #$it") }
+                    itemsSummary?.let { append("\n"); append(it) }
+                }
+                tvDetail.visibility = View.VISIBLE
+            }
+            "CONSIGNMENT" -> {
+                tvDetail.text = getString(R.string.wh_consignment_label)
+                tvDetail.visibility = View.VISIBLE
+            }
+            else -> if (stop.preOrder != null) {
+                // CUSTOMER con pre-orden vinculada (opcional, ver checkPreOrderThenAddStop)
+                tvDetail.text = buildString {
+                    append(getString(R.string.wh_preorder_label))
+                    append(" #${stop.preOrder!!.id}")
+                    itemsSummary?.let { append("\n"); append(it) }
+                }
+                tvDetail.visibility = View.VISIBLE
+            } else {
+                tvDetail.visibility = View.GONE
+            }
+        }
+    }
+
+    // Fase 148 — tarjeta del paso actual: pre-orden N de M, sus productos con
+    // cargado/pedido y el botón Listo. Sin paso actual (todas listas) muestra
+    // el aviso de cierre.
+    private fun buildStepCard(): View {
+        val pad = (12 * resources.displayMetrics.density).toInt()
+        val gap = (6 * resources.displayMetrics.density).toInt()
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, pad)
+            setBackgroundResource(R.drawable.bg_chip_pending)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { bottomMargin = pad }
+        }
+        fun text(t: String, sizeSp: Float, bold: Boolean = false, colorRes: Int = R.color.text_primary) = TextView(this).apply {
+            this.text = t
+            textSize = sizeSp
+            setTextColor(getColor(colorRes))
+            if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, 0, 0, gap)
+        }
+        val step = currentStep
+        if (step == null) {
+            card.addView(text(getString(R.string.wh_step_all_done), 13f, bold = true))
+            return card
+        }
+        val index = loadSteps.indexOfFirst { it.stop.id == step.stop.id }
+        val last = loadSteps.none { it.stop.id != step.stop.id && it.stop.id !in doneLoadStops }
+        card.addView(text(
+            getString(R.string.wh_step_title, index + 1, loadSteps.size, step.stop.customerName ?: "—"),
+            14f, bold = true
+        ))
+        for (l in step.lines) {
+            val unitWord = if (l.isBoxCount) getString(R.string.wh_step_boxes) else (l.unit ?: "")
+            val mark = if (l.complete) "✓" else "○"
+            card.addView(text(
+                "$mark " + getString(R.string.wh_step_line, l.productName, formatQty(l.loaded), formatQty(l.requested), unitWord).trimEnd(),
+                13f,
+                colorRes = if (l.complete) R.color.success else R.color.text_primary
+            ))
+            // Cada carga (caja/lote) como línea propia, con su peso y lote — sin sumar.
+            for (li in l.loadedItems) {
+                val qty = if (isLbsUnit(li.unit)) getString(R.string.wh_loaded_lb_suffix, formatQty(li.quantity)) else formatQty(li.quantity)
+                val lots = com.example.test.data.routeLotsSummary(this, li.lots.orEmpty(), li.unlottedQty, li.unit)
+                card.addView(text("    • $qty" + (lots?.let { t -> " · " + t.replace("\n", " | ") } ?: ""), 12f, colorRes = R.color.text_secondary))
+            }
+        }
+        card.addView(com.google.android.material.button.MaterialButton(this).apply {
+            text = getString(if (last) R.string.wh_step_btn_finish else R.string.wh_step_btn_done)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = gap }
+            setOnClickListener { onStepDoneClicked(step, last) }
+        })
+        return card
+    }
+
+    private fun onStepDoneClicked(step: LoadStepProgress, last: Boolean) {
+        val advance = {
+            doneLoadStops.add(step.stop.id)
+            focusLoadStopId = null
+            detail?.let { bind(it) }
+            if (last) onMarkReadyClicked()
+        }
+        if (step.complete) { advance(); return }
+        val missing = step.lines.filter { !it.complete }.joinToString("\n") { l ->
+            val unitWord = if (l.isBoxCount) getString(R.string.wh_step_boxes) else (l.unit ?: "")
+            "• " + getString(R.string.wh_step_missing_line, l.productName, formatQty(l.remaining), unitWord).trimEnd()
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.wh_step_missing_title))
+            .setMessage(getString(R.string.wh_step_missing_msg, missing))
+            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ -> advance() }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 
     private fun moveStop(sorted: List<RouteStopDto>, index: Int, direction: Int) {

@@ -54,6 +54,7 @@ class PreOrderDetailActivity : BaseActivity() {
     private lateinit var tvDetailStatus: TextView
     private lateinit var tvDetailDate: TextView
     private lateinit var btnEditDate: ImageButton
+    private lateinit var btnEditItems: ImageButton
     private lateinit var tvDetailSalesperson: TextView
     private lateinit var tvDetailNotes: TextView
     private lateinit var tvItemsSectionHeader: TextView
@@ -135,6 +136,15 @@ class PreOrderDetailActivity : BaseActivity() {
         }
     }
 
+    // Editar productos (DRAFT/CONFIRMED) — al volver con cambios guardados se recarga
+    // el detalle: lo que se había detallado a medias en esta pantalla se descarta,
+    // porque la lista de productos ya no es la misma.
+    private val editPreOrderLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) loadPreOrder()
+    }
+
     private val finalizeItemLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -179,6 +189,7 @@ class PreOrderDetailActivity : BaseActivity() {
         tvDetailStatus    = findViewById(R.id.tvDetailStatus)
         tvDetailDate      = findViewById(R.id.tvDetailDate)
         btnEditDate       = findViewById(R.id.btnEditDate)
+        btnEditItems      = findViewById(R.id.btnEditItems)
         tvDetailSalesperson = findViewById(R.id.tvDetailSalesperson)
         tvDetailNotes     = findViewById(R.id.tvDetailNotes)
         tvItemsSectionHeader = findViewById(R.id.tvItemsSectionHeader)
@@ -202,6 +213,11 @@ class PreOrderDetailActivity : BaseActivity() {
         btnReuse.setOnClickListener       { reusePreOrder() }
         btnViewHistory.setOnClickListener { finish() }
         btnEditDate.setOnClickListener    { showEditDateDialog() }
+        btnEditItems.setOnClickListener   {
+            editPreOrderLauncher.launch(
+                Intent(this, CreatePreOrderActivity::class.java).putExtra(CreatePreOrderActivity.EXTRA_EDIT_ID, preOrderId)
+            )
+        }
 
         loadPreOrder()
     }
@@ -257,6 +273,7 @@ class PreOrderDetailActivity : BaseActivity() {
         // Solo tiene sentido reprogramar mientras la pre-orden no se convirtió/canceló
         // (mismo criterio que btnConvert/btnCancel más abajo).
         btnEditDate.visibility = if (po.status == "DRAFT" || po.status == "CONFIRMED") View.VISIBLE else View.GONE
+        btnEditItems.visibility = btnEditDate.visibility
 
         if (!po.salespersonName.isNullOrBlank()) {
             tvDetailSalesperson.text = getString(R.string.label_salesperson_prefix, po.salespersonName)
@@ -312,7 +329,7 @@ class PreOrderDetailActivity : BaseActivity() {
     private fun renderDateSection(po: PreOrderDto) {
         val dateStr = buildString {
             po.scheduledDate?.let { raw ->
-                val formatted = formatDate(raw, "MMM dd, yyyy")
+                val formatted = formatDate(raw.take(10), "MMM dd, yyyy")
                 append(getString(R.string.label_scheduled_delivery, formatted))
             }
             po.createdAt?.let { raw ->
@@ -928,7 +945,7 @@ class PreOrderDetailActivity : BaseActivity() {
     }
 
     private fun showWrongConversionDateDialog(po: PreOrderDto) {
-        val formatted = po.scheduledDate?.let { formatDate(it, "MMM dd, yyyy") } ?: getString(R.string.label_no_date_set)
+        val formatted = po.scheduledDate?.let { formatDate(it.take(10), "MMM dd, yyyy") } ?: getString(R.string.label_no_date_set)
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.title_wrong_conversion_date))
             .setMessage(getString(R.string.msg_wrong_conversion_date, formatted))
@@ -1471,7 +1488,11 @@ class PreOrderDetailActivity : BaseActivity() {
         val display = SimpleDateFormat(pattern, Locale.US)
         for (fmt in formats) {
             try {
-                val parser = SimpleDateFormat(fmt, Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
+                // "yyyy-MM-dd" es un día de calendario sin hora (ej. scheduled_date): se
+                // parsea en zona local, igual que `display`, para que no retroceda un día.
+                val parser = SimpleDateFormat(fmt, Locale.US).apply {
+                    if (fmt != "yyyy-MM-dd") timeZone = TimeZone.getTimeZone("UTC")
+                }
                 return display.format(parser.parse(raw)!!)
             } catch (_: Exception) {}
         }

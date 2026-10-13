@@ -61,11 +61,14 @@ class CreatePreOrderActivity : BaseActivity() {
     private var selectedSalespersonUserId: Int? = null
     private var selectedDate: String? = null
     private val items = mutableListOf<PreOrderItem>()
+    private var editId: Int = -1
     private val salespersons = mutableListOf<UserBrief>()
 
-    private companion object {
-        const val DW_RESULT_ACTION = "com.symbol.datawedge.datawedge.ACTION_RESULT"
-        const val DW_EXTRA_DATA    = "com.symbol.datawedge.data_string"
+    companion object {
+        // Modo edición: id de una pre-orden DRAFT/CONFIRMED existente (la abre PreOrderDetailActivity).
+        const val EXTRA_EDIT_ID = "edit_pre_order_id"
+        private const val DW_RESULT_ACTION = "com.symbol.datawedge.datawedge.ACTION_RESULT"
+        private const val DW_EXTRA_DATA    = "com.symbol.datawedge.data_string"
     }
 
     private val dwReceiver = object : BroadcastReceiver() {
@@ -123,9 +126,13 @@ class CreatePreOrderActivity : BaseActivity() {
 
         loadSalespersons()
 
+        editId = intent.getIntExtra(EXTRA_EDIT_ID, -1)
+        if (editId > 0) setupEditMode()
+
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
 
         cardCustomer.setOnClickListener {
+            if (editId > 0) return@setOnClickListener // el cliente no cambia al editar
             customerPickerLauncher.launch(Intent(this, CustomerPickerActivity::class.java))
         }
 
@@ -151,6 +158,71 @@ class CreatePreOrderActivity : BaseActivity() {
         } else {
             registerReceiver(dwReceiver, filter)
         }
+    }
+
+    // Modo edición (DRAFT/CONFIRMED): precarga la pre-orden y guarda con PUT. Una
+    // CONFIRMED editada avisa al almacén (backend: confirmed_edited_at). Requiere
+    // conexión — no hay cola offline para ediciones.
+    private fun setupEditMode() {
+        findViewById<MaterialToolbar>(R.id.toolbar).title = getString(R.string.title_edit_preorder)
+        btnSavePreOrder.text = getString(R.string.btn_save_changes)
+        btnSavePreOrder.isEnabled = false
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().getPreOrder(editId)
+                val po = if (resp.isSuccessful) resp.body()?.data else null
+                if (po == null) {
+                    Snackbar.make(findViewById(android.R.id.content), "Error ${resp.code()}", Snackbar.LENGTH_LONG).show()
+                    return@launch
+                }
+                selectedCustomerId = po.customerId
+                selectedCustomerName = po.customerName
+                tvSelectedCustomer.text = po.customerName
+                tvSelectedCustomer.setTextColor(getColor(R.color.text_primary))
+                selectedSalespersonName = po.salespersonName
+                po.salespersonName?.let {
+                    tvSalesperson.text = it
+                    tvSalesperson.setTextColor(getColor(R.color.text_primary))
+                }
+                po.scheduledDate?.take(10)?.let {
+                    selectedDate = it
+                    tvSelectedDate.text = getString(R.string.label_delivery_date, it)
+                    tvSelectedDate.visibility = View.VISIBLE
+                }
+                etNotes.setText(po.notes ?: "")
+                items.clear()
+                items.addAll(toEditableItems(po))
+                tvNoItems.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+                rebuildItemsList()
+                btnSavePreOrder.isEnabled = true
+            } catch (e: Exception) {
+                Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_no_connection), Snackbar.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Lbs: el backend guarda N filas (una por caja) — se vuelven a agrupar en
+    // `boxCount` para editar, salvo las filas con caja puntual elegida (lot_id), que
+    // se conservan una por una para no perder la elección. El resto (Case/Unit/
+    // Bucket) ya viene como una fila con su cantidad.
+    private fun toEditableItems(po: com.example.test.data.PreOrderDto): List<PreOrderItem> {
+        val unitByBarcode = po.summary.associate { (it.barcode ?: "") to it.unit }
+        val out = mutableListOf<PreOrderItem>()
+        val lbsBoxes = linkedMapOf<String, Pair<PreOrderItem, Int>>()
+        for (it in po.items) {
+            val unit = unitByBarcode[it.barcode] ?: it.unit
+            if (com.example.test.data.isLbsUnit(unit) && it.lotId == null) {
+                val cur = lbsBoxes[it.barcode]
+                lbsBoxes[it.barcode] = (cur?.first ?: it.copy(unit = unit ?: "Lbs")) to ((cur?.second ?: 0) + 1)
+            } else {
+                out.add(it)
+            }
+        }
+        for ((_, v) in lbsBoxes) {
+            val base = v.first
+            out.add(PreOrderItem(barcode = base.barcode, productName = base.productName, unit = base.unit, shortName = base.shortName, boxCount = v.second))
+        }
+        return out
     }
 
     private fun loadSalespersons() {
@@ -363,6 +435,11 @@ class CreatePreOrderActivity : BaseActivity() {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 text = if (item.boxCount != null) {
                     resources.getQuantityString(R.plurals.preorder_boxes_line, item.boxCount, item.productName, item.boxCount)
+                } else if (item.lotId != null) {
+                    // Caja puntual elegida (modo edición): no trae cantidad/precio propios.
+                    val weight = item.lotWeight?.let { String.format(Locale.US, "%.2f lb", it) } ?: "1 box"
+                    val lot = item.lotNumber?.takeIf { it.isNotBlank() }?.let { " · ${getString(R.string.label_lot_summary, it)}" } ?: ""
+                    "${item.productName}\n$weight$lot"
                 } else "${item.productName}\n" + String.format(
                     Locale.US, "%s %s · \$%.2f", com.example.test.data.formatPreOrderQty(item.quantity ?: 0.0, item.unit), unitLabel, item.total ?: 0.0
                 )
@@ -413,6 +490,29 @@ class CreatePreOrderActivity : BaseActivity() {
             items           = items.toList(),
             assignedUserId  = selectedSalespersonUserId
         )
+
+        if (editId > 0) {
+            lifecycleScope.launch {
+                try {
+                    val resp = RetrofitClient.getApi().updatePreOrder(editId, request)
+                    if (resp.isSuccessful) {
+                        android.widget.Toast.makeText(this@CreatePreOrderActivity, getString(R.string.msg_preorder_updated), android.widget.Toast.LENGTH_SHORT).show()
+                        setResult(Activity.RESULT_OK)
+                        finish()
+                    } else {
+                        val msg = try { org.json.JSONObject(resp.errorBody()?.string() ?: "").optString("error") } catch (_: Exception) { "" }
+                        Snackbar.make(findViewById(android.R.id.content), msg.ifBlank { "Error ${resp.code()}" }, Snackbar.LENGTH_LONG).show()
+                        btnSavePreOrder.isEnabled = true
+                        btnSavePreOrder.text = getString(R.string.btn_save_changes)
+                    }
+                } catch (e: Exception) {
+                    Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_no_connection), Snackbar.LENGTH_LONG).show()
+                    btnSavePreOrder.isEnabled = true
+                    btnSavePreOrder.text = getString(R.string.btn_save_changes)
+                }
+            }
+            return
+        }
 
         lifecycleScope.launch {
             val result = preOrderRepository.createPreOrder(request)

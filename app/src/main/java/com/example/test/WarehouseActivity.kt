@@ -1,7 +1,12 @@
 package com.example.test
 
 import android.app.DatePickerDialog
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.test.data.sync.PreOrderStatusWorker
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -52,6 +57,10 @@ class WarehouseActivity : BaseActivity() {
     private var dateFilter: String? = null
     private var drivers: List<UserBrief> = emptyList()
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {}
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -69,6 +78,18 @@ class WarehouseActivity : BaseActivity() {
 
         securePrefs = SecurePreferences(this)
         RetrofitClient.initialize(securePrefs.getBackendUrl(), securePrefs, this)
+
+        // El almacenista nunca pasa por MainActivity (donde arrancan los otros
+        // workers de notificaciones) — su aviso de pre-órdenes confirmadas/modificadas
+        // se programa acá.
+        if (securePrefs.getUserRole() == "almacenista") {
+            PreOrderStatusWorker.enqueue(this)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
         layoutRoutes    = findViewById(R.id.layoutRoutes)
         tvEmpty         = findViewById(R.id.tvEmpty)

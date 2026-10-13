@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import com.example.test.HistoryActivity
 import com.example.test.InventoryMovementsActivity
 import com.example.test.R
+import com.example.test.WarehouseActivity
 
 object NotificationHelper {
 
@@ -117,5 +118,45 @@ object NotificationHelper {
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID + RECEIPT_NOTIFICATION_OFFSET + id, notification)
+    }
+
+    // Offsets propios (mismo criterio que los de arriba) para no pisar ids de otras
+    // notificaciones: acá el id es pre_orders.id del servidor.
+    private const val PREORDER_CONFIRMED_OFFSET = 1_500_000
+    private const val PREORDER_EDITED_OFFSET = 2_000_000
+
+    // Almacenista: una pre-orden pasó a CONFIRMED (lista para preparar la carga).
+    fun showPreOrderConfirmed(context: Context, id: Int, customerName: String) =
+        showWarehousePreOrder(context, PREORDER_CONFIRMED_OFFSET + id, customerName,
+            R.string.notification_preorder_confirmed_title, R.string.notification_preorder_confirmed_content)
+
+    // Almacenista: una pre-orden ya CONFIRMED fue modificada (cambiaron los productos).
+    fun showPreOrderEdited(context: Context, id: Int, customerName: String) =
+        showWarehousePreOrder(context, PREORDER_EDITED_OFFSET + id, customerName,
+            R.string.notification_preorder_edited_title, R.string.notification_preorder_edited_content)
+
+    private fun showWarehousePreOrder(context: Context, notificationId: Int, customerName: String, titleRes: Int, contentRes: Int) {
+        createChannel(context)
+
+        val intent = Intent(context, WarehouseActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_check)
+            .setColor(ContextCompat.getColor(context, R.color.ex_green))
+            .setContentTitle(context.getString(titleRes))
+            .setContentText(context.getString(contentRes, customerName))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(notificationId, notification)
     }
 }

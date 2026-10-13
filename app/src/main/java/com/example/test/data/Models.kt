@@ -836,6 +836,9 @@ data class PreOrderDto(
     @SerializedName("item_count") val itemCount: Int = 0,
     val total: Double = 0.0,
     @SerializedName("created_at") val createdAt: String? = null,
+    // Solo GET /api/preorders (lista): marca de la última edición de una pre-orden ya
+    // CONFIRMED — PreOrderStatusWorker la usa para avisar "modificada" al almacenista.
+    @SerializedName("confirmed_edited_at") val confirmedEditedAt: String? = null,
     val items: List<PreOrderItem> = emptyList(),
     // Fase 146 — solo GET /api/preorders/:id: una línea por producto con la unidad
     // ya resuelta contra el catálogo (los ítems de borrador pueden traer unit null).

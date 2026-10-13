@@ -183,7 +183,7 @@ class PreOrderListActivity : BaseActivity() {
             setTextColor(ContextCompat.getColor(this@PreOrderListActivity, statusColor))
         }
 
-        val dateStr = po.scheduledDate?.let { getString(R.string.label_delivery_prefix, formatDate(it, "MMM dd, yyyy")) }
+        val dateStr = po.scheduledDate?.let { getString(R.string.label_delivery_prefix, formatDate(it.take(10), "MMM dd, yyyy")) }
             ?: po.createdAt?.let { getString(R.string.label_created_prefix, formatDate(it, "MMM dd, yyyy")) }
             ?: ""
         view.findViewById<TextView>(R.id.tvPreOrderDate).text = dateStr
@@ -231,7 +231,10 @@ class PreOrderListActivity : BaseActivity() {
         val display = SimpleDateFormat(pattern, Locale.US)
         for (fmt in formats) {
             try {
-                val parser = SimpleDateFormat(fmt, Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
+                // "yyyy-MM-dd" es un día de calendario sin hora: parsear en zona local.
+                val parser = SimpleDateFormat(fmt, Locale.US).apply {
+                    if (fmt != "yyyy-MM-dd") timeZone = TimeZone.getTimeZone("UTC")
+                }
                 return display.format(parser.parse(raw)!!)
             } catch (_: Exception) {}
         }

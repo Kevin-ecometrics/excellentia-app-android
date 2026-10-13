@@ -443,7 +443,7 @@
     <string name="app_title">EXCELLENTIA</string>
     <string name="app_title_sub">FOODS</string>
     <string name="hint_email">Email</string>
-    <string name="app_version_label">v1.5.1</string>
+    <string name="app_version_label">v1.6.1</string>
     <string name="default_unit_count">1</string>
     <string name="step_1">1</string>
     <string name="step_2">2</string>
@@ -805,4 +805,25 @@
     <string name="wh_from_receiving_title">Disponible en el almacén</string>
     <string name="wh_available_product_line">%1$s  ·  %2$.2f disponible</string>
     <string name="wh_no_available_products">No hay nada recibido disponible por ahora</string>
+
+    <!-- Fase 148 — carga de ruta por pasos, una pre-orden a la vez -->
+    <string name="wh_step_title">Pre-orden %1$d de %2$d · %3$s</string>
+    <string name="wh_step_line">%1$s — %2$s de %3$s %4$s</string>
+    <string name="wh_step_boxes">cajas</string>
+    <string name="wh_step_btn_done">Listo</string>
+    <string name="wh_step_btn_finish">Terminar carga</string>
+    <string name="wh_step_status_current">Paso actual</string>
+    <string name="wh_step_status_done">✓ Lista (toca para reabrir)</string>
+    <string name="wh_step_status_pending">Pendiente</string>
+    <string name="wh_step_all_done">Todas las pre-órdenes están listas. Revisa la carga y toca «Ruta terminada».</string>
+    <string name="wh_step_missing_title">Faltan productos</string>
+    <string name="wh_step_missing_line">%1$s — faltan %2$s %3$s</string>
+    <string name="wh_step_missing_msg">Esta pre-orden tiene productos sin cargar:\n%1$s\n\n¿Darla por lista de todas formas?</string>
+    <string name="btn_edit_products">Editar productos</string>
+    <string name="title_edit_preorder">Editar pre-orden</string>
+    <string name="msg_preorder_updated">Pre-orden actualizada</string>
+    <string name="notification_preorder_confirmed_title">📦 Pre-orden confirmada</string>
+    <string name="notification_preorder_confirmed_content">La pre-orden de %1$s está lista para preparar</string>
+    <string name="notification_preorder_edited_title">✏️ Pre-orden modificada</string>
+    <string name="notification_preorder_edited_content">La pre-orden de %1$s fue modificada — revisá la carga</string>
 </resources>
