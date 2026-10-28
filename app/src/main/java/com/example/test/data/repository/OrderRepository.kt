@@ -171,7 +171,17 @@ class OrderRepository(
         damageItems: List<DamageItem> = emptyList(),
         paymentMethod: String? = null,
         checkNumber: String? = null,
-        applyCredit: Double? = null
+        applyCredit: Double? = null,
+        // Huella de la venta (ver BatchRequest.clientRequestId) — la misma en
+        // cada reintento de la misma venta.
+        clientRequestId: String? = null,
+        // false = si no hay conexión (o el servidor tarda), devolver
+        // BatchUnreachableException en vez de guardar offline en silencio, para
+        // que la pantalla pregunte "Reintentar / Continuar sin factura".
+        allowOfflineFallback: Boolean = true,
+        // true = guardar offline directo, sin intentar el servidor (opción
+        // "Continuar sin número de factura").
+        forceOffline: Boolean = false
     ): Result<BatchResponse> = withContext(Dispatchers.IO) {
         // route_id/stop_id: si hay una venta "por scratch" en curso (ver
         // MyRouteDetailActivity.activateCustomerAndSell()), estos ya están
@@ -190,11 +200,12 @@ class OrderRepository(
             checkNumber = checkNumber,
             applyCredit = applyCredit,
             routeId = securePrefs.getActiveRouteId(),
-            stopId = securePrefs.getActiveStopId()
+            stopId = securePrefs.getActiveStopId(),
+            clientRequestId = clientRequestId
         )
 
         // Si ya estamos en modo offline, guardar directamente sin intentar el API
-        if (securePrefs.isOfflineMode()) {
+        if (forceOffline || securePrefs.isOfflineMode()) {
             return@withContext saveOfflineBatch(request)
         }
 
@@ -202,12 +213,20 @@ class OrderRepository(
             val response = RetrofitClient.getApi().createBatch(request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
+            } else if (response.code() == 409 && !allowOfflineFallback) {
+                // La misma venta todavía se está registrando en el servidor
+                // (llegó la primera, la respuesta tardó): reintentar en unos
+                // segundos con la misma huella devuelve esa venta.
+                Result.failure(BatchUnreachableException())
             } else {
                 Result.failure(Exception("Error del servidor: ${response.code()}"))
             }
         } catch (e: Exception) {
-            // Sin red — guardar localmente para sincronizar cuando haya conexión
-            saveOfflineBatch(request)
+            // Sin red o timeout. Antes siempre se guardaba offline en
+            // silencio (ticket sin número de factura). Ahora, si la pantalla
+            // lo pide, se devuelve el error para que el vendedor elija.
+            if (allowOfflineFallback) saveOfflineBatch(request)
+            else Result.failure(BatchUnreachableException(e))
         }
     }
 
@@ -309,9 +328,17 @@ class OrderRepository(
         }
     }
 
-    suspend fun getRemoteOrders(page: Int = 1, limit: Int = 20): Result<ApiResponse<List<OrderDto>>> = withContext(Dispatchers.IO) {
+    suspend fun getRemoteOrders(
+        page: Int = 1,
+        limit: Int = 20,
+        status: String? = null,
+        dateFrom: String? = null,
+        dateTo: String? = null
+    ): Result<ApiResponse<List<OrderDto>>> = withContext(Dispatchers.IO) {
         try {
-            val response = RetrofitClient.getApi().listOrders(page = page, limit = limit)
+            val response = RetrofitClient.getApi().listOrders(
+                page = page, limit = limit, status = status, dateFrom = dateFrom, dateTo = dateTo
+            )
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -372,7 +399,8 @@ class OrderRepository(
                             qty = dto.qty,
                             qbItemId = dto.qbItemId,
                             qbActive = dto.qbActive,
-                            shortName = dto.shortName
+                            shortName = dto.shortName,
+                            description = dto.description
                         )
                     )
                 }
@@ -409,3 +437,8 @@ class OrderRepository(
         } catch (_: Exception) {}
     }
 }
+
+// No se pudo confirmar la venta con el servidor (sin red, timeout, o la misma
+// venta todavía registrándose — 409). La venta pudo haber llegado igual: por
+// eso "Reintentar" usa la misma clientRequestId y el servidor no la duplica.
+class BatchUnreachableException(cause: Throwable? = null) : Exception("No se pudo conectar con el servidor", cause)

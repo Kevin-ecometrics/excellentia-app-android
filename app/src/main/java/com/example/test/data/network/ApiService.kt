@@ -35,7 +35,11 @@ interface ApiService {
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 20,
         @Query("status") status: String? = null,
-        @Query("customer_id") customerId: String? = null
+        @Query("customer_id") customerId: String? = null,
+        // ISO con hora (inicio/fin del día local en UTC) — listOrders los
+        // convierte a Date. Requiere el backend del 2026-10-23.
+        @Query("date_from") dateFrom: String? = null,
+        @Query("date_to") dateTo: String? = null
     ): Response<ApiResponse<List<OrderDto>>>
 
     @POST("api/scans")
@@ -96,6 +100,32 @@ interface ApiService {
     @POST("api/credits/issue")
     suspend fun issueCredit(@Body request: IssueCreditRequest): Response<IssueCreditResponse>
 
+    // Créditos por cliente (ticket 2, 2026-10-27) — CreditCustomersActivity /
+    // CustomerCreditsActivity y la nota de crédito impresa.
+    @GET("api/credits/customers")
+    suspend fun getCreditCustomers(): Response<CreditCustomersResponse>
+
+    @GET("api/credits/customers/{customerId}")
+    suspend fun getCustomerCredits(
+        @Path("customerId") customerId: String
+    ): Response<CustomerCreditsResponse>
+
+    // Nota de crédito por correo (ticket 3, 2026-10-27).
+    @GET("api/credits/customers/{customerId}/email")
+    suspend fun getCustomerEmail(
+        @Path("customerId") customerId: String
+    ): Response<CustomerEmailResponse>
+
+    @POST("api/credits/notes/{batchId}/email")
+    suspend fun sendCreditNoteEmail(
+        @Path("batchId") batchId: String,
+        @Body request: SendEmailRequest
+    ): Response<SendEmailResponse>
+
+    // Motivos de crédito activos (2026-10-26) — ver CreditReasonRepository.
+    @GET("api/credits/reasons")
+    suspend fun getCreditReasons(): Response<CreditReasonsResponse>
+
     @POST("api/orders/batch/{batchId}/retry")
     suspend fun retryBatchSync(
         @Path("batchId") batchId: String
@@ -141,6 +171,10 @@ interface ApiService {
 
     @POST("api/preorders/{id}/convert")
     suspend fun convertPreOrder(@Path("id") id: Int, @Body request: ConvertPreOrderRequest): Response<ConvertPreOrderResponse>
+
+    // Pre-orden por correo (2026-10-27) — confirmación de pedido, sin precios.
+    @POST("api/preorders/{id}/email")
+    suspend fun sendPreOrderEmail(@Path("id") id: Int, @Body request: SendEmailRequest): Response<SendEmailResponse>
 
     // ── Customer History ──
 

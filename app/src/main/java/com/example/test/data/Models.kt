@@ -64,6 +64,8 @@ data class ProductDto(
     val sku: String? = null,
     val name: String,
     @SerializedName("short_name") val shortName: String? = null,
+    // Descripción del producto en QBO — la imprime el ticket (PrintService.withQboDescriptions).
+    val description: String? = null,
     val price: Double,
     @SerializedName("min_price") val minPrice: Double? = null,
     @SerializedName("qb_item_id") val qbItemId: String? = null,
@@ -137,6 +139,9 @@ data class OrderDto(
     @SerializedName("credit_applied") val creditApplied: Double? = null,
     @SerializedName("damage_credits") val damageCredits: Double? = null,
     @SerializedName("short_name") val shortName: String? = null,
+    // Descripción de QBO del producto (GET /api/orders, 2026-10-23) — el
+    // ticket en pantalla la muestra en vez del nombre (TicketDetailActivity).
+    @SerializedName("product_description") val productDescription: String? = null,
     // Fase 115.5 — para que un reprint desde Historial/detalle de ticket
     // conserve el resumen "Courtesy Summary" del ticket original.
     @SerializedName("is_courtesy") val isCourtesy: Boolean = false,
@@ -561,7 +566,12 @@ data class BatchRequest(
     // producto ya se descontó al cargarlo en la ruta) y para vincular la
     // venta a la parada. Ver OrderRepository.sendBatch().
     @SerializedName("route_id") val routeId: Int? = null,
-    @SerializedName("stop_id") val stopId: Int? = null
+    @SerializedName("stop_id") val stopId: Int? = null,
+    // Huella única de esta venta (UUID, 2026-10-23). Se genera una vez al
+    // finalizar y viaja igual en "Reintentar" y en la cola offline: si el
+    // servidor ya registró la venta (respuesta lenta), devuelve la misma en
+    // vez de crear un duplicado. Ver createBatch/batchIdempotency.ts.
+    @SerializedName("client_request_id") val clientRequestId: String? = null
 )
 
 // Fase 82 — adjunta payment_method/check_number a un batch que ya se mandó
@@ -592,18 +602,40 @@ data class DamageItem(
     // propia cifra autoritativa desde el catálogo — este campo nunca se usa
     // para lo financiero/QBO, solo para lo que se muestra en pantalla antes de
     // tener la respuesta del servidor.
-    @SerializedName("unit_price") val unitPrice: Double = 0.0
+    @SerializedName("unit_price") val unitPrice: Double = 0.0,
+    // Motivo del crédito (2026-10-26), obligatorio por producto — elegido en
+    // CreditReasonPicker de la lista que el admin arma en Settings (webapp).
+    // Viaja tal cual en la cola offline. El backend copia el texto del motivo.
+    @SerializedName("reason_id") val reasonId: Int? = null,
+    @SerializedName("reason_note") val reasonNote: String? = null
 )
+
+// Catálogo de motivos de crédito — GET /api/credits/reasons (solo activos).
+data class CreditReasonDto(
+    val id: Int,
+    val label: String,
+    @SerializedName("is_active") val isActive: Boolean = true,
+    @SerializedName("sort_order") val sortOrder: Int = 0
+)
+
+data class CreditReasonsResponse(val data: List<CreditReasonDto>)
 
 // ── Créditos standalone (sin venta asociada) ──
 
 data class CreditItemRequest(
-    val barcode: String,
+    // Puede venir null: los productos importados de QBO no tienen barcode
+    // hasta que se les asigna uno. product_id es lo que identifica el producto
+    // (2026-10-26); barcode queda como dato informativo / APKs viejos.
+    val barcode: String?,
+    @SerializedName("product_id") val productId: Int? = null,
     @SerializedName("product_name") val productName: String,
     // Double por la misma razón que DamageItem.qty — el backend ya acepta
     // decimales (Number(i.qty) en routes/credits.ts) y re-resuelve el unit
     // fresco desde products, no hace falta mandarlo acá.
-    val qty: Double
+    val qty: Double,
+    // Motivo del crédito (2026-10-26), mismo criterio que DamageItem.
+    @SerializedName("reason_id") val reasonId: Int? = null,
+    @SerializedName("reason_note") val reasonNote: String? = null
 )
 
 data class IssueCreditRequest(
@@ -1026,6 +1058,26 @@ data class AvailablePreOrder(
     @SerializedName("item_count") val itemCount: Int = 0
 )
 
+// Selector de pre-órdenes al armar una ruta: se muestran TODAS las disponibles
+// (sin filtrar por fecha, para no perder una atrasada), pero con la fecha en la
+// etiqueta y ordenadas por fecha — las sin fecha van al final.
+fun List<AvailablePreOrder>.sortedByScheduledDate(): List<AvailablePreOrder> =
+    sortedWith(compareBy<AvailablePreOrder> { it.scheduledDate == null }.thenBy { it.scheduledDate?.take(10) })
+
+// Fecha en texto ("14 oct 2026" / "Oct 14, 2026") según el idioma del dispositivo, no "2026-10-14".
+// scheduled_date llega como "YYYY-MM-DD" (a veces con hora); se parsea solo esa parte.
+private fun monthDayText(isoDate: String?): String? {
+    val day = isoDate?.take(10) ?: return null
+    return try {
+        val parsed = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(day) ?: return day
+        val pattern = if (java.util.Locale.getDefault().language == "es") "d MMM yyyy" else "MMM d, yyyy"
+        java.text.SimpleDateFormat(pattern, java.util.Locale.getDefault()).format(parsed)
+    } catch (_: Exception) { day }
+}
+
+fun AvailablePreOrder.pickerLabel(noDateText: String): String =
+    "${customerName ?: "—"}  ·  #$id  ·  ${monthDayText(scheduledDate) ?: noDateText}"
+
 data class UpdateStopStatusRequest(
     val status: String,
     // batch_id (2026-09-18) — vincula recién acá una parada CUSTOMER con la
@@ -1167,6 +1219,77 @@ data class CreditBalance(
     val balance: Double,
     @SerializedName("earned_total") val earnedTotal: Double,
     @SerializedName("used_total") val usedTotal: Double
+)
+
+// ── Créditos por cliente (ticket 2, 2026-10-27) ──
+// GET /api/credits/customers y /api/credits/customers/{id} — operador y admin.
+
+data class CreditCustomerDto(
+    @SerializedName("customer_id") val customerId: String,
+    @SerializedName("customer_name") val customerName: String,
+    @SerializedName("total_earned") val totalEarned: Double,
+    @SerializedName("total_used") val totalUsed: Double,
+    val balance: Double,
+    @SerializedName("last_movement_at") val lastMovementAt: String?,
+    val movements: Int
+)
+
+data class CreditCustomersResponse(val data: List<CreditCustomerDto>)
+
+data class CreditSummaryDto(
+    @SerializedName("total_earned") val totalEarned: Double,
+    @SerializedName("total_used") val totalUsed: Double,
+    val balance: Double
+)
+
+data class CreditLineDto(
+    val barcode: String?,
+    @SerializedName("product_name") val productName: String,
+    val qty: Double,
+    val unit: String?,
+    @SerializedName("unit_price") val unitPrice: Double?,
+    val amount: Double,
+    val reason: String?,
+    @SerializedName("reason_note") val reasonNote: String?
+)
+
+data class CreditMovementDto(
+    val id: Int,
+    val type: String,           // EARNED (emitido) / USED (aplicado)
+    val amount: Double,
+    @SerializedName("batch_id") val batchId: String?,
+    val note: String?,
+    @SerializedName("created_at") val createdAt: String?,
+    @SerializedName("sale_date") val saleDate: String?,
+    @SerializedName("invoice_number") val invoiceNumber: Int?,
+    @SerializedName("sale_status") val saleStatus: String?,
+    // true = crédito 'cr…' de "Agregar crédito": el único con nota imprimible.
+    val standalone: Boolean,
+    @SerializedName("issued_by") val issuedBy: String?,
+    val items: List<CreditLineDto>
+)
+
+data class CustomerCreditsResponse(
+    @SerializedName("customer_id") val customerId: String,
+    @SerializedName("customer_name") val customerName: String,
+    val summary: CreditSummaryDto,
+    val movements: List<CreditMovementDto>
+)
+
+// ── Nota de crédito por correo (ticket 3, 2026-10-27) ──
+
+data class CustomerEmailResponse(
+    val email: String?,
+    val source: String?,            // "manual" (corregido) / "qbo" / null
+    @SerializedName("mail_configured") val mailConfigured: Boolean
+)
+
+data class SendEmailRequest(val email: String)
+
+data class SendEmailResponse(
+    val sent: Boolean,
+    val to: String,
+    @SerializedName("saved_email") val savedEmail: Boolean
 )
 
 // ── Customer Batch Summary ──

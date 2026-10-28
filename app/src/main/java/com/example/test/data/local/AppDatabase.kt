@@ -15,6 +15,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 sku TEXT,
                 name TEXT NOT NULL,
                 short_name TEXT,
+                description TEXT,
                 price REAL NOT NULL,
                 category TEXT,
                 brand TEXT,
@@ -247,11 +248,17 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(
                 )
             """)
         }
+        // v21 (2026-10-23) — descripción de QBO para el ticket impreso
+        // (PrintService.withQboDescriptions). Se llena sola en el próximo sync
+        // del catálogo; mientras tanto el ticket sale con el nombre de siempre.
+        if (oldVersion < 21) {
+            try { db.execSQL("ALTER TABLE cached_products ADD COLUMN description TEXT") } catch (_: Exception) {}
+        }
     }
 
     companion object {
         private const val DATABASE_NAME = "excellentia.db"
-        private const val DATABASE_VERSION = 20
+        private const val DATABASE_VERSION = 21
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

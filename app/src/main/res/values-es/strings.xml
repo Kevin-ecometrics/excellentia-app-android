@@ -105,6 +105,9 @@
     <string name="title_product_not_found">Producto no encontrado</string>
     <string name="msg_product_not_found">El código \"%1$s\" no existe en el catálogo.\n\nVerifica que el producto esté registrado en el sistema.</string>
     <string name="btn_retry">Reintentar</string>
+    <string name="dlg_send_unreachable_title">No se pudo conectar con el servidor</string>
+    <string name="dlg_send_unreachable_msg">No se pudo confirmar la venta (sin señal o el servidor está lento). Reintentá para que el ticket salga con número de factura. Si continuás, la venta se guarda en el equipo, se envía cuando haya señal y el ticket sale sin número de factura. Reintentar no duplica la venta.</string>
+    <string name="btn_continue_without_invoice">Continuar sin número de factura</string>
     <string name="btn_close">Cerrar</string>
     <string name="title_manual_entry">Ingresar código de barras</string>
     <string name="btn_search">Buscar</string>
@@ -165,6 +168,14 @@
     <string name="msg_damaged_items_hint">Indica la cantidad a descontar por producto (0 = ninguno). Cada unidad = 1 pieza para Case/Unit o Bucket, 1 lb para productos por peso.</string>
     <string name="btn_continue">Continuar</string>
     <string name="btn_none">Ninguno</string>
+    <!-- Motivo del crédito (2026-10-26) -->
+    <string name="title_credit_reason">Motivo del crédito</string>
+    <string name="msg_credit_reason_hint">Elegí el motivo de cada producto. Es obligatorio.</string>
+    <string name="hint_credit_reason_select">Elegí un motivo…</string>
+    <string name="hint_credit_reason_note">Comentario (opcional)</string>
+    <string name="error_credit_reason_required">Elegí un motivo para este producto</string>
+    <string name="msg_no_credit_reasons">No hay motivos de crédito configurados. Pedile al administrador que los agregue en el dashboard (Settings). Sin motivo no se puede registrar el crédito.</string>
+    <string name="btn_back">Atrás</string>
     <string name="title_payment_method">Método de pago</string>
     <string name="msg_payment_method">¿Cómo paga el cliente?</string>
     <string name="btn_cash">Cash</string>
@@ -584,6 +595,7 @@
     <string name="title_consignment">Consignación</string>
     <string name="label_available_orders">Pedidos disponibles</string>
     <string name="label_available_preorders">Pre-órdenes disponibles</string>
+    <string name="label_preorder_no_date">sin fecha</string>
     <string name="label_no_available_stops">No hay pedidos ni pre-órdenes disponibles sin asignar</string>
     <string name="label_route_loaded">Cargado</string>
     <string name="label_no_items_loaded">Sin productos cargados todavía</string>
@@ -773,6 +785,7 @@
     <string name="wh_movement_type_damage">Daño/baja</string>
     <string name="wh_movement_type_adjustment">Ajuste</string>
     <string name="wh_no_movements">No hay movimientos registrados</string>
+    <string name="wh_history_show_more">Mostrar más (%1$d de %2$d)</string>
 
     <string name="wh_btn_receiving">Recepción</string>
     <string name="wh_btn_movements">Sub-inventario</string>
@@ -819,6 +832,18 @@
     <string name="wh_step_missing_title">Faltan productos</string>
     <string name="wh_step_missing_line">%1$s — faltan %2$s %3$s</string>
     <string name="wh_step_missing_msg">Esta pre-orden tiene productos sin cargar:\n%1$s\n\n¿Darla por lista de todas formas?</string>
+    <string name="wh_step_status_done_plain">✓ Lista</string>
+    <string name="wh_mode_by_preorder">Por pre-orden</string>
+    <string name="wh_mode_by_product">Por producto</string>
+    <string name="wh_prod_title">Total a cargar · %1$d productos</string>
+    <string name="wh_prod_stop_line">%1$s: %2$s de %3$s</string>
+    <string name="wh_prod_low_stock">⚠ solo hay %1$s disponibles</string>
+    <string name="wh_prod_all_done">Todos los productos están cargados. Revisa la carga y toca «Ruta terminada».</string>
+    <string name="wh_prod_assigned">%1$s → %2$s</string>
+    <string name="wh_prod_not_requested">Este producto no está en ninguna pre-orden de esta ruta. Cambia a «Por pre-orden» para cargarlo aparte.</string>
+    <string name="wh_prod_exceeds">Es más de lo pedido: en total solo faltan %1$s %2$s.</string>
+    <string name="wh_prod_exceeds_none">Este producto ya está completo para todas las pre-órdenes.</string>
+    <string name="wh_prod_tap_hint">Toca un producto o escanéalo. Cada escaneo se asigna a la siguiente pre-orden que lo necesita.</string>
     <string name="btn_edit_products">Editar productos</string>
     <string name="title_edit_preorder">Editar pre-orden</string>
     <string name="msg_preorder_updated">Pre-orden actualizada</string>
@@ -826,4 +851,44 @@
     <string name="notification_preorder_confirmed_content">La pre-orden de %1$s está lista para preparar</string>
     <string name="notification_preorder_edited_title">✏️ Pre-orden modificada</string>
     <string name="notification_preorder_edited_content">La pre-orden de %1$s fue modificada — revisá la carga</string>
+
+    <!-- Créditos por cliente (ticket 2, 2026-10-27) -->
+    <string name="btn_customer_credits">Créditos</string>
+    <string name="title_customer_credits">Créditos de clientes</string>
+    <string name="label_no_customer_credits">Todavía no hay créditos</string>
+    <string name="label_credit_earned_used">Emitido %1$s · Aplicado %2$s</string>
+    <string name="label_credit_total_earned">Emitido
+%1$s</string>
+    <string name="label_credit_total_used">Aplicado
+%1$s</string>
+    <string name="label_credit_balance">Saldo
+%1$s</string>
+    <string name="label_credit_type_earned">Crédito emitido</string>
+    <string name="label_credit_type_used">Crédito aplicado</string>
+    <string name="label_credit_origin_standalone">Sin venta (Agregar crédito)</string>
+    <string name="label_credit_issued_by">por %1$s</string>
+    <string name="label_credit_origin_sale">Dañado en una venta</string>
+    <string name="label_credit_applied_in_sale">Aplicado en una venta</string>
+    <string name="label_credit_invoice">Factura #%1$s</string>
+    <string name="label_credit_reason">Motivo: %1$s</string>
+    <string name="btn_print_credit_note">Imprimir nota de crédito</string>
+    <string name="msg_printing_credit_note">Imprimiendo nota de crédito…</string>
+    <string name="msg_credit_note_printed">Nota de crédito impresa</string>
+    <string name="msg_ask_print_credit_note">¿Imprimir la nota de crédito para el cliente? Podés reimprimirla después desde Créditos.</string>
+    <string name="error_no_printer_for_credit_note">No hay impresora configurada — configurala en Ajustes. Podés reimprimir la nota desde Créditos.</string>
+    <string name="error_credit_note_not_found">No se encontró el crédito — probá de nuevo desde Créditos</string>
+
+    <!-- Nota de crédito por correo (ticket 3, 2026-10-27) -->
+    <string name="btn_email_credit_note">Enviar por correo</string>
+    <string name="btn_send">Enviar</string>
+    <string name="title_email_credit_note">Enviar nota de crédito</string>
+    <string name="msg_email_to_customer">Se envía a este correo. Si lo cambiás, queda guardado para la próxima vez.</string>
+    <string name="msg_email_no_email">Este cliente no tiene correo cargado. Escribilo para enviar; queda guardado para la próxima vez.</string>
+    <string name="hint_customer_email">cliente@ejemplo.com</string>
+    <string name="error_invalid_email">Escribí un correo válido</string>
+    <string name="error_email_not_configured">El envío de correos todavía no está configurado en el servidor</string>
+    <string name="msg_sending_email">Enviando correo…</string>
+    <string name="msg_email_sent">Correo enviado a %1$s</string>
+    <string name="btn_email_pre_order">Enviar pre-orden por correo</string>
+    <string name="title_email_pre_order">Enviar confirmación de pedido</string>
 </resources>

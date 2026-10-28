@@ -21,6 +21,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.example.test.data.AddStopRequest
 import com.example.test.data.AvailablePreOrder
 import com.example.test.data.RouteDto
+import com.example.test.data.pickerLabel
+import com.example.test.data.sortedByScheduledDate
 import com.example.test.data.RouteRequest
 import com.example.test.data.UserBrief
 import com.example.test.data.local.SecurePreferences
@@ -323,7 +325,7 @@ class WarehouseActivity : BaseActivity() {
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().listAvailableStops(null)
-                val preOrders = if (resp.isSuccessful) resp.body()?.preOrders ?: emptyList() else emptyList()
+                val preOrders = (if (resp.isSuccessful) resp.body()?.preOrders ?: emptyList() else emptyList()).sortedByScheduledDate()
                 if (preOrders.isEmpty()) {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_no_available_stops), Snackbar.LENGTH_SHORT).show()
                     return@launch
@@ -336,10 +338,8 @@ class WarehouseActivity : BaseActivity() {
     }
 
     private fun showPreOrderPicker(preOrders: List<AvailablePreOrder>) {
-        val labels = preOrders.map {
-            // Sin monto: a Almacén no le interesa el precio de la pre-orden, solo cuál es.
-            "${it.customerName ?: "—"}  ·  #${it.id}"
-        }.toTypedArray()
+        // Sin monto: a Almacén no le interesa el precio de la pre-orden, solo cuál es.
+        val labels = preOrders.map { it.pickerLabel(getString(R.string.label_preorder_no_date)) }.toTypedArray()
         val checked = BooleanArray(preOrders.size)
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.label_available_preorders))

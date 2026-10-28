@@ -44,11 +44,14 @@ class IssueCreditActivity : BaseActivity() {
     private var selectedCustomerName: String? = null
 
     private data class CreditLine(
-        val barcode: String,
+        val productId: Int,
+        val barcode: String?,
         val productName: String,
         var qty: Double,
         val unit: String?,
-        val estimatedUnitValue: Double
+        val estimatedUnitValue: Double,
+        // Motivo elegido al guardar (2026-10-26); se recuerda si falla el envío.
+        var reason: CreditReasonPicker.Choice? = null
     )
 
     private val lines = mutableListOf<CreditLine>()
@@ -270,8 +273,9 @@ class IssueCreditActivity : BaseActivity() {
     // paquete viaja en product.qty.
     private fun estimatedUnitValueOf(product: ProductDto): Double = product.price
 
+    // Por product.id, no por barcode: un producto sin código de barras
+    // (importado de QBO) antes se ignoraba en silencio al elegirlo.
     private fun askQtyThenAdd(product: ProductDto) {
-        val barcode = product.barcode ?: return
         val ctx = this
         val isLbs = com.example.test.data.isLbsUnit(product.unit)
         val etQty = android.widget.EditText(ctx).apply {
@@ -289,18 +293,18 @@ class IssueCreditActivity : BaseActivity() {
             .setView(etQty)
             .setPositiveButton(getString(R.string.btn_continue)) { _, _ ->
                 val qty = etQty.text.toString().toDoubleOrNull()?.coerceAtLeast(if (isLbs) 0.01 else 1.0) ?: 1.0
-                addLine(barcode, product.name, qty, product.unit, estimatedUnitValueOf(product))
+                addLine(product.id, product.barcode, product.name, qty, product.unit, estimatedUnitValueOf(product))
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
-    private fun addLine(barcode: String, productName: String, qty: Double, unit: String?, estimatedUnitValue: Double) {
-        val existing = lines.find { it.barcode == barcode }
+    private fun addLine(productId: Int, barcode: String?, productName: String, qty: Double, unit: String?, estimatedUnitValue: Double) {
+        val existing = lines.find { it.productId == productId }
         if (existing != null) {
             existing.qty += qty
         } else {
-            lines.add(CreditLine(barcode, productName, qty, unit, estimatedUnitValue))
+            lines.add(CreditLine(productId, barcode, productName, qty, unit, estimatedUnitValue))
         }
         rebuildItemsList()
         updateTotal()
@@ -359,13 +363,27 @@ class IssueCreditActivity : BaseActivity() {
             return
         }
 
+        // Motivo obligatorio por producto (2026-10-26) antes de mandar.
+        CreditReasonPicker.show(
+            activity = this,
+            lines = lines.map { "${it.productName} · ${com.example.test.data.formatDamageQty(it.qty, it.unit)}" },
+            initial = lines.map { it.reason }
+        ) { choices ->
+            lines.forEachIndexed { i, line -> line.reason = choices[i] }
+            sendCredit()
+        }
+    }
+
+    private fun sendCredit() {
         btnSaveCredit.isEnabled = false
         btnSaveCredit.text = getString(R.string.btn_saving)
 
         val request = IssueCreditRequest(
             customerId   = selectedCustomerId!!,
             customerName = selectedCustomerName,
-            items = lines.map { CreditItemRequest(it.barcode, it.productName, it.qty) }
+            items = lines.map {
+                CreditItemRequest(it.barcode, it.productId, it.productName, it.qty, reasonId = it.reason?.reasonId, reasonNote = it.reason?.note)
+            }
         )
 
         lifecycleScope.launch {
@@ -373,13 +391,16 @@ class IssueCreditActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().issueCredit(request)
                 if (resp.isSuccessful) {
                     val body = resp.body()
-                    Snackbar.make(findViewById(android.R.id.content),
-                        getString(R.string.msg_credit_issued_success, body?.creditsTotal ?: 0.0, selectedCustomerName ?: ""), Snackbar.LENGTH_LONG).show()
                     setResult(Activity.RESULT_OK)
-                    finish()
+                    askPrintCreditNote(
+                        getString(R.string.msg_credit_issued_success, body?.creditsTotal ?: 0.0, selectedCustomerName ?: ""),
+                        body?.batchId
+                    )
                 } else {
+                    // Mensaje del backend si lo hay (ej. motivo inválido), si no el código.
+                    val serverMsg = try { org.json.JSONObject(resp.errorBody()?.string() ?: "").optString("error") } catch (_: Exception) { "" }
                     Snackbar.make(findViewById(android.R.id.content),
-                        getString(R.string.error_issue_credit_failed, resp.code().toString()), Snackbar.LENGTH_LONG).show()
+                        serverMsg.ifBlank { getString(R.string.error_issue_credit_failed, resp.code().toString()) }, Snackbar.LENGTH_LONG).show()
                     btnSaveCredit.isEnabled = true
                     btnSaveCredit.text = getString(R.string.btn_save_credit)
                 }
@@ -390,6 +411,34 @@ class IssueCreditActivity : BaseActivity() {
                 btnSaveCredit.text = getString(R.string.btn_save_credit)
             }
         }
+    }
+
+    // Ticket 2 (2026-10-27) — al guardar se pregunta si imprimir la nota de
+    // crédito (se puede reimprimir después desde Créditos → cliente). El
+    // crédito ya quedó guardado: cerrar el diálogo o fallar la impresión no lo
+    // afecta. Los mensajes van por Toast porque la pantalla se cierra.
+    private fun askPrintCreditNote(savedMessage: String, batchId: String?) {
+        val customerId = selectedCustomerId
+        if (batchId == null || customerId == null) {
+            android.widget.Toast.makeText(this, savedMessage, android.widget.Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(savedMessage)
+            .setMessage(getString(R.string.msg_ask_print_credit_note))
+            .setCancelable(false)
+            .setPositiveButton(getString(R.string.btn_print_credit_note)) { _, _ ->
+                btnSaveCredit.text = getString(R.string.msg_printing_credit_note)
+                lifecycleScope.launch {
+                    val error = CreditNotePrinter.fetchAndPrint(this@IssueCreditActivity, customerId, batchId)
+                    android.widget.Toast.makeText(this@IssueCreditActivity,
+                        error ?: getString(R.string.msg_credit_note_printed), android.widget.Toast.LENGTH_LONG).show()
+                    finish()
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_no)) { _, _ -> finish() }
+            .show()
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()

@@ -87,6 +87,8 @@ class PreOrderDetailActivity : BaseActivity() {
 
     private var pendingSignature: String? = null
     private var pendingDamageItems: List<DamageItem> = emptyList()
+    // Motivo elegido por barcode (2026-10-26) — mismo criterio que CurrentOrderActivity.
+    private val reasonChoicesByBarcode = mutableMapOf<String, CreditReasonPicker.Choice>()
     private var pendingPaymentMethod: String? = null
     private var pendingCheckNumber: String? = null
     private var pendingApplyCredit: Double? = null
@@ -212,6 +214,15 @@ class PreOrderDetailActivity : BaseActivity() {
         btnCancel.setOnClickListener      { confirmCancel() }
         btnReuse.setOnClickListener       { reusePreOrder() }
         btnViewHistory.setOnClickListener { finish() }
+        // Pre-orden por correo (2026-10-27) — botón manual, DRAFT/CONFIRMED.
+        findViewById<MaterialButton>(R.id.btnEmailPreOrder).setOnClickListener { btn ->
+            val po = currentPreOrder ?: return@setOnClickListener
+            val customerId = po.customerId
+            if (customerId.isNullOrBlank()) return@setOnClickListener
+            EmailSendDialog.show(this, customerId, R.string.title_email_pre_order, btn) { email ->
+                RetrofitClient.getApi().sendPreOrderEmail(preOrderId, com.example.test.data.SendEmailRequest(email))
+            }
+        }
         btnEditDate.setOnClickListener    { showEditDateDialog() }
         btnEditItems.setOnClickListener   {
             editPreOrderLauncher.launch(
@@ -300,6 +311,12 @@ class PreOrderDetailActivity : BaseActivity() {
         } else {
             renderReadOnlyItems(po)
         }
+
+        // Correo: misma condición que el backend (DRAFT/CONFIRMED) + que se
+        // pueda editar (el almacenista solo la ve: el backend le respondería 403).
+        findViewById<MaterialButton>(R.id.btnEmailPreOrder).visibility =
+            if ((po.status == "DRAFT" || po.status == "CONFIRMED") && !po.customerId.isNullOrBlank()
+                && SecurePreferences(this).getUserRole() != "almacenista") View.VISIBLE else View.GONE
 
         when (po.status) {
             "DRAFT", "CONFIRMED" -> {
@@ -1008,7 +1025,9 @@ class PreOrderDetailActivity : BaseActivity() {
                     android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
                 else
                     android.text.InputType.TYPE_CLASS_NUMBER
-                setText("0")
+                // Al volver "Atrás" desde el motivo se conserva lo ya tipeado.
+                val prefillQty = pendingDamageItems.firstOrNull { it.barcode == item.barcode }?.qty ?: 0.0
+                setText(if (isLbs && prefillQty > 0) String.format(Locale.US, "%.2f", prefillQty) else prefillQty.toInt().toString())
                 textSize = 15f
                 gravity = Gravity.CENTER
                 layoutParams = LinearLayout.LayoutParams((64 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -1037,7 +1056,7 @@ class PreOrderDetailActivity : BaseActivity() {
                     else null
                 }
                 pendingApplyCredit = null
-                askApplyCredit()
+                askCreditReasons()
             }
             .setNegativeButton(getString(R.string.btn_none)) { _, _ ->
                 pendingDamageItems = emptyList()
@@ -1045,6 +1064,28 @@ class PreOrderDetailActivity : BaseActivity() {
                 askApplyCredit()
             }
             .show()
+    }
+
+    // Motivo del crédito (2026-10-26), obligatorio por producto dañado.
+    // "Atrás" vuelve a la lista de dañados con las cantidades ya tipeadas.
+    private fun askCreditReasons() {
+        val items = pendingDamageItems
+        if (items.isEmpty()) {
+            askApplyCredit()
+            return
+        }
+        CreditReasonPicker.show(
+            activity = this,
+            lines = items.map { "${it.productName} · ${com.example.test.data.formatDamageQty(it.qty, it.unit)}" },
+            initial = items.map { reasonChoicesByBarcode[it.barcode] },
+            onBack = { askDamagedItems() }
+        ) { choices ->
+            items.forEachIndexed { i, d -> reasonChoicesByBarcode[d.barcode] = choices[i] }
+            pendingDamageItems = items.mapIndexed { i, d ->
+                d.copy(reasonId = choices[i].reasonId, reasonNote = choices[i].note)
+            }
+            askApplyCredit()
+        }
     }
 
     private fun askApplyCredit() {
@@ -1297,6 +1338,7 @@ class PreOrderDetailActivity : BaseActivity() {
 
         pendingSignature     = null
         pendingDamageItems   = emptyList()
+        reasonChoicesByBarcode.clear()
         pendingPaymentMethod = null
         pendingCheckNumber   = null
         pendingApplyCredit   = null

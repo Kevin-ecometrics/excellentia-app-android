@@ -75,6 +75,48 @@ object PrintService {
     private val ITEM_NAME_WIDTH = (LINE_WIDTH - 4).coerceAtLeast(1)
 
     @SuppressLint("MissingPermission")
+    // 2026-10-23 — a pedido del cliente, el ticket impreso muestra la
+    // descripción del producto en QuickBooks (products.description, la misma
+    // que se ve en Products de la webapp) en vez del nombre. Se resuelve acá,
+    // en un solo lugar, desde el catálogo guardado en el equipo (por barcode):
+    // vale para todos los tickets (venta, pre-orden, reimpresión) y también
+    // offline. groupedForTicket() ya usa shortName antes que productName, así
+    // que poner la descripción en shortName da: descripción → nombre corto →
+    // nombre. Producto sin descripción (o no cacheado) = sale como antes.
+    private fun withQboDescriptions(context: Context, items: List<BatchItem>): List<BatchItem> {
+        val byBarcode = qboDescriptionsByBarcode(context, items.map { it.barcode })
+        return items.map { item -> byBarcode[item.barcode]?.let { item.copy(shortName = it) } ?: item }
+    }
+
+    // Mismo criterio para el "Negative Sale Summary" (productos dañados), así
+    // un producto no sale con la descripción arriba y con el nombre abajo.
+    private fun damageWithQboDescriptions(context: Context, items: List<com.example.test.data.DamageItem>): List<com.example.test.data.DamageItem> {
+        val byBarcode = qboDescriptionsByBarcode(context, items.map { it.barcode })
+        return items.map { d -> byBarcode[d.barcode]?.let { d.copy(productName = it) } ?: d }
+    }
+
+    // Nombre a mostrar de una línea del ticket ya pasada por withQboDescriptions().
+    private fun ticketName(item: BatchItem): String =
+        item.shortName?.takeIf { it.isNotBlank() } ?: item.productName
+
+    // Descripción de QBO por barcode desde el catálogo del equipo (solo las
+    // que existen y no están vacías). También la usa TicketDetailActivity
+    // para el ticket en pantalla.
+    fun qboDescriptionsByBarcode(context: Context, barcodes: List<String>): Map<String, String> {
+        val dao = com.example.test.data.local.dao.ProductDao(
+            com.example.test.data.local.AppDatabase.getInstance(context)
+        )
+        val out = HashMap<String, String>()
+        for (barcode in barcodes.filter { it.isNotBlank() }.distinct()) {
+            val desc = try { dao.findByBarcode(barcode)?.description } catch (_: Exception) { null }
+            cleanDescription(desc)?.let { out[barcode] = it }
+        }
+        return out
+    }
+
+    fun cleanDescription(raw: String?): String? =
+        raw?.replace(Regex("\\s+"), " ")?.trim()?.takeIf { it.isNotEmpty() }
+
     suspend fun printTicket(
         context: Context,
         deviceAddress: String,
@@ -101,7 +143,7 @@ object PrintService {
         val prefs = SecurePreferences(context)
         send(context, deviceAddress, buildCpcl(
             context         = context,
-            items           = items,
+            items           = withQboDescriptions(context, items),
             customerName    = customerName,
             customerAddress = customerAddress,
             batchId         = batchId,
@@ -112,7 +154,7 @@ object PrintService {
             address         = prefs.getCompanyAddress(),
             phone           = prefs.getCompanyPhone(),
             city            = prefs.getCompanyCity(),
-            damageItems     = damageItems,
+            damageItems     = damageWithQboDescriptions(context, damageItems),
             paymentMethod   = paymentMethod,
             checkNumber     = checkNumber,
             signature       = signature,
@@ -224,6 +266,133 @@ object PrintService {
         return "! 0 200 200 $height 1\r\nPAGE-WIDTH $PW\r\n" +
                body.toString() +
                "PRINT\r\n"
+    }
+
+    // Ticket 2 (2026-10-27) — nota de crédito de un crédito agendado sin venta
+    // ('cr…' de "Agregar crédito"). Se imprime al guardar (si el operador
+    // acepta) y se reimprime desde el detalle de créditos del cliente. Mismo
+    // encabezado de empresa que el ticket de venta; sin firma (decisión del
+    // usuario). `balance` = saldo del cliente al momento de imprimir.
+    @SuppressLint("MissingPermission")
+    suspend fun printCreditNote(
+        context: Context,
+        deviceAddress: String,
+        customerName: String,
+        credit: com.example.test.data.CreditMovementDto,
+        balance: Double
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        if (!hasBtConnectPermission(context))
+            return@withContext Result.failure(Exception("Bluetooth permission not granted"))
+        val prefs = SecurePreferences(context)
+        val descriptions = qboDescriptionsByBarcode(context, credit.items.mapNotNull { it.barcode })
+        send(context, deviceAddress, buildCreditNoteCpcl(
+            companyName  = prefs.getCompanyName(),
+            address      = prefs.getCompanyAddress(),
+            city         = prefs.getCompanyCity(),
+            phone        = prefs.getCompanyPhone(),
+            customerName = customerName,
+            credit       = credit.copy(items = credit.items.map { l ->
+                l.barcode?.let { descriptions[it] }?.let { l.copy(productName = it) } ?: l
+            }),
+            balance      = balance
+        ))
+    }
+
+    // internal (no private) solo para CreditNoteCpclTest.
+    internal fun buildCreditNoteCpcl(
+        companyName: String = "EXCELLENTIA",
+        address: String?,
+        city: String?,
+        phone: String?,
+        customerName: String,
+        credit: com.example.test.data.CreditMovementDto,
+        balance: Double
+    ): String {
+        val SEP  = "========================================================"
+        val DASH = "--------------------------------------------------------"
+        val money = { v: Double -> String.format(Locale.US, "\$%.2f", v) }
+
+        val body = StringBuilder()
+        var y = 20
+
+        body.left()
+        y = body.tWrapped(X_LEFT, y, companyName, lineGap = 4)
+        y = body.tWrapped(X_LEFT, y, "Credit Note", lineGap = 4)
+        if (!address.isNullOrBlank()) {
+            for (part in splitAddress(address)) { y = body.tWrapped(X_LEFT, y, part, lineGap = 2) }
+        }
+        if (!city.isNullOrBlank()) {
+            for (part in splitAddress(city)) { y = body.tWrapped(X_LEFT, y, part, lineGap = 2) }
+        }
+        if (!phone.isNullOrBlank()) y = body.tWrapped(X_LEFT, y, phone, lineGap = 2)
+
+        y += 6
+        body.t(BODY_FONT, X_LEFT, y, SEP);                                     y += BODY_H + 6
+        body.t(BODY_FONT, X_LEFT, y, creditNoteDate(credit.createdAt));        y += BODY_H + 4
+        credit.batchId?.let {
+            body.t(BODY_FONT, X_LEFT, y, "Credit #${it.takeLast(8).uppercase(Locale.US)}"); y += BODY_H + 4
+        }
+        y += 4
+        body.t(BODY_FONT, X_LEFT, y, DASH);                                    y += BODY_H + 6
+        for (line in wrapText("Customer: $customerName")) { body.t(BODY_FONT, X_LEFT, y, line); y += BODY_H + 3 }
+        if (!credit.issuedBy.isNullOrBlank()) {
+            for (line in wrapText("Issued by: ${credit.issuedBy}")) { body.t(BODY_FONT, X_LEFT, y, line); y += BODY_H + 3 }
+        }
+
+        // ── Productos: nombre, cantidad - monto, motivo y comentario ──
+        y += 4
+        body.t(BODY_FONT, X_LEFT, y, SEP);                                     y += BODY_H + 8
+        for (item in credit.items) {
+            for (line in wrapText(item.productName)) { body.t(BODY_FONT, X_LEFT, y, line); y += BODY_H + 3 }
+            val qtyStr = com.example.test.data.formatDamageQty(item.qty, item.unit)
+            body.t(BODY_FONT, X_LEFT, y, twoCol("  $qtyStr", money(item.amount)));  y += BODY_H + 3
+            if (!item.reason.isNullOrBlank()) {
+                for (line in wrapText("Reason: ${item.reason}")) { body.t(BODY_FONT, X_LEFT + 4, y, line); y += BODY_H + 3 }
+            }
+            if (!item.reasonNote.isNullOrBlank()) {
+                for (line in wrapText("Note: ${item.reasonNote}")) { body.t(BODY_FONT, X_LEFT + 4, y, line); y += BODY_H + 3 }
+            }
+            y += 8
+        }
+
+        body.t(BODY_FONT, X_LEFT, y, SEP);                                     y += BODY_H + 10
+        body.t(BODY_FONT, X_LEFT, y, twoCol("CREDIT TOTAL:", money(credit.amount))); y += BODY_H + 4
+        body.t(BODY_FONT, X_LEFT, y, twoCol("Current balance:", money(balance)));    y += BODY_H + 8
+        y = body.tWrapped(X_LEFT, y, companyName, lineGap = 4)
+
+        val height = y + BOTTOM
+        return "! 0 200 200 $height 1\r\nPAGE-WIDTH $PW\r\n" +
+               asciiForPrinter(body.toString()) +
+               "PRINT\r\n"
+    }
+
+    // La impresora no entiende UTF-8 de 2 bytes (mismo problema que el "·" del
+    // ticket de venta): motivos, comentarios, clientes y productos en español
+    // ("Dañado", "Peña") imprimían basura. Lo usan la nota de crédito y el
+    // ticket de venta (el ticket en pantalla sigue con acentos). Se quitan los acentos ("ñ" → "n") y lo que no tenga
+    // equivalente ASCII sale como "?". El largo nunca crece, así que el wrap
+    // ya calculado sigue valiendo.
+    internal fun asciiForPrinter(text: String): String =
+        java.text.Normalizer.normalize(
+            text.replace('—', '-').replace('–', '-').replace('·', '-')
+                .replace('‘', '\'').replace('’', '\'').replace('“', '"').replace('”', '"'),
+            java.text.Normalizer.Form.NFD
+        )
+            .replace(Regex("\\p{M}+"), "")
+            .replace(Regex("[^\\x20-\\x7E\\r\\n]"), "?")
+
+    // created_at llega de mysql2 como ISO en UTC ("2026-10-27T17:05:00.000Z");
+    // se imprime en la hora del equipo. Sin fecha válida, la de impresión.
+    private fun creditNoteDate(iso: String?): String {
+        val out = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US)
+        val parsed = iso?.let {
+            try {
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+                    .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                    .parse(it)
+            } catch (_: Exception) { null }
+        }
+        return out.format(parsed ?: Date())
     }
 
     @SuppressLint("MissingPermission")
@@ -443,7 +612,7 @@ object PrintService {
                 // entiende como un solo carácter (llega como 2 bytes UTF-8,
                 // 0xC2 0xB7) y termina imprimiendo basura (una "A" suelta)
                 // en vez del punto. Separador ASCII simple en su lugar.
-                for (line in wrapText("${item.productName}: $qtyStr - $lineAmount")) {
+                for (line in wrapText("${ticketName(item)}: $qtyStr - $lineAmount")) {
                     body.t(BODY_FONT, X_LEFT + 4, y, line);                        y += BODY_H + 3
                 }
             }
@@ -538,8 +707,10 @@ object PrintService {
         }
 
         val height = y + BOTTOM
+        // asciiForPrinter (2026-10-27): clientes/productos con acento o "ñ"
+        // salían con basura. Firma y QR (EG) son hex, ya ASCII — no cambian.
         return "! 0 200 200 $height 1\r\nPAGE-WIDTH $PW\r\n" +
-               body.toString() +
+               asciiForPrinter(body.toString()) +
                "PRINT\r\n"
     }
 

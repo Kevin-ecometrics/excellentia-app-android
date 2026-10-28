@@ -35,6 +35,7 @@ class ProductDao(private val db: AppDatabase) {
             put("qb_item_id", product.qbItemId)
             product.qbActive?.let { put("qb_active", if (it) 1 else 0) } ?: putNull("qb_active")
             product.shortName?.let { put("short_name", it) } ?: putNull("short_name")
+            product.description?.let { put("description", it) } ?: putNull("description")
             put("cached_at", product.cachedAt)
         }
         db.writableDatabase.insertWithOnConflict(
@@ -93,6 +94,7 @@ class ProductDao(private val db: AppDatabase) {
         val qbActiveIdx = try { c.getColumnIndexOrThrow("qb_active") } catch (_: Exception) { -1 }
         val shortNameIdx = try { c.getColumnIndexOrThrow("short_name") } catch (_: Exception) { -1 }
         val skuIdx = try { c.getColumnIndexOrThrow("sku") } catch (_: Exception) { -1 }
+        val descriptionIdx = try { c.getColumnIndexOrThrow("description") } catch (_: Exception) { -1 }
         return CachedProductEntity(
             id = c.getInt(c.getColumnIndexOrThrow("id")),
             barcode = c.getString(c.getColumnIndexOrThrow("barcode")),
@@ -109,6 +111,7 @@ class ProductDao(private val db: AppDatabase) {
             qbItemId = if (qbItemIdIdx >= 0 && !c.isNull(qbItemIdIdx)) c.getString(qbItemIdIdx) else null,
             qbActive = if (qbActiveIdx >= 0 && !c.isNull(qbActiveIdx)) c.getInt(qbActiveIdx) != 0 else null,
             shortName = if (shortNameIdx >= 0 && !c.isNull(shortNameIdx)) c.getString(shortNameIdx) else null,
+            description = if (descriptionIdx >= 0 && !c.isNull(descriptionIdx)) c.getString(descriptionIdx) else null,
             cachedAt = c.getLong(c.getColumnIndexOrThrow("cached_at"))
         )
     }

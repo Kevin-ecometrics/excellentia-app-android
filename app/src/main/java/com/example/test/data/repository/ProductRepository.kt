@@ -41,7 +41,8 @@ class ProductRepository(
                             qty = dto.qty,
                             qbItemId = dto.qbItemId,
                             qbActive = dto.qbActive,
-                            shortName = dto.shortName
+                            shortName = dto.shortName,
+                            description = dto.description
                         )
                     )
                     return@withContext dto.toProduct()

@@ -344,6 +344,19 @@
                 app:iconSize="18dp"
                 app:iconTint="@color/white" />
 
+            <!-- Pre-orden por correo (2026-10-27) — DRAFT/CONFIRMED, botón manual -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEmailPreOrder"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:text="@string/btn_email_pre_order"
+                android:textColor="@color/white"
+                android:visibility="gone"
+                app:cornerRadius="0dp"
+                app:strokeColor="@color/white" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCancel"
                 style="@style/Widget.Material3.Button.OutlinedButton"

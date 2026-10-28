@@ -64,6 +64,14 @@ class CurrentOrderActivity : BaseActivity() {
     private var customerAddress: String? = null
     private var pendingSignature: String? = null
     private var pendingDamageItems: List<com.example.test.data.DamageItem> = emptyList()
+    // Motivo elegido por barcode (2026-10-26) — se recuerda si el operador
+    // vuelve "Atrás" desde el selector de motivo a la lista de dañados.
+    private val reasonChoicesByBarcode = mutableMapOf<String, CreditReasonPicker.Choice>()
+    // Cantidades marcadas en la lista de dañados (solo productos del carrito),
+    // para precargarla si se reabre ("Atrás" desde el motivo). No incluye los
+    // créditos agregados a mano: esos se suman aparte (creditRows) y
+    // precargarlos acá los duplicaba (2026-10-26).
+    private var cartDamageQtyByBarcode: Map<String, Double> = emptyMap()
     private var pendingPaymentMethod: String? = null
     private var pendingCheckNumber: String? = null
     private var pendingApplyCredit: Double? = null
@@ -73,12 +81,26 @@ class CurrentOrderActivity : BaseActivity() {
     // el método de pago (ticket #2 + adjuntar payment_method) sin volver a
     // consultar `orderRepository.getPendingOrders()` (el carrito ya se
     // limpió apenas se mandó el batch).
+    //
+    // customerId/Name/Address (2026-10-23): copia del cliente al momento de
+    // mandar la venta. Después del ticket #1 se limpia el cliente activo
+    // (clearActiveCustomer) y si la pantalla se reanudaba antes del ticket #2
+    // (pantalla apagada, aviso de Bluetooth) onResume() releía el cliente ya
+    // vacío → el ticket #2 salía sin "Customer:". El ticket #2 usa esta copia.
     private data class SentBatch(
         val response: com.example.test.data.BatchResponse,
         val items: List<BatchItem>,
-        val isOfflinePending: Boolean
+        val isOfflinePending: Boolean,
+        val customerId: String?,
+        val customerName: String?,
+        val customerAddress: String?
     )
     private var sentBatch: SentBatch? = null
+
+    // Huella de la venta en curso (ver BatchRequest.clientRequestId): se crea
+    // al primer intento de envío y se reusa en "Reintentar"; se descarta
+    // cuando la venta queda registrada (o guardada offline).
+    private var pendingClientRequestId: String? = null
 
     private val customerPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -172,6 +194,9 @@ class CurrentOrderActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Venta ya mandada esperando el método de pago / ticket #2: el
+        // cliente activo ya se limpió a propósito, no releerlo (ver SentBatch).
+        if (sentBatch != null) return
         customerId = securePrefs.getActiveCustomerId()
         customerName = securePrefs.getActiveCustomerName()
         customerAddress = securePrefs.getActiveCustomerAddress()
@@ -757,7 +782,7 @@ class CurrentOrderActivity : BaseActivity() {
             val creditRows = allPending.filter { it.isCredit }
             if (pending.isEmpty()) {
                 pendingDamageItems = creditRows.map { it.toDamageItem() }
-                askApplyCredit()
+                askCreditReasons(canGoBack = false)
                 return@launch
             }
 
@@ -853,9 +878,10 @@ class CurrentOrderActivity : BaseActivity() {
                         android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
                     else
                         android.text.InputType.TYPE_CLASS_NUMBER
-                    // Prellena si este barcode ya tiene qty de un crédito
-                    // agregado a mano (btnAddCreditItem) para el mismo producto.
-                    val prefillQty = pendingDamageItems.firstOrNull { it.barcode == order.barcode }?.qty ?: 0.0
+                    // Prellena con lo que ya se había marcado acá (al volver
+                    // "Atrás" desde el motivo) — nunca con un crédito agregado
+                    // a mano: ese ya viaja aparte y se sumaría dos veces.
+                    val prefillQty = cartDamageQtyByBarcode[order.barcode] ?: 0.0
                     setText(if (isLbs) String.format(Locale.US, "%.2f", prefillQty) else prefillQty.toInt().toString())
                     textSize = 16f
                     setTypeface(null, android.graphics.Typeface.BOLD)
@@ -903,14 +929,40 @@ class CurrentOrderActivity : BaseActivity() {
                             unitPrice   = unitValueOf(order)
                         ) else null
                     }
+                    cartDamageQtyByBarcode = fromCart.associate { it.barcode to it.qty }
                     pendingDamageItems = fromCart + creditRows.map { it.toDamageItem() }
-                    askApplyCredit()
+                    askCreditReasons(canGoBack = true)
                 }
                 .setNegativeButton(getString(R.string.btn_none)) { _, _ ->
+                    cartDamageQtyByBarcode = emptyMap()
                     pendingDamageItems = creditRows.map { it.toDamageItem() }
-                    askApplyCredit()
+                    askCreditReasons(canGoBack = true)
                 }
                 .show()
+        }
+    }
+
+    // Motivo del crédito (2026-10-26), obligatorio por producto — tanto para
+    // los dañados del carrito como para los créditos agregados a mano. Sin
+    // líneas de crédito sigue directo. canGoBack = false cuando no hubo lista
+    // de dañados (solo créditos a mano): "Cancelar" corta el cierre de la venta.
+    private fun askCreditReasons(canGoBack: Boolean) {
+        val items = pendingDamageItems
+        if (items.isEmpty()) {
+            askApplyCredit()
+            return
+        }
+        CreditReasonPicker.show(
+            activity = this,
+            lines = items.map { "${it.productName} · ${com.example.test.data.formatDamageQty(it.qty, it.unit)}" },
+            initial = items.map { reasonChoicesByBarcode[it.barcode] },
+            onBack = if (canGoBack) ({ askDamagedItems() }) else null
+        ) { choices ->
+            items.forEachIndexed { i, d -> reasonChoicesByBarcode[d.barcode] = choices[i] }
+            pendingDamageItems = items.mapIndexed { i, d ->
+                d.copy(reasonId = choices[i].reasonId, reasonNote = choices[i].note)
+            }
+            askApplyCredit()
         }
     }
 
@@ -1099,7 +1151,10 @@ class CurrentOrderActivity : BaseActivity() {
     // mandan null y se "pegan" después (attachPaymentMethod/Offline) una vez
     // elegidos, sin tocar el CustomerMemo de la factura en QBO (decisión
     // explícita del usuario: con el ticket impreso alcanza).
-    private fun printFirstTicketThenAskPayment(skipPrint: Boolean) {
+    //
+    // forceOffline (2026-10-23): true solo cuando el vendedor eligió
+    // "Continuar sin número de factura" en el aviso de sin conexión.
+    private fun printFirstTicketThenAskPayment(skipPrint: Boolean, forceOffline: Boolean = false) {
         btnFinalize.isEnabled = false
         btnViewTicket.isEnabled = false
         lifecycleScope.launch {
@@ -1122,14 +1177,24 @@ class CurrentOrderActivity : BaseActivity() {
 
             val items = toBatchItems(pending)
 
+            // Misma huella en cada reintento de esta venta — si el primer
+            // intento sí llegó al servidor, el reintento devuelve esa venta en
+            // vez de crear otra (antes: ventas duplicadas con mala señal).
+            val clientRequestId = pendingClientRequestId
+                ?: java.util.UUID.randomUUID().toString().also { pendingClientRequestId = it }
+
             val result = orderRepository.sendBatch(
                 items, customerId, customerName, pendingSignature, pendingDamageItems,
-                paymentMethod = null, checkNumber = null, applyCredit = pendingApplyCredit
+                paymentMethod = null, checkNumber = null, applyCredit = pendingApplyCredit,
+                clientRequestId = clientRequestId,
+                allowOfflineFallback = false,
+                forceOffline = forceOffline
             )
 
             result.onSuccess { response ->
                 val isOfflinePending = response.batchId == "OFFLINE_PENDING"
-                sentBatch = SentBatch(response, items, isOfflinePending)
+                pendingClientRequestId = null
+                sentBatch = SentBatch(response, items, isOfflinePending, customerId, customerName, customerAddress)
 
                 if (!isOfflinePending) {
                     setStep(2)
@@ -1181,6 +1246,10 @@ class CurrentOrderActivity : BaseActivity() {
                 askPaymentMethod(skipPrint)
             }.onFailure { e ->
                 layoutLoading.visibility = View.GONE
+                if (e is com.example.test.data.repository.BatchUnreachableException) {
+                    showSendUnreachableDialog(skipPrint)
+                    return@onFailure
+                }
                 btnFinalize.isEnabled = true
                 btnViewTicket.isEnabled = true
                 Snackbar.make(
@@ -1190,6 +1259,26 @@ class CurrentOrderActivity : BaseActivity() {
                 ).show()
             }
         }
+    }
+
+    // 2026-10-23 — antes, sin conexión (o con el servidor tardando más de
+    // 15s) la venta se guardaba offline en silencio y el ticket salía sin
+    // número de factura. Ahora el vendedor elige: reintentar (por ejemplo
+    // después de buscar señal) o seguir sin número. Los dos caminos usan la
+    // misma huella, así que aunque el primer intento sí haya llegado no se
+    // duplica la venta.
+    private fun showSendUnreachableDialog(skipPrint: Boolean) {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.dlg_send_unreachable_title)
+            .setMessage(R.string.dlg_send_unreachable_msg)
+            .setCancelable(false)
+            .setPositiveButton(R.string.btn_retry) { _, _ ->
+                printFirstTicketThenAskPayment(skipPrint)
+            }
+            .setNegativeButton(R.string.btn_continue_without_invoice) { _, _ ->
+                printFirstTicketThenAskPayment(skipPrint, forceOffline = true)
+            }
+            .show()
     }
 
     // Fase 82 — el batch ya se mandó (printFirstTicketThenAskPayment); acá
@@ -1206,6 +1295,8 @@ class CurrentOrderActivity : BaseActivity() {
 
         pendingSignature     = null
         pendingDamageItems   = emptyList()
+        cartDamageQtyByBarcode = emptyMap()
+        reasonChoicesByBarcode.clear()
         pendingPaymentMethod = null
         pendingCheckNumber   = null
         pendingApplyCredit   = null
@@ -1237,11 +1328,11 @@ class CurrentOrderActivity : BaseActivity() {
                     context = this@CurrentOrderActivity,
                     deviceAddress = printerAddress,
                     items = sent.items,
-                    customerName = customerName,
+                    customerName = sent.customerName,
                     batchId = sent.response.batchId,
                     invoiceId = if (sent.isOfflinePending) null else sent.response.invoiceId,
                     invoiceNumber = if (sent.isOfflinePending) null else sent.response.invoiceNumber,
-                    customerAddress = customerAddress,
+                    customerAddress = sent.customerAddress,
                     damageItems = damageForPrinting,
                     paymentMethod = paymentForPrinting,
                     signature = sigForPrinting,
@@ -1270,8 +1361,8 @@ class CurrentOrderActivity : BaseActivity() {
                     putExtra("invoice_id", sent.response.invoiceId ?: "")
                     putExtra("invoice_number", sent.response.invoiceNumber ?: 0)
                     putExtra("offline_pending", sent.isOfflinePending)
-                    putExtra("customer_name", customerName)
-                    putExtra("customer_address", customerAddress)
+                    putExtra("customer_name", sent.customerName)
+                    putExtra("customer_address", sent.customerAddress)
                     putExtra("signature", sigForPrinting)
                     putExtra("damage_items_json", Gson().toJson(damageForPrinting))
                     putExtra("total", grandTotal)
@@ -1295,7 +1386,7 @@ class CurrentOrderActivity : BaseActivity() {
                             fun row(id: Int, quantity: Double, total: Double, isCourtesy: Boolean) = OrderDto(
                                 id = id, barcode = bi.barcode, productName = bi.productName, price = bi.price,
                                 quantity = quantity, total = total, status = statusReal,
-                                userId = securePrefs.getUserId(), customerId = customerId, customerName = customerName,
+                                userId = securePrefs.getUserId(), customerId = sent.customerId, customerName = sent.customerName,
                                 unit = bi.unit, caseQty = bi.caseQty, creditApplied = creditAppliedForTicket,
                                 paymentMethod = paymentForPrinting, checkNumber = checkForPrinting,
                                 shortName = bi.shortName, isCourtesy = isCourtesy

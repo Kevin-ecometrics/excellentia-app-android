@@ -16,10 +16,16 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.test.data.AddRouteItemRequest
 import com.example.test.data.AddStopRequest
+import com.example.test.data.AssignResult
 import com.example.test.data.LoadStepProgress
+import com.example.test.data.ProductTotal
+import com.example.test.data.assignLoad
 import com.example.test.data.computeLoadSteps
+import com.example.test.data.computeProductTotals
 import com.example.test.data.currentLoadStop
 import com.example.test.data.formatQty
+import com.example.test.data.pickerLabel
+import com.example.test.data.sortedByScheduledDate
 import com.example.test.data.isLbsUnit
 import com.example.test.data.FifoAllocationDto
 import com.example.test.data.ProductDto
@@ -108,6 +114,18 @@ class WarehouseRouteDetailActivity : BaseActivity() {
     private var stepMode = false
     private var currentStep: LoadStepProgress? = null
 
+    // Modo de carga "por producto": en vez de una pre-orden a la vez, se junta
+    // cada producto una sola vez para todas las pre-órdenes de la ruta y cada
+    // escaneo se reparte solo a la primera parada que lo necesita (ver
+    // assignLoad en data/RouteLoadProgress.kt). Es una preferencia de la
+    // sesión; arranca en "Por pre-orden" (la Fase 148) a propósito.
+    private var productMode = false
+    // Disponible por producto (barcode o nombre → cantidad), solo para avisar
+    // stock corto en las filas Case/Unit/Bucket. En Lbs el disponible está en
+    // libras y lo pedido en cajas, no son comparables, así que no se avisa.
+    private var availableByKey: Map<String, Double> = emptyMap()
+    private var availableLoaded = false
+
     private val receivingLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -179,12 +197,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().listAvailableStops(null)
-                val preOrders = if (resp.isSuccessful) resp.body()?.preOrders ?: emptyList() else emptyList()
+                val preOrders = (if (resp.isSuccessful) resp.body()?.preOrders ?: emptyList() else emptyList()).sortedByScheduledDate()
                 if (preOrders.isEmpty()) {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.label_no_available_stops), Snackbar.LENGTH_SHORT).show()
                     return@launch
                 }
-                val labels = preOrders.map { "${it.customerName ?: "—"}  ·  #${it.id}" }.toTypedArray()
+                val labels = preOrders.map { it.pickerLabel(getString(R.string.label_preorder_no_date)) }.toTypedArray()
                 val checked = BooleanArray(preOrders.size)
                 MaterialAlertDialogBuilder(this@WarehouseRouteDetailActivity)
                     .setTitle(getString(R.string.label_available_preorders))
@@ -513,7 +531,10 @@ class WarehouseRouteDetailActivity : BaseActivity() {
 
         // Fase 148 — pasos de carga por pre-orden (bloqueada = solo lectura, vista de siempre).
         loadSteps = computeLoadSteps(d.stops, d.items)
-        stepMode = loadSteps.isNotEmpty() && !locked
+        val canChooseMode = loadSteps.isNotEmpty() && !locked
+        if (!canChooseMode) productMode = false
+        stepMode = canChooseMode && !productMode
+        if (productMode) ensureAvailableLoaded()
         if (stepMode) {
             val ids = loadSteps.map { it.stop.id }.toSet()
             doneLoadStops.retainAll(ids)
@@ -534,7 +555,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         // necesita su único destino, por eso no entra en esta regla.
         val scratchRoute = d.routeType != "DIRECT" && d.stops.isEmpty()
         cardStops.visibility = if (scratchRoute) View.GONE else View.VISIBLE
-        btnLoadingForStop.visibility = if (scratchRoute || currentStep != null) View.GONE else View.VISIBLE
+        btnLoadingForStop.visibility = if (scratchRoute || currentStep != null || productMode) View.GONE else View.VISIBLE
 
         // route_stop_id (2026-09-18 → opcional desde 2026-09-28) — si la
         // parada que tenía elegida ya no existe (la borraron), se resetea.
@@ -555,6 +576,12 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         }
         currentStep?.let {
             currentLoadingStopId = it.stop.id
+            loadingStopDecided = true
+        }
+        // Por producto: la parada la decide el reparto de cada escaneo
+        // (addRouteItem), así que no hay nada que elegir a mano ni bloquear.
+        if (productMode) {
+            currentLoadingStopId = null
             loadingStopDecided = true
         }
         val chosenStop = d.stops.firstOrNull { it.id == currentLoadingStopId }
@@ -699,12 +726,14 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         val locked = isLocked(detail)
         val sorted = stops.sortedBy { it.position }
         val inflater = LayoutInflater.from(this)
+        if (stepMode || productMode) layoutStops.addView(buildModeToggle())
         if (stepMode) layoutStops.addView(buildStepCard())
+        if (productMode) layoutStops.addView(buildProductCard())
         for ((i, stop) in sorted.withIndex()) {
             val row = inflater.inflate(R.layout.item_route_stop, layoutStops, false)
             row.findViewById<TextView>(R.id.tvStopCustomer).text = "${i + 1}. ${stop.customerName ?: "—"}"
             val tvDetail = row.findViewById<TextView>(R.id.tvStopDetail)
-            val step = if (stepMode) loadSteps.firstOrNull { it.stop.id == stop.id } else null
+            val step = if (stepMode || productMode) loadSteps.firstOrNull { it.stop.id == stop.id } else null
             // Fase 146 — una línea por producto: "Producto – 3 cajas" (Lbs) o la
             // cantidad pedida (Case/Unit/Bucket). Sin summary (backend viejo)
             // cae a las filas crudas de siempre.
@@ -723,19 +752,22 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                 // Fase 148 — en modo pasos las pre-órdenes van compactas (el detalle
                 // de productos vive en la tarjeta del paso actual).
                 step != null -> {
-                    val done = stop.id in doneLoadStops
+                    // Por producto no hay "Listo" manual: una pre-orden está lista
+                    // cuando todo lo suyo ya está cargado.
+                    val done = if (productMode) step.complete else stop.id in doneLoadStops
                     tvDetail.text = buildString {
                         append(getString(R.string.wh_preorder_label))
                         stop.preOrder?.id?.let { append(" #$it") }
                         append(" · ")
                         append(getString(when {
                             step.stop.id == currentStep?.stop?.id -> R.string.wh_step_status_current
+                            productMode && done -> R.string.wh_step_status_done_plain
                             done -> R.string.wh_step_status_done
                             else -> R.string.wh_step_status_pending
                         }))
                     }
                     tvDetail.visibility = View.VISIBLE
-                    if (done && !locked) {
+                    if (done && !locked && !productMode) {
                         row.setOnClickListener {
                             doneLoadStops.remove(stop.id)
                             focusLoadStopId = stop.id
@@ -870,6 +902,118 @@ class WarehouseRouteDetailActivity : BaseActivity() {
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ -> advance() }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
+    }
+
+    // Interruptor "Por pre-orden | Por producto". Cambiar de modo solo cambia
+    // cómo se presenta y reparte la carga; lo ya cargado no se toca.
+    private fun buildModeToggle(): View {
+        val density = resources.displayMetrics.density
+        val group = com.google.android.material.button.MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            isSelectionRequired = true
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { bottomMargin = (8 * density).toInt() }
+        }
+        fun modeButton(labelRes: Int) = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            id = View.generateViewId()
+            text = getString(labelRes)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val byPreOrder = modeButton(R.string.wh_mode_by_preorder)
+        val byProduct = modeButton(R.string.wh_mode_by_product)
+        group.addView(byPreOrder)
+        group.addView(byProduct)
+        group.check(if (productMode) byProduct.id else byPreOrder.id)
+        group.addOnButtonCheckedListener { g, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val wantProduct = checkedId == byProduct.id
+            if (wantProduct == productMode) return@addOnButtonCheckedListener
+            productMode = wantProduct
+            // Se vuelve a pintar fuera del callback: bind() reconstruye este mismo grupo.
+            g.post { detail?.let { bind(it) } }
+        }
+        return group
+    }
+
+    // Por producto: una fila por producto con el total pedido entre TODAS las
+    // pre-órdenes de la ruta y cuánto va cargado, y debajo cuánto le toca a cada
+    // cliente. Tocar la fila abre la carga de ese producto (igual que escanearlo).
+    private fun buildProductCard(): View {
+        val pad = (12 * resources.displayMetrics.density).toInt()
+        val gap = (6 * resources.displayMetrics.density).toInt()
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, pad)
+            setBackgroundResource(R.drawable.bg_chip_pending)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { bottomMargin = pad }
+        }
+        fun text(t: String, sizeSp: Float, bold: Boolean = false, colorRes: Int = R.color.text_primary) = TextView(this).apply {
+            this.text = t
+            textSize = sizeSp
+            setTextColor(getColor(colorRes))
+            if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, 0, 0, gap)
+        }
+        val totals = computeProductTotals(loadSteps)
+        card.addView(text(getString(R.string.wh_prod_title, totals.size), 14f, bold = true))
+        if (totals.all { it.complete }) {
+            card.addView(text(getString(R.string.wh_prod_all_done), 13f, bold = true, colorRes = R.color.success))
+        } else {
+            card.addView(text(getString(R.string.wh_prod_tap_hint), 12f, colorRes = R.color.text_secondary))
+        }
+        for (t in totals) {
+            val unitWord = if (t.isBoxCount) getString(R.string.wh_step_boxes) else (t.unit ?: "")
+            val mark = if (t.complete) "✓" else "○"
+            val head = text(
+                "$mark " + getString(R.string.wh_step_line, t.productName, formatQty(t.loaded), formatQty(t.requested), unitWord).trimEnd(),
+                13f, bold = true,
+                colorRes = if (t.complete) R.color.success else R.color.text_primary
+            )
+            head.setOnClickListener { onProductRowClicked(t) }
+            card.addView(head)
+            if (!t.isBoxCount && !t.complete) {
+                availableByKey[t.barcode ?: t.productName]?.takeIf { it + 0.000001 < t.remaining }?.let { avail ->
+                    card.addView(text("    " + getString(R.string.wh_prod_low_stock, formatQty(avail)), 12f, colorRes = R.color.warning))
+                }
+            }
+            for (n in t.byStop) {
+                card.addView(text(
+                    "    " + getString(R.string.wh_prod_stop_line, n.stop.customerName ?: "—", formatQty(n.line.loaded), formatQty(n.line.requested)),
+                    12f, colorRes = if (n.line.complete) R.color.success else R.color.text_secondary
+                ))
+            }
+        }
+        return card
+    }
+
+    private fun onProductRowClicked(t: ProductTotal) {
+        if (isLocked(detail)) return
+        val barcode = t.barcode
+        if (barcode != null) onBarcodeScanned(barcode) else showManualEntryDialog()
+    }
+
+    // Disponible por producto, una vez por pantalla (se invalida al cargar algo).
+    // Es solo un aviso: si falla, simplemente no se muestra.
+    private fun ensureAvailableLoaded() {
+        if (availableLoaded) return
+        availableLoaded = true
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApi().listAvailableProducts()
+                if (!resp.isSuccessful) { availableLoaded = false; return@launch }
+                val map = HashMap<String, Double>()
+                for (p in resp.body()?.data.orEmpty()) {
+                    val q = p.availableQty ?: continue
+                    p.barcode?.let { map[it] = q }
+                    map[p.name] = q
+                }
+                availableByKey = map
+                if (productMode) detail?.let { renderStops(it.stops) }
+            } catch (_: Exception) {
+                availableLoaded = false
+            }
+        }
     }
 
     private fun moveStop(sorted: List<RouteStopDto>, index: Int, direction: Int) {
@@ -1281,7 +1425,48 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         // puede ser null legítimamente ("carga general"). Lo que bloquea el
         // escaneo es no haber DECIDIDO todavía, no que sea null.
         if (!ensureLoadingStopChosen()) return
-        val stopId = currentLoadingStopId
+        if (!productMode) {
+            postRouteItem(product, quantity, lotId, source, wholeBox, currentLoadingStopId, onSuccess)
+            return
+        }
+        // Por producto: se reparte el escaneo entre las paradas que todavía lo
+        // necesitan; si es más de lo pedido (o no está pedido) se rechaza ANTES
+        // de tocar el servidor, así no queda stock descontado de más.
+        when (val r = assignLoad(loadSteps, product.barcode, product.name, quantity)) {
+            is AssignResult.NotRequested ->
+                Snackbar.make(findViewById(android.R.id.content), getString(R.string.wh_prod_not_requested), Snackbar.LENGTH_LONG).show()
+            is AssignResult.Exceeds -> {
+                val msg = if (r.remaining <= 0.000001) getString(R.string.wh_prod_exceeds_none)
+                    else getString(R.string.wh_prod_exceeds, formatQty(r.remaining), product.unit ?: "")
+                Snackbar.make(findViewById(android.R.id.content), msg.trimEnd(), Snackbar.LENGTH_LONG).show()
+            }
+            is AssignResult.Ok -> postAllocations(product, r, quantity, lotId, source, wholeBox, 0, onSuccess)
+        }
+    }
+
+    // Una carga por parada, en secuencia (cada POST espera al anterior, mismo
+    // motivo que loadBoxesSequentially). Lbs manda el peso escaneado a UNA
+    // parada; Case/Unit/Bucket manda a cada parada solo su parte.
+    private fun postAllocations(
+        product: ProductDto, plan: AssignResult.Ok, scannedQty: Double, lotId: Int?, source: String?,
+        wholeBox: Boolean?, index: Int, onSuccess: (() -> Unit)?
+    ) {
+        if (index >= plan.allocations.size) { onSuccess?.invoke(); return }
+        val a = plan.allocations[index]
+        val qty = if (plan.isBoxCount) scannedQty else a.quantity
+        val stopName = detail?.stops?.firstOrNull { it.id == a.stopId }?.customerName ?: "—"
+        postRouteItem(product, qty, lotId, source, wholeBox, a.stopId) {
+            val shown = if (plan.isBoxCount) "1" else formatQty(a.quantity)
+            Snackbar.make(findViewById(android.R.id.content),
+                getString(R.string.wh_prod_assigned, "${product.name} ($shown)", stopName), Snackbar.LENGTH_SHORT).show()
+            postAllocations(product, plan, scannedQty, lotId, source, wholeBox, index + 1, onSuccess)
+        }
+    }
+
+    private fun postRouteItem(
+        product: ProductDto, quantity: Double, lotId: Int?, source: String?, wholeBox: Boolean?,
+        stopId: Int?, onSuccess: (() -> Unit)?
+    ) {
         pendingItemLoads++
         tvAddingItemLabel.text = getString(R.string.label_adding_item)
         layoutAddingItem.visibility = View.VISIBLE
@@ -1305,6 +1490,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
                     // ítem no aparecía hasta salir y volver a entrar a la ruta.
                     // Fase 141 — una carga partida entre lotes crea varias líneas.
                     (body?.items ?: listOfNotNull(body?.item)).forEach { applyItemLocally(it) }
+                    availableLoaded = false // lo cargado salió de los lotes: refrescar el disponible
                     loadDetail()
                     onSuccess?.invoke()
                 } else if (resp.code() == 409) {
@@ -1371,6 +1557,9 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         val d = detail ?: return
         val updatedItems = d.items.filterNot { it.id == item.id } + item
         detail = d.copy(items = updatedItems)
+        // loadDetail() es asíncrono: sin esto, el reparto del siguiente escaneo
+        // (por producto) vería la carga vieja y mandaría dos cajas a la misma parada.
+        loadSteps = computeLoadSteps(d.stops, updatedItems)
         renderItems(updatedItems)
     }
 
@@ -1378,6 +1567,7 @@ class WarehouseRouteDetailActivity : BaseActivity() {
         val d = detail ?: return
         val updatedItems = d.items.filterNot { it.id == itemId }
         detail = d.copy(items = updatedItems)
+        loadSteps = computeLoadSteps(d.stops, updatedItems)
         renderItems(updatedItems)
     }
 

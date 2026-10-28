@@ -117,7 +117,23 @@ class HistoryActivity : BaseActivity() {
                     getString(R.string.subtitle_pending_sync, localAll.size)
                 else
                     getString(R.string.subtitle_local_remote)
-                val remoteResult = orderRepository.getRemoteOrders(page = currentPage, limit = pageSize)
+                // Fix (2026-10-23) — antes se pedía la última página SIN filtro
+                // y se filtraba acá: como las ventas quedan AWAITING_APPROVAL
+                // hasta que el admin aprueba, la página casi nunca traía SENT y
+                // "Sent" salía vacío (sin "Cargar más" para llegar a las
+                // aprobadas). Ahora estado (cuando es uno solo) y día van al
+                // servidor, y la paginación recorre solo lo que coincide.
+                // ALL/PENDING siguen filtrándose acá (PENDING agrupa varios
+                // estados: AWAITING_APPROVAL, PENDING, FAILED).
+                val serverStatus = when (currentFilter) {
+                    "SENT", "FAILED", "CANCELLED" -> currentFilter
+                    else -> null
+                }
+                val (dateFrom, dateTo) = if (currentDateFilter == "TODAY") todayRangeIso() else (null to null)
+                val remoteResult = orderRepository.getRemoteOrders(
+                    page = currentPage, limit = pageSize,
+                    status = serverStatus, dateFrom = dateFrom, dateTo = dateTo
+                )
 
                 val allRemote = mutableListOf<OrderDto>()
                 remoteResult.onSuccess { resp ->
@@ -218,6 +234,21 @@ class HistoryActivity : BaseActivity() {
         val target = Calendar.getInstance().also { it.timeInMillis = timestampMillis }
         return today.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
                today.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR)
+    }
+
+    // Inicio y fin del día de hoy (zona del equipo) en ISO UTC, para date_from/date_to.
+    private fun todayRangeIso(): Pair<String, String> {
+        val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val start = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val end = (start.clone() as java.util.Calendar).apply {
+            add(java.util.Calendar.DAY_OF_MONTH, 1); add(java.util.Calendar.MILLISECOND, -1)
+        }
+        return iso.format(start.time) to iso.format(end.time)
     }
 
     private fun isTodayFromIso(isoDate: String): Boolean {

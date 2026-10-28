@@ -78,7 +78,19 @@ class TicketDetailActivity : AppCompatActivity() {
         ticketContent = findViewById(R.id.ticketContent)
 
         val ordersJson = intent.getStringExtra("orders_json") ?: "[]"
-        val orders: List<OrderDto> = Gson().fromJson(ordersJson, Array<OrderDto>::class.java).toList()
+        // Descripción de QBO en vez del nombre (2026-10-23), mismo criterio que
+        // el ticket impreso: la que manda el servidor (Historial) o, si no
+        // vino (ticket recién hecho, offline), la del catálogo del equipo.
+        // groupedForTicket() usa shortName antes que productName, así que se
+        // pone ahí: descripción → nombre corto → nombre.
+        val rawOrders: List<OrderDto> = Gson().fromJson(ordersJson, Array<OrderDto>::class.java).toList()
+        val cachedDescriptions = com.example.test.data.print.PrintService
+            .qboDescriptionsByBarcode(this, rawOrders.filter { it.productDescription.isNullOrBlank() }.map { it.barcode })
+        val orders: List<OrderDto> = rawOrders.map { o ->
+            val desc = com.example.test.data.print.PrintService.cleanDescription(o.productDescription)
+                ?: cachedDescriptions[o.barcode]
+            if (desc != null) o.copy(shortName = desc) else o
+        }
         val batchId         = intent.getStringExtra("batch_id") ?: ""
         val invoiceId       = intent.getStringExtra("invoice_id") ?: ""
         val invoiceNumber   = intent.getIntExtra("invoice_number", 0).takeIf { it > 0 }
@@ -548,7 +560,7 @@ class TicketDetailActivity : AppCompatActivity() {
                 // "0 unit(s)".
                 val displayQty = com.example.test.data.displayUnitsOf(item.quantity, item.unit, item.caseQty)
                 addLine(
-                    "${item.productName}: ${com.example.test.data.formatCourtesyQty(displayQty, item.unit)} · ${String.format(Locale.US, "-\$%.2f", item.total)}",
+                    "${item.shortName?.takeIf { it.isNotBlank() } ?: item.productName}: ${com.example.test.data.formatCourtesyQty(displayQty, item.unit)} · ${String.format(Locale.US, "-\$%.2f", item.total)}",
                     sizeSp = 12f, indent = true
                 )
             }
@@ -559,10 +571,13 @@ class TicketDetailActivity : AppCompatActivity() {
         if (hasDamage) {
             addSep(heavy = false)
             addLine("Negative Sale Summary:", bold = true, sizeSp = 12f)
+            // Descripción de QBO también acá (2026-10-23), igual que las líneas de arriba.
+            val damageDescriptions = com.example.test.data.print.PrintService
+                .qboDescriptionsByBarcode(this, damageItems.map { it.barcode })
             for (dmg in damageItems.filter { it.qty > 0 }) {
                 val dmgQtyStr = formatDamageQty(dmg.qty, dmg.unit)
                 addLine(
-                    "${dmg.productName}: $dmgQtyStr · ${String.format(Locale.US, "-\$%.2f", dmg.qty * dmg.unitPrice)}",
+                    "${damageDescriptions[dmg.barcode] ?: dmg.productName}: $dmgQtyStr · ${String.format(Locale.US, "-\$%.2f", dmg.qty * dmg.unitPrice)}",
                     sizeSp = 12f, indent = true
                 )
             }

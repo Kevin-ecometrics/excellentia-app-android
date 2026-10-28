@@ -60,3 +60,82 @@ fun computeLoadSteps(stops: List<RouteStopDto>, items: List<RouteItemDto>): List
 // Paso actual = primera pre-orden que todavía no se dio por lista.
 fun currentLoadStop(steps: List<LoadStepProgress>, doneStopIds: Set<Int>): LoadStepProgress? =
     steps.firstOrNull { it.stop.id !in doneStopIds }
+
+// ---- Modo de carga "por producto" -------------------------------------------
+// En vez de recorrer el almacén pre-orden por pre-orden, el almacenista junta
+// cada producto UNA vez para todas las pre-órdenes de la ruta. Los totales y el
+// reparto de cada escaneo a una parada se derivan de los mismos pasos de arriba
+// (nada nuevo en el servidor); cada carga sigue siendo un addRouteItem normal
+// con su route_stop_id.
+
+data class ProductStopNeed(val stop: RouteStopDto, val line: LoadLineProgress)
+
+data class ProductTotal(
+    val productName: String,
+    val barcode: String?,
+    val unit: String?,
+    val isBoxCount: Boolean,
+    val byStop: List<ProductStopNeed>,
+) {
+    val requested: Double get() = byStop.sumOf { it.line.requested }
+    val loaded: Double get() = byStop.sumOf { it.line.loaded }
+    val remaining: Double get() = byStop.sumOf { it.line.remaining }
+    val complete: Boolean get() = byStop.all { it.line.complete }
+}
+
+// Un producto por fila, en el orden en que aparece por primera vez en la ruta.
+// Se agrupa por barcode (o nombre si no hay), igual que la clave del resumen.
+fun computeProductTotals(steps: List<LoadStepProgress>): List<ProductTotal> {
+    val groups = LinkedHashMap<String, MutableList<ProductStopNeed>>()
+    for (step in steps) for (l in step.lines) {
+        groups.getOrPut(l.barcode ?: l.productName) { mutableListOf() }.add(ProductStopNeed(step.stop, l))
+    }
+    return groups.values.map { needs ->
+        val first = needs.first().line
+        ProductTotal(first.productName, first.barcode, first.unit, first.isBoxCount, needs)
+    }
+}
+
+data class LoadAllocation(val stopId: Int, val quantity: Double)
+
+sealed class AssignResult {
+    // A qué parada(s) va lo escaneado. Lbs (isBoxCount) → una sola con cantidad 1
+    // (una caja): el peso real que se manda al servidor es el escaneado, no ese 1.
+    data class Ok(val allocations: List<LoadAllocation>, val isBoxCount: Boolean = false) : AssignResult()
+    // El producto no figura en ninguna pre-orden de la ruta.
+    object NotRequested : AssignResult()
+    // Pedido de más: `remaining` es lo que todavía falta en total (0 = ya está completo).
+    data class Exceeds(val remaining: Double) : AssignResult()
+}
+
+// Reparte un escaneo entre las paradas, en orden de ruta, empezando por la
+// primera que todavía lo necesita. Lbs: una caja por escaneo (el peso no cuenta,
+// igual que computeLoadSteps). Case/Unit/Bucket: llena lo que falta de cada
+// parada y el resto pasa a la siguiente. Si no alcanza el total pedido se
+// rechaza todo (nunca asigna una parte), igual que el backend rechaza un
+// producto fuera de la pre-orden.
+fun assignLoad(steps: List<LoadStepProgress>, barcode: String?, name: String, quantity: Double): AssignResult {
+    val needs = steps.flatMap { step ->
+        step.lines.filter { l ->
+            if (l.barcode != null && barcode != null) l.barcode == barcode else l.productName == name
+        }.map { l -> ProductStopNeed(step.stop, l) }
+    }
+    if (needs.isEmpty()) return AssignResult.NotRequested
+    val open = needs.filter { it.line.remaining > EPS }
+    val totalRemaining = needs.sumOf { it.line.remaining }
+    if (open.isEmpty()) return AssignResult.Exceeds(0.0)
+
+    if (open.first().line.isBoxCount) {
+        return AssignResult.Ok(listOf(LoadAllocation(open.first().stop.id, 1.0)), isBoxCount = true)
+    }
+    if (quantity > totalRemaining + EPS) return AssignResult.Exceeds(totalRemaining)
+    var left = quantity
+    val out = mutableListOf<LoadAllocation>()
+    for (n in open) {
+        if (left <= EPS) break
+        val take = minOf(left, n.line.remaining)
+        out.add(LoadAllocation(n.stop.id, take))
+        left -= take
+    }
+    return AssignResult.Ok(out)
+}

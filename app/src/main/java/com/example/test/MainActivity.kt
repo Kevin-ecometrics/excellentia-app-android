@@ -100,6 +100,7 @@ class MainActivity : BaseActivity() {
                 SyncWorker.enqueueOneTime(applicationContext)
                 orderRepository.prefetchAllProducts()
                 orderRepository.prefetchAllCustomers()
+                com.example.test.data.repository.CreditReasonRepository(applicationContext).refresh()
             }
         }
 
@@ -222,6 +223,7 @@ class MainActivity : BaseActivity() {
             lifecycleScope.launch {
                 orderRepository.prefetchAllProducts()
                 orderRepository.prefetchAllCustomers()
+                com.example.test.data.repository.CreditReasonRepository(applicationContext).refresh()
             }
         }
     }
@@ -436,6 +438,10 @@ class MainActivity : BaseActivity() {
         }
         btnAddCredit.setOnClickListener {
             startActivity(Intent(this, IssueCreditActivity::class.java))
+        }
+        // Créditos por cliente (ticket 2, 2026-10-27) — no depende del cliente activo.
+        findViewById<MaterialButton>(R.id.btnCustomerCredits).setOnClickListener {
+            startActivity(Intent(this, CreditCustomersActivity::class.java))
         }
 
         layoutLastScan.setOnClickListener {

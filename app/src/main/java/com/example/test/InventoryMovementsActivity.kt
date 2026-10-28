@@ -53,6 +53,11 @@ class InventoryMovementsActivity : BaseActivity() {
     private lateinit var chipGroupType: ChipGroup
     private lateinit var layoutMovements: LinearLayout
     private lateinit var tvNoMovements: TextView
+    // Loaders de Disponible/Historial — se ven solo mientras la lista todavía
+    // está vacía (primera carga); al recargar con datos ya en pantalla se
+    // dejan los datos visibles en vez de vaciar la vista.
+    private lateinit var progressAvailable: View
+    private lateinit var progressMovements: View
     private lateinit var securePrefs: SecurePreferences
     // Fase 120 (addendum) — pestaña "Recibos".
     private lateinit var sectionReceipts: LinearLayout
@@ -66,6 +71,13 @@ class InventoryMovementsActivity : BaseActivity() {
     private var allMovements: List<InventoryMovementDto> = emptyList()
     private var typeFilter: String? = null
     private var movementDateFilter: String? = null
+    // Cuántos movimientos del historial se están dibujando (ver render()).
+    // Vuelve a una página al cargar datos nuevos o cambiar el filtro de tipo.
+    private var historyShown = HISTORY_PAGE_SIZE
+    // Mientras una carga está en curso no se muestra "No hay…": la lista
+    // vacía todavía no significa que no haya datos.
+    private var movementsLoading = false
+    private var availableLoading = false
 
     // Lotes ACTIVE tal cual los devuelve el backend (uno por escaneo de
     // recepción) — se agrupan por producto recién al renderizar (groupAvailableLots).
@@ -125,6 +137,8 @@ class InventoryMovementsActivity : BaseActivity() {
         chipGroupType         = findViewById(R.id.chipGroupType)
         layoutMovements       = findViewById(R.id.layoutMovements)
         tvNoMovements         = findViewById(R.id.tvNoMovements)
+        progressAvailable     = findViewById(R.id.progressAvailable)
+        progressMovements     = findViewById(R.id.progressMovements)
         sectionReceipts       = findViewById(R.id.sectionReceipts)
         etSearchReceipt       = findViewById(R.id.etSearchReceipt)
         layoutReceipts        = findViewById(R.id.layoutReceipts)
@@ -217,6 +231,7 @@ class InventoryMovementsActivity : BaseActivity() {
                 checkedIds.contains(R.id.chipTypeAdjustment) -> "ADJUSTMENT"
                 else -> null
             }
+            historyShown = HISTORY_PAGE_SIZE
             renderFiltered()
         }
 
@@ -381,18 +396,26 @@ class InventoryMovementsActivity : BaseActivity() {
     }
 
     private fun loadMovements() {
+        movementsLoading = true
+        if (allMovements.isEmpty()) {
+            progressMovements.visibility = View.VISIBLE
+            tvNoMovements.visibility = View.GONE
+        }
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApi().listMovements(date = movementDateFilter)
                 if (resp.isSuccessful) {
                     allMovements = resp.body()?.data ?: emptyList()
-                    renderFiltered()
+                    historyShown = HISTORY_PAGE_SIZE
                 } else {
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_server_error, resp.code().toString()), Snackbar.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
             } finally {
+                movementsLoading = false
+                progressMovements.visibility = View.GONE
+                renderFiltered()
                 swipeRefresh.isRefreshing = false
             }
         }
@@ -410,6 +433,11 @@ class InventoryMovementsActivity : BaseActivity() {
     // ninguna vista que sumara lo disponible de verdad.
 
     private fun loadAvailable() {
+        availableLoading = true
+        if (allLots.isEmpty()) {
+            progressAvailable.visibility = View.VISIBLE
+            tvNoAvailable.visibility = View.GONE
+        }
         lifecycleScope.launch {
             try {
                 // status = "ACTIVE" explícito: sin este filtro el backend igual
@@ -420,6 +448,8 @@ class InventoryMovementsActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().listLots(status = "ACTIVE")
                 if (resp.isSuccessful) {
                     allLots = resp.body()?.data ?: emptyList()
+                    availableLoading = false
+                    progressAvailable.visibility = View.GONE
                     renderAvailable()
                     // El historial usa allLots para el badge "Disponible" — si
                     // ya se había pintado antes de que esta llamada volviera,
@@ -431,6 +461,11 @@ class InventoryMovementsActivity : BaseActivity() {
             } catch (e: Exception) {
                 Snackbar.make(findViewById(android.R.id.content), e.localizedMessage ?: getString(R.string.error_connection), Snackbar.LENGTH_SHORT).show()
             } finally {
+                if (availableLoading) {
+                    availableLoading = false
+                    progressAvailable.visibility = View.GONE
+                    renderAvailable()
+                }
                 swipeRefresh.isRefreshing = false
             }
         }
@@ -464,7 +499,7 @@ class InventoryMovementsActivity : BaseActivity() {
     private fun renderAvailable() {
         layoutAvailable.removeAllViews()
         val groups = groupAvailableLots(allLots)
-        tvNoAvailable.visibility = if (groups.isEmpty()) View.VISIBLE else View.GONE
+        tvNoAvailable.visibility = if (groups.isEmpty() && !availableLoading) View.VISIBLE else View.GONE
 
         for (g in groups) {
             val card = MaterialCardView(this).apply {
@@ -650,14 +685,19 @@ class InventoryMovementsActivity : BaseActivity() {
     private fun render(movements: List<InventoryMovementDto>) {
         layoutMovements.removeAllViews()
         tvNoMovements.text = if (typeFilter != null) getString(R.string.wh_no_movements_for_filter) else getString(R.string.wh_no_movements)
-        tvNoMovements.visibility = if (movements.isEmpty()) View.VISIBLE else View.GONE
+        tvNoMovements.visibility = if (movements.isEmpty() && !movementsLoading) View.VISIBLE else View.GONE
 
         val availableLots = availableLotIds()
         // Ordenados DESC por el backend — se agrupan por día insertando un
         // encabezado cada vez que cambia la fecha, sin reordenar nada acá.
         var lastDateKey: String? = null
 
-        for (m in movements) {
+        // Paginado en pantalla (2026-10-23): dibujar las ~500 tarjetas de una
+        // vez hacía lenta la pestaña. Se muestran de a HISTORY_PAGE_SIZE y el
+        // botón "Mostrar más" del final agrega la siguiente tanda.
+        val visible = movements.take(historyShown)
+
+        for (m in visible) {
             val dateKey = m.createdAt?.take(10)
             if (dateKey != null && dateKey != lastDateKey) {
                 val header = TextView(this).apply {
@@ -793,6 +833,24 @@ class InventoryMovementsActivity : BaseActivity() {
             textCol.addView(tvMeta)
             card.addView(textCol)
             layoutMovements.addView(card)
+        }
+
+        if (movements.size > visible.size) {
+            layoutMovements.addView(MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = 8.dp
+                }
+                text = getString(R.string.wh_history_show_more, visible.size, movements.size)
+                // Fondo de pantalla y colorPrimary son el mismo verde (ver
+                // highlightCustomerMode) — texto y borde blancos para que se vea.
+                setTextColor(getColor(R.color.white))
+                strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.white))
+                rippleColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.argb(40, 255, 255, 255))
+                setOnClickListener {
+                    historyShown += HISTORY_PAGE_SIZE
+                    renderFiltered()
+                }
+            })
         }
     }
 
@@ -1057,4 +1115,8 @@ class InventoryMovementsActivity : BaseActivity() {
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
+
+    companion object {
+        private const val HISTORY_PAGE_SIZE = 50
+    }
 }

@@ -107,6 +107,18 @@
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
 
+                    <!-- Loader mientras se traen los lotes (primera carga) -->
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        android:id="@+id/progressAvailable"
+                        style="@style/Widget.Material3.CircularProgressIndicator"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="48dp"
+                        android:indeterminate="true"
+                        android:visibility="gone"
+                        app:indicatorColor="@color/white" />
+
                     <LinearLayout
                         android:id="@+id/layoutAvailable"
                         android:layout_width="match_parent"
@@ -226,6 +238,18 @@
                             android:text="@string/wh_movement_type_adjustment" />
 
                     </com.google.android.material.chip.ChipGroup>
+
+                    <!-- Loader mientras se traen los movimientos -->
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        android:id="@+id/progressMovements"
+                        style="@style/Widget.Material3.CircularProgressIndicator"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="48dp"
+                        android:indeterminate="true"
+                        android:visibility="gone"
+                        app:indicatorColor="@color/white" />
 
                     <LinearLayout
                         android:id="@+id/layoutMovements"

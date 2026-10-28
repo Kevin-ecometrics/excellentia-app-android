@@ -585,3 +585,7 @@ Los ítems además se agrupan por categoría (LBS → CASE/UNIT → BUCKET → o
 ## "Ruta terminada" (2026-10-01)
 
 `routes.ready_at` (backend, ver `excellentia/CLAUDE.md`): el almacén cierra la carga con `POST /api/routes/:id/ready` y puede deshacerlo con `/reopen` mientras la ruta siga PLANNED. Android: `WarehouseRouteDetailActivity` tiene `btnMarkReady` (y `isLocked()` bloquea la edicion con la ruta lista); `MyRouteDetailActivity` deshabilita "Salir a reparto" mientras `readyAt == null`. Sin probar en el TC22.
+
+## Motivo del crédito (2026-10-26)
+
+Obligatorio y por producto en toda línea de crédito. `CreditReasonPicker.show()` es el único diálogo: lo llaman `CurrentOrderActivity.askCreditReasons()` (dañados del carrito + créditos agregados a mano, después de la lista de dañados), `PreOrderDetailActivity.askCreditReasons()` y `IssueCreditActivity.saveCredit()`. La lista sale de `GET /api/credits/reasons` vía `CreditReasonRepository` (timeout 5s, caché JSON en SharedPreferences `credit_reasons_cache` para offline; se refresca en `MainActivity` junto a `prefetchAllProducts`) — sin tabla SQLite nueva. `DamageItem`/`CreditItemRequest` llevan `reasonId`/`reasonNote` (viajan en la cola offline). Sin motivos activos el diálogo avisa y no deja registrar el crédito. Backend: `excellentia/CLAUDE.md` "Motivo del crédito".
