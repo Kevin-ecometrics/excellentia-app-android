@@ -14,8 +14,8 @@ android {
         applicationId = "com.excellentia.scanner"
         minSdk = 30
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.6.1"
+        versionCode = 4
+        versionName = "1.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

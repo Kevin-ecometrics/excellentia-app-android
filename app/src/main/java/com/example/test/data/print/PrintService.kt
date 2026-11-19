@@ -51,6 +51,7 @@ object PrintService {
     private const val BODY_CHAR_PX = 15
 
     private const val BOTTOM  = 200  // espacio para cortar (~1")
+    private const val LOGO_W  = 400  // ancho del logo de cabecera = ancho real de ticket_logo.png (sin reescalar)
     private const val DRAIN_MS = 2000L
 
     // ── Ancho de línea — fuente única, todo el ticket lo usa ────────────────
@@ -168,7 +169,7 @@ object PrintService {
         withContext(Dispatchers.IO) {
             if (!hasBtConnectPermission(context))
                 return@withContext Result.failure(Exception("Bluetooth permission not granted"))
-            send(context, deviceAddress, buildTestCpcl())
+            send(context, deviceAddress, buildTestCpcl(context))
         }
 
     // Fase 120 — ticket de recepción, pedido original del usuario para el
@@ -188,6 +189,7 @@ object PrintService {
             return@withContext Result.failure(Exception("Bluetooth permission not granted"))
         val prefs = SecurePreferences(context)
         send(context, deviceAddress, buildReceiptCpcl(
+            context        = context,
             companyName    = prefs.getCompanyName(),
             receiptBatchId = receiptBatchId,
             items          = items
@@ -195,6 +197,7 @@ object PrintService {
     }
 
     private fun buildReceiptCpcl(
+        context: Context,
         companyName: String = "EXCELLENTIA",
         receiptBatchId: String,
         items: List<com.example.test.data.ReceiptResultItem>
@@ -206,7 +209,7 @@ object PrintService {
         var y = 20
 
         body.left()
-        y = body.tWrapped(X_LEFT, y, companyName, lineGap = 4)
+        y = body.headerLogoOrName(context, y, companyName)
         body.t(BODY_FONT, X_LEFT, y, "Receiving Ticket");                     y += BODY_H + 4
         body.t(BODY_FONT, X_LEFT, y, date);                                   y += BODY_H + 4
         for (line in wrapText("Receipt #${receiptBatchId.take(20)}")) {
@@ -286,6 +289,7 @@ object PrintService {
         val prefs = SecurePreferences(context)
         val descriptions = qboDescriptionsByBarcode(context, credit.items.mapNotNull { it.barcode })
         send(context, deviceAddress, buildCreditNoteCpcl(
+            context      = context,
             companyName  = prefs.getCompanyName(),
             address      = prefs.getCompanyAddress(),
             city         = prefs.getCompanyCity(),
@@ -306,7 +310,8 @@ object PrintService {
         phone: String?,
         customerName: String,
         credit: com.example.test.data.CreditMovementDto,
-        balance: Double
+        balance: Double,
+        context: Context? = null
     ): String {
         val SEP  = "========================================================"
         val DASH = "--------------------------------------------------------"
@@ -316,7 +321,7 @@ object PrintService {
         var y = 20
 
         body.left()
-        y = body.tWrapped(X_LEFT, y, companyName, lineGap = 4)
+        y = body.headerLogoOrName(context, y, companyName)
         y = body.tWrapped(X_LEFT, y, "Credit Note", lineGap = 4)
         if (!address.isNullOrBlank()) {
             for (part in splitAddress(address)) { y = body.tWrapped(X_LEFT, y, part, lineGap = 2) }
@@ -497,7 +502,7 @@ object PrintService {
         // Todo LEFT — nombre y subtítulo con wrap real (nunca se trunca en
         // silencio: si es largo, hace salto de línea y sigue en la próxima).
         body.left()
-        y = body.tWrapped(X_LEFT, y, companyName, lineGap = 4)
+        y = body.headerLogoOrName(context, y, companyName)
         y = body.tWrapped(X_LEFT, y, subtitle, lineGap = 4)
         if (!address.isNullOrBlank()) {
             for (part in splitAddress(address)) { y = body.tWrapped(X_LEFT, y, part, lineGap = 2) }
@@ -714,13 +719,13 @@ object PrintService {
                "PRINT\r\n"
     }
 
-    private fun buildTestCpcl(): String {
+    private fun buildTestCpcl(context: Context): String {
         val date = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
         val body = StringBuilder()
         var y = 20
 
         body.center()
-        body.t(BODY_FONT, X_LEFT, y, "EXCELLENTIA");         y += BODY_H + 10
+        y = body.headerLogoOrName(context, y, "EXCELLENTIA") + 10
         body.t(BODY_FONT, X_LEFT, y, "Prueba de impresion"); y += BODY_H + 8
         body.t(BODY_FONT, X_LEFT, y, date);                  y += BODY_H + 10
         body.t(BODY_FONT, X_LEFT, y, "ZQ630 Plus  OK");      y += BODY_H
@@ -783,14 +788,25 @@ object PrintService {
 
     // QR del disclaimer (drawable-nodpi/disclaimer_qr.png) a comando CPCL EG.
     // Retorna (comando, nuevaY). Si falla, retorna ("", startY).
-    private fun buildQrEg(context: Context, targetWidth: Int, x: Int, startY: Int): Pair<String, Int> {
+    private fun buildQrEg(context: Context, targetWidth: Int, x: Int, startY: Int, resId: Int = R.drawable.disclaimer_qr): Pair<String, Int> {
         return try {
-            val bmp = BitmapFactory.decodeResource(context.resources, R.drawable.disclaimer_qr)
+            val bmp = BitmapFactory.decodeResource(context.resources, resId)
                 ?: return Pair("", startY)
             bitmapToEg(bmp, targetWidth, x, startY)
         } catch (_: Exception) {
             Pair("", startY)
         }
+    }
+
+    // Cabecera de todos los tickets (2026-11-19): logo (drawable-nodpi/ticket_logo.png,
+    // silueta B/N de 400px generada del logo V1) centrado; si no se puede leer
+    // o no hay context (unit tests), el nombre de la empresa como texto.
+    private fun StringBuilder.headerLogoOrName(context: Context?, startY: Int, companyName: String): Int {
+        if (context != null) {
+            val (eg, newY) = buildQrEg(context, LOGO_W, (PW - LOGO_W) / 2, startY, R.drawable.ticket_logo)
+            if (eg.isNotEmpty()) { append(eg); return newY + 16 }
+        }
+        return tWrapped(X_LEFT, startY, companyName, lineGap = 4)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -423,7 +423,20 @@ class TicketDetailActivity : AppCompatActivity() {
         status: String?
     ) {
         // ── Cabecera empresa ────────────────────────────
-        addLine(companyName, bold = true, sizeSp = 13f)
+        // Logo en lugar del nombre (2026-11-19), mismo asset que el ticket impreso;
+        // si no se puede cargar, el nombre como texto.
+        try {
+            ticketContent.addView(ImageView(this).apply {
+                setImageResource(R.drawable.ticket_logo)
+                adjustViewBounds = true
+                layoutParams = LinearLayout.LayoutParams((160 * dp).toInt(), WRAP_CONTENT).apply {
+                    gravity      = android.view.Gravity.CENTER_HORIZONTAL
+                    bottomMargin = (6 * dp).toInt()
+                }
+            })
+        } catch (_: Exception) {
+            addLine(companyName, bold = true, sizeSp = 13f)
+        }
         addLine(subtitle, sizeSp = 12f)
         if (!address.isNullOrBlank()) addLine(address, sizeSp = 12f)
         if (!city.isNullOrBlank())    addLine(city,    sizeSp = 12f)
