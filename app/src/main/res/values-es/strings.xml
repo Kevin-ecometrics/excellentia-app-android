@@ -497,6 +497,7 @@
     <!-- Pre-Orders -->
     <string name="btn_search_product">Buscar producto</string>
     <string name="error_select_date">Seleccione una fecha de entrega</string>
+    <string name="error_preorder_date_cutoff">La entrega más temprana es el %1$s (antes de las 2:00 pm: mañana; desde las 2:00 pm: pasado mañana).</string>
 
     <!-- IssueCreditActivity -->
     <string name="btn_add_credit">Agregar crédito</string>
@@ -724,6 +725,7 @@
     <string name="wh_item_sold_badge">Vendido</string>
     <string name="label_route_item_left">Quedan %1$s</string>
     <string name="msg_route_item_sold_out">Este producto ya se vendió completo — no queda en el camión</string>
+    <string name="msg_route_product_not_loaded">%1$s no está cargado en el camión de tu ruta — solo puedes vender lo cargado</string>
     <string name="wh_consignmentReturned_label">Devuelto</string>
     <string name="btn_settle_consignment">Liquidar</string>
     <string name="error_consignment_settle_empty">Ingresá una cantidad vendida o devuelta</string>
@@ -891,4 +893,14 @@
     <string name="msg_email_sent">Correo enviado a %1$s</string>
     <string name="btn_email_pre_order">Enviar pre-orden por correo</string>
     <string name="title_email_pre_order">Enviar confirmación de pedido</string>
+    <string name="pof_title">Pre-órdenes vs stock</string>
+    <string name="pof_summary">Entrega %1$s a %2$s · %3$d pre-órdenes confirmadas · sin cargar a ruta todavía</string>
+    <string name="pof_line">Pedido %1$s · Disponible %2$s</string>
+    <string name="pof_short">Faltan %1$s</string>
+    <string name="pof_without_qty">%1$d sin cantidad</string>
+    <string name="pof_status_ok">Alcanza</string>
+    <string name="pof_status_short">Falta</string>
+    <string name="pof_status_out">Agotado</string>
+    <string name="pof_boxes">cajas</string>
+    <string name="pof_empty">No hay pre-órdenes confirmadas para los próximos 7 días</string>
 </resources>

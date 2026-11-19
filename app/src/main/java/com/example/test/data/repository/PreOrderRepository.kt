@@ -30,7 +30,9 @@ class PreOrderRepository(private val db: AppDatabase) {
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Error del servidor: ${response.code()}"))
+                // Mensaje del backend tal cual (ej. el límite de las 2 pm), si viene.
+                val msg = try { org.json.JSONObject(response.errorBody()?.string() ?: "").optString("error") } catch (_: Exception) { "" }
+                Result.failure(Exception(msg.ifBlank { "Error del servidor: ${response.code()}" }))
             }
         } catch (e: Exception) {
             saveOfflinePreOrder(request)
@@ -54,7 +56,9 @@ class PreOrderRepository(private val db: AppDatabase) {
                 if (response.isSuccessful && response.body() != null) {
                     Result.success(response.body()!!)
                 } else {
-                    Result.failure(Exception("Error del servidor: ${response.code()}"))
+                    // Mensaje del backend tal cual si viene (ej. "solo vende lo cargado").
+                    val msg = try { org.json.JSONObject(response.errorBody()?.string() ?: "").optString("error") } catch (_: Exception) { "" }
+                    Result.failure(Exception(msg.ifBlank { "Error del servidor: ${response.code()}" }))
                 }
             } catch (e: Exception) {
                 saveOfflineConversion(preOrderId, request)

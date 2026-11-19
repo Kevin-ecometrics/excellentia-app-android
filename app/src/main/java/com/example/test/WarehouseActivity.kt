@@ -129,6 +129,7 @@ class WarehouseActivity : BaseActivity() {
         btnReceiving.setOnClickListener { startActivity(Intent(this, ReceivingActivity::class.java)) }
         btnMovements.setOnClickListener { startActivity(Intent(this, InventoryMovementsActivity::class.java)) }
         btnInventory.setOnClickListener { startActivity(Intent(this, WarehouseInventoryActivity::class.java)) }
+        findViewById<MaterialButton>(R.id.btnPreOrderStock).setOnClickListener { startActivity(Intent(this, PreOrderFulfillmentActivity::class.java)) }
 
         // Fetch inicial: el día de hoy, no "todas las fechas" — el
         // almacenista tiene que ver primero qué hay planificado para hoy.

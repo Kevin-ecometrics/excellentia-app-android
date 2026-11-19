@@ -41,7 +41,7 @@ class SyncWorker(
             for (batch in pendingBatches) {
                 try {
                     val request = gson.fromJson(batch.batchJson, BatchRequest::class.java)
-                    val response = RetrofitClient.getApi().createBatch(request)
+                    val response = RetrofitClient.getApi().createBatch(request.copy(offlineQueued = true))
                     if (response.isSuccessful && response.body() != null) {
                         batchDao.deleteById(batch.id)
                         anythingSynced = true
@@ -88,7 +88,7 @@ class SyncWorker(
             for (pending in conversionDao.getAll()) {
                 try {
                     val request = gson.fromJson(pending.requestJson, ConvertPreOrderRequest::class.java)
-                    val response = RetrofitClient.getApi().convertPreOrder(pending.preOrderId, request)
+                    val response = RetrofitClient.getApi().convertPreOrder(pending.preOrderId, request.copy(offlineQueued = true))
                     if (response.isSuccessful && response.body() != null) {
                         conversionDao.deleteById(pending.id)
                         anythingSynced = true

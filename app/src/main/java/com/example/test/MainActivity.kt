@@ -623,10 +623,23 @@ class MainActivity : BaseActivity() {
             // seedQuantityForStepper() — no repetir el `if (qty > 0)` acá.
             val initialQty = seedQuantityForStepper(product.qty, product.weightPerUnit, product.unit, quantity)
             securePrefs.saveLastScan(barcode, product.name)
+            // Códigos por flete (2026-11-19): el código escaneado puede ser el de un flete
+            // anterior; el carrito/venta usa el código ACTUAL que devolvió el backend.
+            val cartBarcode = product.barcode.takeIf { it != "unknown" } ?: barcode
+            // "Solo vende lo cargado" (2026-11-19): vendiendo en una ruta, solo productos
+            // cargados al camión con existencia. Admin exento. El backend valida igual.
+            if (securePrefs.getActiveRouteId() != null && securePrefs.getUserRole() != "admin") {
+                val left = securePrefs.getActiveRouteStock()?.let { it[cartBarcode] ?: -1.0 }
+                if (left != null && left <= 0.0001) {
+                    val msg = if (left < 0) getString(R.string.msg_route_product_not_loaded, product.name) else getString(R.string.msg_route_item_sold_out)
+                    runOnUiThread { com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_LONG).show() }
+                    return@launch
+                }
+            }
             updateLastScan()
             startActivity(
                 Intent(this@MainActivity, ProductDetailActivity::class.java).apply {
-                    putExtra("BARCODE", barcode)
+                    putExtra("BARCODE", cartBarcode)
                     putExtra("PRODUCT_NAME", product.name)
                     putExtra("SHORT_NAME", product.shortName)
                     putExtra("PRODUCT_PRICE", product.price)

@@ -152,6 +152,10 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".PreOrderFulfillmentActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".WarehouseInventoryActivity"
             android:exported="false"
             android:screenOrientation="portrait" />

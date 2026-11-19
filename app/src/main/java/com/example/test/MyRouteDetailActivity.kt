@@ -596,9 +596,12 @@ class MyRouteDetailActivity : BaseActivity() {
             // ver seedQuantityForStepper(). El peso REALMENTE cargado a esta
             // ruta no viaja por acá sino por KEY_ROUTE_LOADED_UNITS (abajo).
             val initialQty = seedQuantityForStepper(product.qty, product.weightPerUnit, product.unit)
+            // Códigos por flete (2026-11-19): el código escaneado puede ser el de un flete
+            // anterior; el carrito/venta usa el código ACTUAL que devolvió el backend.
+            val cartBarcode = product.barcode.takeIf { it != "unknown" } ?: barcode
             startActivity(
                 Intent(this@MyRouteDetailActivity, ProductDetailActivity::class.java).apply {
-                    putExtra("BARCODE", barcode)
+                    putExtra("BARCODE", cartBarcode)
                     putExtra("PRODUCT_NAME", product.name)
                     putExtra("SHORT_NAME", product.shortName)
                     putExtra("PRODUCT_PRICE", product.price)
@@ -618,6 +621,13 @@ class MyRouteDetailActivity : BaseActivity() {
 
     private fun renderItems(items: List<RouteItemDto>, stops: List<RouteStopDto>, sellingActive: Boolean, pendingOrders: List<com.example.test.data.local.entities.PendingOrderEntity>) {
         layoutItems.removeAllViews()
+        // "Solo vende lo cargado" (2026-11-19): lo que queda por producto, para que
+        // "Escanear otro producto" (MainActivity) no deje vender lo que no está en el camión.
+        if (sellingActive) {
+            securePrefs.saveActiveRouteStock(
+                items.filter { it.barcode != null }.associate { it.barcode!! to ((it.totalLoadedQty ?: it.quantity) - it.soldQty).coerceAtLeast(0.0) }
+            )
+        }
         if (items.isEmpty()) {
             tvNoItems.visibility = View.VISIBLE
             return

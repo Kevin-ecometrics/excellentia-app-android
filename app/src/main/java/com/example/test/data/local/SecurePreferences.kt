@@ -124,7 +124,21 @@ class SecurePreferences(context: Context) {
     fun getActiveRouteId(): Int? = prefs.getInt(KEY_ACTIVE_ROUTE_ID, -1).takeIf { it != -1 }
     fun getActiveStopId(): Int? = prefs.getInt(KEY_ACTIVE_STOP_ID, -1).takeIf { it != -1 }
     fun clearActiveRouteStop() {
-        prefs.edit().remove(KEY_ACTIVE_ROUTE_ID).remove(KEY_ACTIVE_STOP_ID).apply()
+        prefs.edit().remove(KEY_ACTIVE_ROUTE_ID).remove(KEY_ACTIVE_STOP_ID).remove(KEY_ACTIVE_ROUTE_STOCK).apply()
+    }
+
+    // "Solo vende lo cargado" (2026-11-19): lo que queda en el camión por barcode
+    // (cargado − vendido), guardado por MyRouteDetailActivity al mostrar la ruta.
+    // MainActivity ("Escanear otro producto") lo consulta — funciona sin señal.
+    fun saveActiveRouteStock(leftByBarcode: Map<String, Double>) {
+        prefs.edit().putString(KEY_ACTIVE_ROUTE_STOCK, org.json.JSONObject(leftByBarcode as Map<*, *>).toString()).apply()
+    }
+    fun getActiveRouteStock(): Map<String, Double>? {
+        val json = prefs.getString(KEY_ACTIVE_ROUTE_STOCK, null) ?: return null
+        return try {
+            val o = org.json.JSONObject(json)
+            o.keys().asSequence().associateWith { o.getDouble(it) }
+        } catch (_: Exception) { null }
     }
 
     fun saveCompanySettings(name: String, subtitle: String, address: String?, phone: String?, city: String?) {
@@ -189,6 +203,7 @@ class SecurePreferences(context: Context) {
         private const val KEY_USER_ROLE  = "user_role"
         private const val KEY_USER_ID    = "user_id"
         private const val KEY_ACTIVE_ROUTE_ID = "active_route_id"
+        private const val KEY_ACTIVE_ROUTE_STOCK = "active_route_stock"
         private const val KEY_ACTIVE_STOP_ID  = "active_stop_id"
         private const val KEY_LAST_SCAN_BARCODE = "last_scan_barcode"
         private const val KEY_LAST_SCAN_NAME = "last_scan_name"

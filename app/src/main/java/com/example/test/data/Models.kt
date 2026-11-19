@@ -571,7 +571,11 @@ data class BatchRequest(
     // finalizar y viaja igual en "Reintentar" y en la cola offline: si el
     // servidor ya registró la venta (respuesta lenta), devuelve la misma en
     // vez de crear un duplicado. Ver createBatch/batchIdempotency.ts.
-    @SerializedName("client_request_id") val clientRequestId: String? = null
+    @SerializedName("client_request_id") val clientRequestId: String? = null,
+    // "Solo vende lo cargado" (2026-11-19): true cuando la sube la cola offline
+    // (SyncWorker). El ticket ya se imprimió: si no cuadra con lo cargado a la
+    // ruta, el backend la acepta y la marca para revisión en vez de rechazarla.
+    @SerializedName("offline_queued") val offlineQueued: Boolean? = null
 )
 
 // Fase 82 — adjunta payment_method/check_number a un batch que ya se mandó
@@ -854,7 +858,11 @@ data class PreOrderRequest(
     // id real del vendedor elegido en el picker (no solo su nombre) — el backend lo
     // usa como assigned_user_id: junto con el creador, es el único no-admin que
     // puede ver esta pre-orden (ver CreatePreOrderActivity.showSalespersonPicker()).
-    @SerializedName("assigned_user_id") val assignedUserId: Int? = null
+    @SerializedName("assigned_user_id") val assignedUserId: Int? = null,
+    // Cuándo se creó en la app (ISO). Viaja dentro del JSON de la cola offline, así
+    // el backend valida el límite de las 2 pm contra esta hora y no contra la de
+    // subida (PreOrderDateRules).
+    @SerializedName("client_created_at") val clientCreatedAt: String? = null
 )
 
 data class PreOrderDto(
@@ -1198,7 +1206,9 @@ data class ConvertPreOrderRequest(
     @SerializedName("apply_credit") val applyCredit: Double? = null,
     // Detalle finalizado (precio/peso/case) capturado el día de la conversión —
     // la pre-orden se creó sin esto, ver PreOrderItem.
-    val items: List<PreOrderItem>
+    val items: List<PreOrderItem>,
+    // "Solo vende lo cargado" (2026-11-19) — ver BatchRequest.offlineQueued.
+    @SerializedName("offline_queued") val offlineQueued: Boolean? = null
 )
 
 data class ConvertPreOrderResponse(
@@ -1654,4 +1664,32 @@ data class ConsignmentSettleResponse(
     val items: List<ConsignmentSettleResultItem>,
     @SerializedName("batchId") val batchId: String? = null,
     @SerializedName("invoiceNumber") val invoiceNumber: Int? = null
+)
+
+// Reporte de pre-órdenes vs inventario (2026-11-19) — GET /api/preorders/fulfillment-report
+// (services/preOrderFulfillment.ts en el backend). Solo lectura, para el almacén.
+data class FulfillmentReportDto(
+    @SerializedName("date_from") val dateFrom: String,
+    @SerializedName("date_to") val dateTo: String,
+    @SerializedName("pre_order_count") val preOrderCount: Int,
+    val data: List<FulfillmentLineDto>
+)
+
+data class FulfillmentLineDto(
+    @SerializedName("product_name") val productName: String,
+    val unit: String?,
+    val requested: Double,
+    val available: Double,
+    @SerializedName("available_lbs") val availableLbs: Double?,
+    val shortage: Double,
+    @SerializedName("without_qty") val withoutQty: Int,
+    val status: String, // "out" | "short" | "ok"
+    val orders: List<FulfillmentOrderDto>
+)
+
+data class FulfillmentOrderDto(
+    @SerializedName("pre_order_id") val preOrderId: Int,
+    @SerializedName("customer_name") val customerName: String,
+    @SerializedName("scheduled_date") val scheduledDate: String,
+    val requested: Double?
 )

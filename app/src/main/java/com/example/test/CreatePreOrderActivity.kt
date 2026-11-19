@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.test.data.PreOrderDateRules
 import com.example.test.data.PreOrderItem
 import com.example.test.data.PreOrderRequest
 import com.example.test.data.UserBrief
@@ -60,6 +61,9 @@ class CreatePreOrderActivity : BaseActivity() {
     // canAccessPreOrder en el backend). No hay un campo separado de "asignar".
     private var selectedSalespersonUserId: Int? = null
     private var selectedDate: String? = null
+    // Fecha guardada al entrar en modo edición: si no cambia, no se valida el límite
+    // de las 2 pm (editar productos de una pre-orden ya fechada para mañana no falla).
+    private var originalDate: String? = null
     private val items = mutableListOf<PreOrderItem>()
     private var editId: Int = -1
     private val salespersons = mutableListOf<UserBrief>()
@@ -186,6 +190,7 @@ class CreatePreOrderActivity : BaseActivity() {
                 }
                 po.scheduledDate?.take(10)?.let {
                     selectedDate = it
+                    originalDate = it
                     tvSelectedDate.text = getString(R.string.label_delivery_date, it)
                     tvSelectedDate.visibility = View.VISIBLE
                 }
@@ -261,14 +266,18 @@ class CreatePreOrderActivity : BaseActivity() {
             .show()
     }
 
+    // Límite de las 2 pm (2026-11-19): el selector arranca y se limita a la entrega
+    // más temprana permitida (PreOrderDateRules), para todos los roles.
     private fun showDatePicker() {
-        val cal = Calendar.getInstance()
+        val initial = selectedDate?.takeIf { PreOrderDateRules.isAllowed(it) }
+            ?.let { java.time.LocalDate.parse(it) }
+            ?: PreOrderDateRules.earliestDeliveryDate()
         DatePickerDialog(this, { _, y, m, d ->
             selectedDate = String.format(Locale.US, "%04d-%02d-%02d", y, m + 1, d)
             tvSelectedDate.text = getString(R.string.label_delivery_date, selectedDate)
             tvSelectedDate.visibility = View.VISIBLE
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).also {
-            it.datePicker.minDate = cal.timeInMillis
+        }, initial.year, initial.monthValue - 1, initial.dayOfMonth).also {
+            it.datePicker.minDate = PreOrderDateRules.minDateMillis()
         }.show()
     }
 
@@ -278,7 +287,9 @@ class CreatePreOrderActivity : BaseActivity() {
                 val resp = RetrofitClient.getApi().getProductByBarcode(barcode)
                 if (resp.isSuccessful) {
                     val product = resp.body()?.data ?: return@launch
-                    openAddItemStepper(barcode, product)
+                    // Códigos por flete (2026-11-19): la línea guarda el código actual del
+                    // producto, no el escaneado (puede ser de un flete anterior).
+                    openAddItemStepper(product.barcode ?: barcode, product)
                 } else {
                     Snackbar.make(findViewById(android.R.id.content),
                         getString(R.string.error_product_not_found_barcode, barcode), Snackbar.LENGTH_SHORT).show()
@@ -477,6 +488,14 @@ class CreatePreOrderActivity : BaseActivity() {
             Snackbar.make(findViewById(android.R.id.content), getString(R.string.error_add_at_least_one_product), Snackbar.LENGTH_SHORT).show()
             return
         }
+        // La pantalla pudo quedar abierta de 1:55 a 2:10 pm con "mañana" elegido.
+        if (selectedDate != originalDate && !PreOrderDateRules.isAllowed(selectedDate!!)) {
+            Snackbar.make(findViewById(android.R.id.content),
+                getString(R.string.error_preorder_date_cutoff, PreOrderDateRules.earliestDeliveryDate().toString()),
+                Snackbar.LENGTH_LONG).show()
+            showDatePicker()
+            return
+        }
 
         btnSavePreOrder.isEnabled = false
         btnSavePreOrder.text = getString(R.string.btn_saving)
@@ -488,7 +507,8 @@ class CreatePreOrderActivity : BaseActivity() {
             scheduledDate   = selectedDate,
             notes           = etNotes.text?.toString()?.trim()?.takeIf { it.isNotBlank() },
             items           = items.toList(),
-            assignedUserId  = selectedSalespersonUserId
+            assignedUserId  = selectedSalespersonUserId,
+            clientCreatedAt = java.time.Instant.now().toString()
         )
 
         if (editId > 0) {

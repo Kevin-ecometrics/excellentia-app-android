@@ -361,33 +361,21 @@ class PreOrderDetailActivity : BaseActivity() {
     // Reprogramar la entrega desde acá (a pedido del usuario) en vez de ocultar/filtrar
     // pre-órdenes vencidas en el picker de "Nueva ruta" (WarehouseActivity, Android) —
     // así la pre-orden deja de aparecer como "atrasada" apenas se le pone fecha real.
+    // Límite de las 2 pm (2026-11-19): la fecha mínima es la entrega más temprana
+    // permitida (PreOrderDateRules), para todos los roles (admin incluido).
+    // Si la fecha guardada ya no es válida (pasada, o mañana después de las 2 pm)
+    // el picker arranca en la mínima en vez de abajo del minDate.
     private fun showEditDateDialog() {
         val po = currentPreOrder ?: return
-        val todayStart = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, 0)
-            set(java.util.Calendar.MINUTE, 0)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }
-        val cal = java.util.Calendar.getInstance()
-        po.scheduledDate?.take(10)?.split("-")?.let { parts ->
-            try {
-                cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
-            } catch (_: Exception) { }
-        }
-        // Si la fecha guardada ya pasó (el motivo más común para tocar el lápiz),
-        // arrancar el picker ahí lo dejaría abajo del minDate — se muestra hoy en su
-        // lugar, que además es el único valor que después pasa la validación de
-        // startConversionFlow().
-        if (cal.before(todayStart)) cal.timeInMillis = todayStart.timeInMillis
+        val initial = po.scheduledDate?.take(10)
+            ?.takeIf { com.example.test.data.PreOrderDateRules.isAllowed(it) }
+            ?.let { java.time.LocalDate.parse(it) }
+            ?: com.example.test.data.PreOrderDateRules.earliestDeliveryDate()
 
         DatePickerDialog(this, { _, y, m, d ->
             updateScheduledDate(String.format(Locale.US, "%04d-%02d-%02d", y, m + 1, d))
-        }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH), cal.get(java.util.Calendar.DAY_OF_MONTH)).apply {
-            // No tiene sentido reprogramar una entrega a un día que ya pasó — la
-            // conversión ya exige que scheduled_date sea hoy (startConversionFlow),
-            // así que elegir un día anterior acá solo la dejaría bloqueada de nuevo.
-            datePicker.minDate = todayStart.timeInMillis
+        }, initial.year, initial.monthValue - 1, initial.dayOfMonth).apply {
+            datePicker.minDate = com.example.test.data.PreOrderDateRules.minDateMillis()
         }.show()
     }
 
@@ -414,7 +402,9 @@ class PreOrderDetailActivity : BaseActivity() {
                     renderDateSection(currentPreOrder!!)
                     Snackbar.make(findViewById(android.R.id.content), getString(R.string.msg_date_updated), Snackbar.LENGTH_SHORT).show()
                 } else {
-                    showError(getString(R.string.error_updating_date))
+                    // Mensaje del backend tal cual si viene (ej. límite de las 2 pm).
+                    val msg = try { org.json.JSONObject(resp.errorBody()?.string() ?: "").optString("error") } catch (_: Exception) { "" }
+                    showError(msg.ifBlank { getString(R.string.error_updating_date) })
                 }
             } catch (e: Exception) {
                 showError(e.localizedMessage ?: getString(R.string.error_updating_date))

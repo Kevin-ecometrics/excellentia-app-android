@@ -382,6 +382,7 @@
     <string name="error_preorder_needs_one_item">The pre-order needs at least one product</string>
     <string name="btn_search_product">Search product</string>
     <string name="error_select_date">Select a delivery date</string>
+    <string name="error_preorder_date_cutoff">The earliest delivery date is %1$s (before 2:00 pm: tomorrow; from 2:00 pm: the day after tomorrow).</string>
     <string name="label_no_items_scan">No products. Tap \'+ Add\' or scan a barcode.</string>
     <string name="label_estimated_total">ESTIMATED TOTAL</string>
 
@@ -750,6 +751,7 @@
     <string name="wh_item_sold_badge">Sold</string>
     <string name="label_route_item_left">%1$s left</string>
     <string name="msg_route_item_sold_out">This product is fully sold — none left on the truck</string>
+    <string name="msg_route_product_not_loaded">%1$s is not loaded on your route truck — you can only sell what was loaded</string>
     <string name="wh_consignmentReturned_label">Returned</string>
     <string name="btn_settle_consignment">Settle</string>
     <string name="error_consignment_settle_empty">Enter a sold or returned quantity</string>
@@ -917,4 +919,14 @@
     <string name="msg_email_sent">Email sent to %1$s</string>
     <string name="btn_email_pre_order">Send order by email</string>
     <string name="title_email_pre_order">Email order confirmation</string>
+    <string name="pof_title">Pre-orders vs stock</string>
+    <string name="pof_summary">Delivery %1$s to %2$s · %3$d confirmed pre-orders · not loaded to a route yet</string>
+    <string name="pof_line">Requested %1$s · Available %2$s</string>
+    <string name="pof_short">Short %1$s</string>
+    <string name="pof_without_qty">%1$d without quantity</string>
+    <string name="pof_status_ok">Enough</string>
+    <string name="pof_status_short">Short</string>
+    <string name="pof_status_out">Out of stock</string>
+    <string name="pof_boxes">boxes</string>
+    <string name="pof_empty">No confirmed pre-orders for the next 7 days</string>
 </resources>

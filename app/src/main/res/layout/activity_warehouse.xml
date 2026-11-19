@@ -91,17 +91,19 @@
              almacén que no son por ruta (a diferencia del resto de esta
              pantalla). La liquidación diaria (push a QBO) pasó a ser un panel
              admin-only en la webapp, no vive en Android. -->
-        <HorizontalScrollView
+        <!-- Dos renglones de 2 botones (2026-11-19): con 4 botones la fila
+             horizontal se cortaba a la derecha. -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingBottom="4dp"
-            android:scrollbars="none">
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="4dp">
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
+                android:orientation="horizontal">
 
                 <!-- colorPrimary (texto/borde default de OutlinedButton) es un verde
                      casi negro, igual que el fondo de esta pantalla — quedaba
@@ -110,43 +112,72 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnReceiving"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
                     android:text="@string/wh_btn_receiving"
                     android:textColor="@color/white"
                     android:textSize="12sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     app:rippleColor="@color/ex_green_tint"
                     app:strokeColor="@color/white" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnMovements"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="0dp"
                     android:text="@string/wh_btn_movements"
                     android:textColor="@color/white"
                     android:textSize="12sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     app:rippleColor="@color/ex_green_tint"
                     app:strokeColor="@color/white" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
 
                 <!-- Backlog cliente (2026-09-23) — consulta de stock, solo
                      lectura, mismo dato que /products en la webapp. -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnInventory"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
                     android:text="@string/wh_btn_inventory"
                     android:textColor="@color/white"
                     android:textSize="12sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     app:rippleColor="@color/ex_green_tint"
                     app:strokeColor="@color/white" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPreOrderStock"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="0dp"
+                    android:text="@string/pof_title"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    app:rippleColor="@color/ex_green_tint"
+                    app:strokeColor="@color/white" />
             </LinearLayout>
-        </HorizontalScrollView>
+        </LinearLayout>
 
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipeRefresh"

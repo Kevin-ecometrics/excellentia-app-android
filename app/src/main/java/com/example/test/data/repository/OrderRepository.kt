@@ -219,7 +219,9 @@ class OrderRepository(
                 // segundos con la misma huella devuelve esa venta.
                 Result.failure(BatchUnreachableException())
             } else {
-                Result.failure(Exception("Error del servidor: ${response.code()}"))
+                // Mensaje del backend tal cual si viene (ej. "solo vende lo cargado").
+                val msg = try { org.json.JSONObject(response.errorBody()?.string() ?: "").optString("error") } catch (_: Exception) { "" }
+                Result.failure(Exception(msg.ifBlank { "Error del servidor: ${response.code()}" }))
             }
         } catch (e: Exception) {
             // Sin red o timeout. Antes siempre se guardaba offline en

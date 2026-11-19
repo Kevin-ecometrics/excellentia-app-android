@@ -157,6 +157,10 @@ interface ApiService {
         @Query("limit") limit: Int = 30
     ): Response<ApiResponse<List<PreOrderDto>>>
 
+    // Pre-órdenes vs inventario (2026-11-19) — admin/almacenista. Sin fechas = hoy a 7 días.
+    @GET("api/preorders/fulfillment-report")
+    suspend fun getFulfillmentReport(): Response<com.example.test.data.FulfillmentReportDto>
+
     @GET("api/preorders/{id}")
     suspend fun getPreOrder(@Path("id") id: Int): Response<ApiResponse<PreOrderDto>>
 
